@@ -202,6 +202,9 @@ public:
 	[[eosio::action]]
 	void removemember(name member_to_remove);
 
+	[[eosio::action]]
+	void resign(name member);
+
 	//TODO: board member multisig kick action
 			//Starts run off leaderboard at start/end
 

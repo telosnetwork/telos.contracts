@@ -379,7 +379,18 @@ void tfvt::endelection(name holder) {
 
 void tfvt::removemember(name member_to_remove) {
 	require_auth(get_self());
+
 	remove_and_seize(member_to_remove);
+	_config.open_seats++;
+	
+	auto perms = perms_from_members();
+	set_permissions(perms);
+}
+
+void tfvt::resign(name member) {
+	require_auth(member);
+
+	remove_and_seize(member);
 	_config.open_seats++;
 	
 	auto perms = perms_from_members();
@@ -597,4 +608,4 @@ vector<tfvt::permission_level_weight> tfvt::perms_from_members() {
 
 //(setboard)
 EOSIO_DISPATCH(tfvt, (inittfvt)(inittfboard)(setconfig)(nominate)(makeissue)
-	(closeissue)(makeelection)(addcand)(removecand)(endelection)(removemember))
+	(closeissue)(makeelection)(addcand)(removecand)(endelection)(removemember)(resign))
