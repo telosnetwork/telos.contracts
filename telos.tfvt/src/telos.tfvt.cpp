@@ -378,8 +378,9 @@ void tfvt::endelection(name holder) {
 }
 
 void tfvt::removemember(name member_to_remove) {
-	require_auth2(get_self().value, "major"_n.value);
+	require_auth(get_self());
 	remove_and_seize(member_to_remove);
+	_config.open_seats++;
 	
 	auto perms = perms_from_members();
 	set_permissions(perms);
