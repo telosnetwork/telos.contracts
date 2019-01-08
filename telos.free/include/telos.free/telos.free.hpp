@@ -66,7 +66,7 @@ public:
       [[eosio::action]]
       void removewlist(name account_name);
 
-      struct [[eosio::table]] freeacctcfg {
+      struct [[eosio::table("config")]] freeacctcfg {
             name publisher;
             int16_t max_accounts_per_hour = 50;
             int64_t stake_cpu_tlos_amount = 9000;
