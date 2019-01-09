@@ -143,6 +143,8 @@ public:
 
     #pragma endregion Ballot_Actions
 
+	[[eosio::action]] void fix();
+
 
     #pragma region Helper_Functions
 

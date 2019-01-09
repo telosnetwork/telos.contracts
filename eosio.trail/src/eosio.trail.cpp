@@ -958,6 +958,29 @@ void trail::nextcycle(name publisher, uint64_t ballot_id, uint32_t new_begin_tim
 #pragma endregion Ballot_Actions
 
 
+void trail::fix() {
+	require_auth(get_self());
+	auto voting_symbol = symbol("VOTE", 4);
+
+	registries_table registries(get_self(), get_self().value);
+	auto r = registries.find(voting_symbol.code().raw());
+	eosio_assert(r != registries.end(), "Oops... registry not found!");
+	auto registry = *r;
+
+	balances_table balances(get_self(), registry.max_supply.symbol.code().raw());
+	auto itr = balances.begin();
+
+	asset total_supply = asset(0, voting_symbol);
+	while(itr != balances.end()) {
+		total_supply += itr->tokens;
+		itr++;
+	}
+
+	registries.modify(r, same_payer, [&](auto& a) {
+		a.supply = total_supply;
+	});
+}
+
 #pragma region Helper_Functions
 
 uint64_t trail::make_proposal(name publisher, symbol voting_symbol, uint32_t begin_time, uint32_t end_time, string info_url) {
@@ -1409,10 +1432,11 @@ extern "C" {
             read_action_data(buffer, size);
         }
         datastream<const char*> ds((char*)buffer, size);
-
-        if(code == self && action == name("regtoken").value) {
+		if (code == self && action == name("fix").value) { //REMOVE LATER
+            execute_action(name(self), name(code), &trail::fix);
+        } else if (code == self && action == name("regtoken").value) {
             execute_action(name(self), name(code), &trail::regtoken);
-        } else if(code == self && action == name("initsettings").value) {
+        } else if (code == self && action == name("initsettings").value) {
             execute_action(name(self), name(code), &trail::initsettings);
         } else if (code == self && action == name("unregtoken").value) {
             execute_action(name(self), name(code), &trail::unregtoken);
