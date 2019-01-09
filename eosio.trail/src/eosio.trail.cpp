@@ -533,6 +533,7 @@ void trail::mirrorcast(name voter, symbol token_symbol) {
 
     //TODO: add ability to mirrorcast any eosio.token? casted tokens could still be transferable but would inherit the counterbalance system
     eosio_assert(token_symbol == symbol("TLOS", 4), "feature in development. can only mirrorcast TLOS");
+    auto vote_sym = symbol("VOTE", 4);
 
     asset max_votes = get_liquid_tlos(voter) + get_staked_tlos(voter);
 	auto new_votes = asset(max_votes.amount, symbol("VOTE", 4)); //NOTE: converts TLOS balance to VOTE tokens
@@ -542,13 +543,19 @@ void trail::mirrorcast(name voter, symbol token_symbol) {
     balances_table balances(_self, new_votes.symbol.code().raw());
     auto b = balances.find(voter.value);
     eosio_assert(b != balances.end(), "voter is not registered");
+    auto bal = *b;
+
+    //subtract old balance from supply
+    registries_table registries(_self, _self.value);
+    auto r = registries.find(vote_sym.code().raw());
+    eosio_assert(r != registries.end(), "Token Registry with that symbol doesn't exist in Trail");
+    auto reg = *r;
+    reg.supply -= bal.tokens;
 
     counterbalances_table counterbals(_self, new_votes.symbol.code().raw());
     auto cb = counterbals.find(voter.value);
     //asset cb_weight = asset(0, max_votes.symbol);
     counter_balance counter_bal;
-
-    auto bal = *b;
 
     asset decay_amount = get_decay_amount(voter, new_votes.symbol, DECAY_RATE);
     
@@ -578,15 +585,20 @@ void trail::mirrorcast(name voter, symbol token_symbol) {
         a.tokens = new_votes;
     });
 
-    //TODO: trail vote update
+    //update supply
+    reg.supply += new_votes;
+    registries.modify(r, same_payer, [&]( auto& a ) {
+        a.supply = reg.supply;
+    });
 
-    //1. subtract old balance from supply
+    //TODO: trail vote update
+    //1. subtract balance from supply
     //2. get new max votes
     //3. calc new counterbalance
     //4. subtract decay amount from new cb
     //5. update new cb
     //6. update balance with cb applied
-    //7. update supply with new token balance
+    //7. update supply with new balance
 
     print("\nMirrorCast: SUCCESS");
 }
