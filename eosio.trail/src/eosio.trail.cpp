@@ -578,6 +578,16 @@ void trail::mirrorcast(name voter, symbol token_symbol) {
         a.tokens = new_votes;
     });
 
+    //TODO: trail vote update
+
+    //1. subtract old balance from supply
+    //2. get new max votes
+    //3. calc new counterbalance
+    //4. subtract decay amount from new cb
+    //5. update new cb
+    //6. update balance with cb applied
+    //7. update supply with new token balance
+
     print("\nMirrorCast: SUCCESS");
 }
 
