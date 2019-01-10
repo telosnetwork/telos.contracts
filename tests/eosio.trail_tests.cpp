@@ -168,6 +168,47 @@ BOOST_FIXTURE_TEST_CASE( mirror_cast, eosio_trail_tester ) try {
 		);
 		produce_blocks( 2 );
 	}
+
+	// asset max_supply;
+    // asset supply;
+    // uint32_t total_voters;
+    // uint32_t total_proxies;
+    // name publisher;
+    // string info_url;
+    // token_settings settings;
+
+	mvo settings_test = mvo()
+		("is_destructible", 0)
+		("is_proxyable", 0)
+		("is_burnable", 1)
+		("is_seizable", 0)
+		("is_max_mutable", 1)
+		("is_transferable", 0)
+		("is_recastable", 0)
+		("is_initialized", 1)
+		("counterbal_decay_rate", 300)
+		("lock_after_initialize", 0);
+
+	//check registry supply
+	auto reg_info = get_registry(test_symbol);
+	// REQUIRE_MATCHING_OBJECT(reg_info, mvo()
+	// 	("max_supply", "10000000000.0000 VOTE")
+	// 	("supply", "25600.0000 VOTE")
+	// 	("total_voters", 128)
+	// 	("total_proxies", 0)
+	// 	("publisher", "eosio.trail")
+	// 	("info_url", "Qmdsafkjhasdlfjh")
+	// 	("settings", settings_test)
+	// );
+
+	BOOST_REQUIRE_EQUAL(reg_info["max_supply"], "10000000000.0000 VOTE");
+	BOOST_REQUIRE_EQUAL(reg_info["supply"], "25600.0000 VOTE");
+	BOOST_REQUIRE_EQUAL(reg_info["total_voters"], 128);
+	BOOST_REQUIRE_EQUAL(reg_info["total_proxies"], 0);
+	BOOST_REQUIRE_EQUAL(reg_info["publisher"], "eosio.trail");
+	BOOST_REQUIRE_EQUAL(reg_info["info_url"], "Qmdsafkjhasdlfjh");
+	// BOOST_REQUIRE_EQUAL(reg_info["settings"], settings_test);
+
 	//Transfer to a new account
 	create_accounts({N(votedecay)});
 	transfer(N(eosio), N(votedecay), asset::from_string("1000.0000 TLOS"), "Vote decay test");
