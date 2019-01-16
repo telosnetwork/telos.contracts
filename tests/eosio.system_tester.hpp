@@ -723,6 +723,10 @@ public:
                                 );
    }
 
+   double stake2votes( asset a) {
+      return stake2votes( a, 30, 30 );
+   }
+
    double stake2votes( const string& s, double voted_producers_count, double total_producers_count ) {
       return stake2votes( core_sym::from_string(s), voted_producers_count, total_producers_count );
    }

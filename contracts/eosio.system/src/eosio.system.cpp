@@ -18,7 +18,7 @@ namespace eosiosystem {
     _rammarket(_self, _self.value),
     _schedule_metrics(_self, _self.value),
     _rotation(_self, _self.value),
-    _payments(_self, _self.value)
+    _payments(_self, _self.value),
 	_rexpool(_self, _self.value),
     _rexfunds(_self, _self.value),
     _rexbalance(_self, _self.value),
@@ -290,8 +290,8 @@ namespace eosiosystem {
 
    void system_contract::updtrevision( uint8_t revision ) {
       require_auth( _self );
-      check( _gstate2.revision < 255, "can not increment revision" ); // prevent wrap around
-      check( revision == _gstate2.revision + 1, "can only increment revision by one" );
+      check( _gstate.revision < 255, "can not increment revision" ); // prevent wrap around
+      check( revision == _gstate.revision + 1, "can only increment revision by one" );
       check( revision <= 1, // set upper bound to greatest revision supported in the code
                     "specified revision is not yet supported by the code" );
       _gstate.revision = revision;
