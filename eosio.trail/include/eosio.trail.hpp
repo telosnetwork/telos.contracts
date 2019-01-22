@@ -143,9 +143,6 @@ public:
 
     #pragma endregion Ballot_Actions
 
-	[[eosio::action]] void fix();
-
-
     #pragma region Helper_Functions
 
     uint64_t make_proposal(name publisher, symbol voting_symbol, uint32_t begin_time, uint32_t end_time, string info_url);
