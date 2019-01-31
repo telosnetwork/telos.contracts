@@ -162,7 +162,7 @@ BOOST_FIXTURE_TEST_CASE( register_unregister_endelection, eosio_arb_tester ) try
    BOOST_REQUIRE_EXCEPTION( 
       candaddlead(candidate, credentials), 
       eosio_assert_message_exception, 
-      eosio_assert_message_is( "ballot doesn't exist" )
+      eosio_assert_message_is( "there is no active election" )
    );
 
    auto config = get_config();
@@ -579,7 +579,7 @@ BOOST_FIXTURE_TEST_CASE( full_election, eosio_arb_tester ) try {
    BOOST_REQUIRE_EXCEPTION( 
       candaddlead(noncandidate, credentials),
       eosio_assert_message_exception, 
-      eosio_assert_message_is( "Candidate isn't an applicant. Use regcand action to register candidate" )
+      eosio_assert_message_is( "there is no active election" )
    );
 
    regcand(noncandidate, credentials);
@@ -588,7 +588,7 @@ BOOST_FIXTURE_TEST_CASE( full_election, eosio_arb_tester ) try {
    BOOST_REQUIRE_EXCEPTION( 
       candaddlead(noncandidate, credentials),
       eosio_assert_message_exception, 
-      eosio_assert_message_is( "A new election hasn't started. Use initelection action to start a new election." )
+      eosio_assert_message_is( "there is no active election" )
    );
 } FC_LOG_AND_RETHROW()
 
