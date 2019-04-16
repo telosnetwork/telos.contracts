@@ -540,6 +540,13 @@ void tfvt::remove_and_seize(name member) {
 			amount_to_seize
 		)
 	).send();
+
+	action(permission_level{get_self(), "active"_n }, "eosio.trail"_n, "burntoken"_n,
+		std::make_tuple(
+			get_self(),
+			asset(1, symbol("TFBOARD", 0))
+		)
+	).send();
 }
 
 void tfvt::set_permissions(vector<permission_level_weight> perms) {
