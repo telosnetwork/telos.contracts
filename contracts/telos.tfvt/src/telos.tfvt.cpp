@@ -529,7 +529,7 @@ void tfvt::remove_and_seize_all() {
 void tfvt::remove_and_seize(name member) {
 	members_table members(get_self(), get_self().value);
 	asset amount_to_seize = asset(1, symbol("TFBOARD", 0));
-	auto m = members.get(member.value, "board member not found");
+	auto& m = members.get(member.value, "board member not found");
 
 	members.erase(m);
 
