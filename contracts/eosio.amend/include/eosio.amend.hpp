@@ -138,4 +138,10 @@ class [[eosio::contract("eosio.amend")]] ratifyamend : public contract {
 	    void setenv(config new_environment);
 
 	    void transfer_handler(name from, name to, asset quantity);
+
+		void validate_ipfs_link(string ipfs_link)
+		{
+			auto base_url = ipfs_link.substr(0, 36);
+			check(base_url == "https://web.ipfs.telosfoundation.io/", "IPFS base URI must be on TIPFS: https://web.ipfs.telosfoundation.io/");
+		}
 };

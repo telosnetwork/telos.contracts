@@ -20,7 +20,7 @@ ratifyamend::ratifyamend(name self, name code, datastream<const char*> ds) : con
     }
 }
 
-ratifyamend::~ratifyamend() {}
+ratifyamend::~ratifyamend() { }
 
 void ratifyamend::setenv(config new_environment) {
 	eosio_assert(new_environment.expiration_length > 0, "expiration_length must be a non-zero number");
@@ -105,6 +105,7 @@ void ratifyamend::makeproposal(string sub_title, uint64_t doc_id, uint8_t new_cl
     auto doc = *d;
 
     eosio_assert(new_clause_num <= doc.clauses.size() && new_clause_num >= 0, "new clause num is not valid");
+	validate_ipfs_link(new_ipfs_url);
 
 	deposits_table deposits(_self, _self.value);
 	auto d_itr = deposits.find(proposer.value);
@@ -116,7 +117,7 @@ void ratifyamend::makeproposal(string sub_title, uint64_t doc_id, uint8_t new_cl
 
 	if(dep.escrow > fee) {
 	    asset outstanding = dep.escrow - fee;
-		deposits.modify(dep, same_payer, [&](auto& depo) {
+		deposits.modify(d_itr, same_payer, [&](auto& depo) {
 			depo.escrow = outstanding;
 		});
 	} else {
@@ -181,6 +182,7 @@ void ratifyamend::addclause(uint64_t sub_id, uint8_t new_clause_num, string new_
     eosio_assert(d != documents.end(), "Document Not Found");
     auto doc = *d;
 
+	validate_ipfs_link(new_ipfs_url);
     eosio_assert(new_clause_num <= doc.clauses.size() && new_clause_num >= 0, "new clause num is not valid");
     bool existing_clause = false;
 
