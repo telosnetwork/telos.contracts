@@ -122,6 +122,9 @@ class [[eosio::contract("eosio.amend")]] ratifyamend : public contract {
 		[[eosio::action]]
         void addclause(uint64_t sub_id, uint8_t new_clause_num, string new_ipfs_url);
 
+        [[eosio::action]]
+        void removeclause(uint64_t sub_id, uint8_t clause_to_remove);
+
 		[[eosio::action]]
         void openvoting(uint64_t sub_id);
 

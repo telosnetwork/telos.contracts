@@ -184,16 +184,10 @@ void ratifyamend::addclause(uint64_t sub_id, uint8_t new_clause_num, string new_
 
 	validate_ipfs_link(new_ipfs_url);
     eosio_assert(new_clause_num <= doc.clauses.size() && new_clause_num >= 0, "new clause num is not valid");
-    bool existing_clause = false;
 
-    for (int i = 0; i < sub.new_clause_nums.size(); i++) {
-        if (sub.new_clause_nums[i] == new_clause_num) {
-            existing_clause = true;
-        }
-    }
-
-    eosio_assert(existing_clause = false, "clause number to add already exists in proposal");
-
+    bool does_clause_exist = find(sub.new_clause_nums.begin(), sub.new_clause_nums.end(), new_clause_num) != sub.new_clause_nums.end();
+    eosio_assert(!does_clause_exist, "Clause already exists in this submission");
+  
     sub.new_clause_nums.push_back(new_clause_num);
     sub.new_ipfs_urls.push_back(new_ipfs_url);
 
@@ -203,6 +197,38 @@ void ratifyamend::addclause(uint64_t sub_id, uint8_t new_clause_num, string new_
     });
 
     print("\nAdd Clause: SUCCESS");
+}
+
+void ratifyamend::removeclause(uint64_t sub_id, uint8_t clause_to_remove)
+{
+    submissions_table submissions(_self, _self.value);
+    const auto& sub = submissions.get(sub_id, "submission does not exist");
+
+    ballots_table ballots("eosio.trail"_n, "eosio.trail"_n.value);
+    const auto& bal = ballots.get(sub.ballot_id, "Ballot ID doesn't exist");
+
+    proposals_table props_table("eosio.trail"_n, "eosio.trail"_n.value);
+	const auto& prop = props_table.get(bal.reference_id, "Proposal Not Found");
+
+    eosio_assert(prop.cycle_count == uint16_t(0), "proposal is no longer in building stage");
+
+    auto clauses = sub.new_clause_nums;
+    auto links = sub.new_ipfs_urls;
+
+    auto clause_it = find(clauses.begin(), clauses.end(), clause_to_remove);
+
+    eosio_assert(clause_it != clauses.end(), "Clause does not exist in submission");
+
+    auto clause_pos = distance(clauses.begin(), clause_it);
+    auto link_it = links.begin() + clause_pos;
+
+    clauses.erase(clause_it);
+    links.erase(link_it);
+
+    submissions.modify(sub, same_payer, [&](auto& s) { 
+        s.new_clause_nums = clauses;
+        s.new_ipfs_urls = links;
+    });
 }
 
 void ratifyamend::cancelsub(uint64_t sub_id) {
@@ -238,13 +264,14 @@ void ratifyamend::openvoting(uint64_t sub_id) {
 
     ballots_table ballots("eosio.trail"_n, "eosio.trail"_n.value);
     auto& bal = ballots.get(sub.ballot_id, "Ballot ID doesn't exist");
-	
+
 	proposals_table props_table("eosio.trail"_n, "eosio.trail"_n.value);
 	auto& prop = props_table.get(bal.reference_id, "Proposal Not Found");
 
     eosio_assert(prop.cycle_count == uint16_t(0), "proposal is no longer in building stage");
     eosio_assert(prop.status == uint8_t(0), "Proposal is already closed");
-    
+    eosio_assert(sub.new_clause_nums.size() > 0, "Submission must have at least one clause edit");
+
 	uint32_t begin_time = now();
 	uint32_t end_time = now() + configs_struct.expiration_length;
     action(permission_level{ _self, "active"_n }, "eosio.trail"_n, "nextcycle"_n, make_tuple(
@@ -354,6 +381,8 @@ extern "C" {
             execute_action(name(self), name(code), &ratifyamend::cancelsub);
         } else if (code == self && action == name("addclause").value) {
             execute_action(name(self), name(code), &ratifyamend::addclause);
+        } else if (code == self && action == name("removeclause").value) {
+            execute_action(name(self), name(code), &ratifyamend::removeclause);
         } else if (code == self && action == name("openvoting").value) {
             execute_action(name(self), name(code), &ratifyamend::openvoting);
         } else if (code == self && action == name("closeprop").value) {
