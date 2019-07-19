@@ -1,11 +1,6 @@
-/**
- *  @file
- *  @copyright defined in eos/LICENSE.txt
- */
 #include <eosio.system/eosio.system.hpp>
 
 #include <eosiolib/eosio.hpp>
-#include <eosiolib/print.hpp>
 #include <eosiolib/datastream.hpp>
 #include <eosiolib/serialize.hpp>
 #include <eosiolib/multi_index.hpp>
@@ -22,7 +17,6 @@ namespace eosiosystem {
    using eosio::asset;
    using eosio::indexed_by;
    using eosio::const_mem_fun;
-   using eosio::print;
    using eosio::permission_level;
    using eosio::time_point_sec;
    using std::map;
@@ -136,7 +130,7 @@ namespace eosiosystem {
          );
          channel_to_rex( ramfee_account, fee );
       }
-      
+
       int64_t bytes_out;
 
       const auto& market = _rammarket.get(ramcore_symbol.raw(), "ram market does not exist");
@@ -245,8 +239,8 @@ namespace eosiosystem {
       require_auth( from );
       check( stake_net_delta.amount != 0 || stake_cpu_delta.amount != 0, "should stake non-zero amount" );
       check( std::abs( (stake_net_delta + stake_cpu_delta).amount )
-                     >= std::max( std::abs( stake_net_delta.amount ), std::abs( stake_cpu_delta.amount ) ),
-                    "net and cpu deltas cannot be opposite signs" );
+             >= std::max( std::abs( stake_net_delta.amount ), std::abs( stake_cpu_delta.amount ) ),
+             "net and cpu deltas cannot be opposite signs" );
 
       name source_stake_from = from;
       if ( transfer ) {
@@ -415,6 +409,7 @@ namespace eosiosystem {
          }
       }
 
+      vote_stake_updater( from );
       update_voting_power( from, stake_net_delta + stake_cpu_delta );
    }
 
@@ -432,7 +427,7 @@ namespace eosiosystem {
          });
       }
 
-      check( 0 <= voter_itr->staked, "stake for voting cannot be negative");
+      check( 0 <= voter_itr->staked, "stake for voting cannot be negative" );
 
     //   if( voter == "b1"_n ) {
     //      validate_b1_vesting( voter_itr->staked );
@@ -477,7 +472,7 @@ namespace eosiosystem {
       auto req = refunds_tbl.find( owner.value );
       check( req != refunds_tbl.end(), "refund request not found" );
       check( req->request_time + seconds(refund_delay_sec) <= current_time_point(),
-                    "refund is not available yet" );
+             "refund is not available yet" );
 
       INLINE_ACTION_SENDER(eosio::token, transfer)(
          token_account, { {stake_account, active_permission}, {req->owner, active_permission} },

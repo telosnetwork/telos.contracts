@@ -1,10 +1,10 @@
 /**
  * The ratify/amend contract is used to submit proposals for ratifying and amending major documents in the Telos Network. Users register their
  * account through the Trail Service, where they will be issued a VoterID card that tracks and stores their vote participation. Once registered,
- * users can then cast votes equal to their weight of staked TLOS on proposals to update individual clauses within a document. Submitting a 
+ * users can then cast votes equal to their weight of staked TLOS on proposals to update individual clauses within a document. Submitting a
  * proposal requires a deposit of TLOS. The deposit will be refunded if proposal reaches a minimum threshold of participation and acceptance
  * by registered voters (even if the proposal itself fails to pass).
- * 
+ *
  * @author Craig Branscom
  * @copyright defined in telos/LICENSE.txt
  */
@@ -106,7 +106,7 @@ class [[eosio::contract("eosio.amend")]] ratifyamend : public contract {
     }
 
     #pragma endregion Helper_Functions
-    
+
     public:
 
         ratifyamend(name self, name code, datastream<const char*> ds);
@@ -122,9 +122,6 @@ class [[eosio::contract("eosio.amend")]] ratifyamend : public contract {
 		[[eosio::action]]
         void addclause(uint64_t sub_id, uint8_t new_clause_num, string new_ipfs_url);
 
-        [[eosio::action]]
-        void removeclause(uint64_t sub_id, uint8_t clause_to_remove);
-
 		[[eosio::action]]
         void openvoting(uint64_t sub_id);
 
@@ -133,18 +130,12 @@ class [[eosio::contract("eosio.amend")]] ratifyamend : public contract {
 
 	   	[[eosio::action]]
         void closeprop(uint64_t sub_id);
-        
+
         [[eosio::action]]
 	    void getdeposit(name owner);
-        
+
         [[eosio::action]]
 	    void setenv(config new_environment);
 
 	    void transfer_handler(name from, name to, asset quantity);
-
-		void validate_ipfs_link(string ipfs_link)
-		{
-			auto base_url = ipfs_link.substr(0, 36);
-			check(base_url == "https://web.ipfs.telosfoundation.io/", "IPFS base URI must be on TIPFS: https://web.ipfs.telosfoundation.io/");
-		}
 };

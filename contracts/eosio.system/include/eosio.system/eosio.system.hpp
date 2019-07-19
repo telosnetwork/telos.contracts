@@ -1,7 +1,3 @@
-/**
- *  @file
- *  @copyright defined in eos/LICENSE.txt
- */
 #pragma once
 
 #include <eosio.system/native.hpp>
@@ -11,11 +7,13 @@
 #include <eosiolib/singleton.hpp>
 #include <eosio.system/exchange_state.hpp>
 
-#include <cmath>  
+#include <cmath>
 #include <string>
 #include <type_traits>
 #include <optional>
 #include <deque>
+#include <type_traits>
+#include <optional>
 
 #ifdef CHANNEL_RAM_AND_NAMEBID_FEES_TO_REX
 #undef CHANNEL_RAM_AND_NAMEBID_FEES_TO_REX
@@ -60,7 +58,7 @@ namespace eosiosystem {
 
    struct [[eosio::table("schedulemetr"), eosio::contract("eosio.system")]] schedule_metrics_state {
      name                     last_onblock_caller;
-     int32_t                          block_counter_correction;  
+     int32_t                          block_counter_correction;
      std::vector<producer_metric>     producers_metric;
 
      uint64_t primary_key()const { return last_onblock_caller.value; }
@@ -69,7 +67,7 @@ namespace eosiosystem {
    };
 
    typedef eosio::singleton< "schedulemetr"_n, schedule_metrics_state > schedule_metrics_singleton;
-   
+
    struct [[eosio::table("rotations"), eosio::contract("eosio.system")]] rotation_state {
       // bool                            is_rotation_active = true;
       name                    bp_currently_out;
@@ -84,7 +82,7 @@ namespace eosiosystem {
       // bool                            is_kick_active = true;
       // account_name                    last_onblock_caller;
       // block_timestamp                 last_time_block_produced;
-      
+
       EOSLIB_SERIALIZE( rotation_state, /*(is_rotation_active)*/(bp_currently_out)(sbp_currently_in)(bp_out_index)(sbp_in_index)(next_rotation_time)
                         (last_rotation_time)/*(is_kick_active)(last_onblock_caller)(last_time_block_produced)*/ )
    };
@@ -187,11 +185,11 @@ namespace eosiosystem {
       uint32_t              lifetime_missed_blocks = 0;
       time_point            last_claim_time;
       uint16_t              location = 0;
-      
+
       uint32_t              kick_reason_id = 0;
       std::string           kick_reason;
       uint32_t              times_kicked = 0;
-      uint32_t              kick_penalty_hours = 0; 
+      uint32_t              kick_penalty_hours = 0;
       block_timestamp       last_time_kicked;
 
       uint64_t primary_key()const { return owner.value;                             }
@@ -202,9 +200,9 @@ namespace eosiosystem {
       void kick(kick_type kt, uint32_t penalty = 0) {
         times_kicked++;
         last_time_kicked = block_timestamp(eosio::time_point(eosio::microseconds(int64_t(current_time()))));
-        
+
         if(penalty == 0) kick_penalty_hours  = uint32_t(std::pow(2, times_kicked));
-        
+
         switch(kt) {
           case kick_type::REACHED_TRESHOLD:
             kick_reason_id = uint32_t(kick_type::REACHED_TRESHOLD);
@@ -224,8 +222,8 @@ namespace eosiosystem {
         missed_blocks_per_rotation = 0;
         // print("\nblock producer: ", name{owner}, " was kicked.");
         deactivate();
-      } 
-      
+      }
+
 
       // explicit serialization macro is not necessary, used here only to improve compilation time
       EOSLIB_SERIALIZE( producer_info, (owner)(total_votes)(producer_key)(is_active)(unreg_reason)(url)
@@ -276,7 +274,7 @@ namespace eosiosystem {
    typedef eosio::multi_index< "producers"_n, producer_info,
                                indexed_by<"prototalvote"_n, const_mem_fun<producer_info, double, &producer_info::by_votes>  >
                              > producers_table;
-   
+
    typedef eosio::singleton< "global"_n, eosio_global_state >   global_state_singleton;
 
    static constexpr uint32_t     seconds_per_day = 24 * 3600;
@@ -397,6 +395,7 @@ namespace eosiosystem {
          static constexpr eosio::name names_account{"eosio.names"_n};
          static constexpr eosio::name saving_account{"eosio.saving"_n};
          static constexpr eosio::name rex_account{"eosio.rex"_n};
+         static constexpr eosio::name null_account{"eosio.null"_n};
          static constexpr symbol ramcore_symbol = symbol(symbol_code("RAMCORE"), 4);
          static constexpr symbol ram_symbol     = symbol(symbol_code("RAM"), 0);
          static constexpr symbol rex_symbol     = symbol(symbol_code("REX"), 4);
@@ -438,6 +437,12 @@ namespace eosiosystem {
          [[eosio::action]]
          void delegatebw( name from, name receiver,
                           asset stake_net_quantity, asset stake_cpu_quantity, bool transfer );
+
+         /**
+          * Sets total_rent balance of REX pool to the passed value
+          */
+         [[eosio::action]]
+         void setrex( const asset& balance );
 
          /**
           * Deposits core tokens to user REX fund. All proceeds and expenses related to REX are added to
@@ -536,6 +541,22 @@ namespace eosiosystem {
          void consolidate( const name& owner );
 
          /**
+          * Moves a specified amount of REX into savings bucket. REX savings bucket
+          * never matures. In order for it to be sold, it has to be moved explicitly
+          * out of that bucket. Then the moved amount will have the regular maturity
+          * period of 4 days starting from the end of the day.
+          */
+         [[eosio::action]]
+         void mvtosavings( const name& owner, const asset& rex );
+
+         /**
+          * Moves a specified amount of REX out of savings bucket. The moved amount
+          * will have the regular REX maturity period of 4 days.
+          */
+         [[eosio::action]]
+         void mvfrsavings( const name& owner, const asset& rex );
+
+         /**
           * Deletes owner records from REX tables and frees used RAM.
           * Owner must not have an outstanding REX balance.
           */
@@ -562,7 +583,7 @@ namespace eosiosystem {
          void undelegatebw( name from, name receiver,
                             asset unstake_net_quantity, asset unstake_cpu_quantity );
 
-        
+
          /**
           * Increases receiver's ram quota based upon current price and quantity of
           * tokens provided. An inline transfer from receiver to system contract of
@@ -634,6 +655,50 @@ namespace eosiosystem {
          [[eosio::action]]
          void votebpout(name bp, uint32_t penalty_hours);
 
+         using init_action = eosio::action_wrapper<"init"_n, &system_contract::init>;
+         using setacctram_action = eosio::action_wrapper<"setacctram"_n, &system_contract::setacctram>;
+         using setacctnet_action = eosio::action_wrapper<"setacctnet"_n, &system_contract::setacctnet>;
+         using setacctcpu_action = eosio::action_wrapper<"setacctcpu"_n, &system_contract::setacctcpu>;
+         using delegatebw_action = eosio::action_wrapper<"delegatebw"_n, &system_contract::delegatebw>;
+         using deposit_action = eosio::action_wrapper<"deposit"_n, &system_contract::deposit>;
+         using withdraw_action = eosio::action_wrapper<"withdraw"_n, &system_contract::withdraw>;
+         using buyrex_action = eosio::action_wrapper<"buyrex"_n, &system_contract::buyrex>;
+         using unstaketorex_action = eosio::action_wrapper<"unstaketorex"_n, &system_contract::unstaketorex>;
+         using sellrex_action = eosio::action_wrapper<"sellrex"_n, &system_contract::sellrex>;
+         using cnclrexorder_action = eosio::action_wrapper<"cnclrexorder"_n, &system_contract::cnclrexorder>;
+         using rentcpu_action = eosio::action_wrapper<"rentcpu"_n, &system_contract::rentcpu>;
+         using rentnet_action = eosio::action_wrapper<"rentnet"_n, &system_contract::rentnet>;
+         using fundcpuloan_action = eosio::action_wrapper<"fundcpuloan"_n, &system_contract::fundcpuloan>;
+         using fundnetloan_action = eosio::action_wrapper<"fundnetloan"_n, &system_contract::fundnetloan>;
+         using defcpuloan_action = eosio::action_wrapper<"defcpuloan"_n, &system_contract::defcpuloan>;
+         using defnetloan_action = eosio::action_wrapper<"defnetloan"_n, &system_contract::defnetloan>;
+         using updaterex_action = eosio::action_wrapper<"updaterex"_n, &system_contract::updaterex>;
+         using rexexec_action = eosio::action_wrapper<"rexexec"_n, &system_contract::rexexec>;
+         using setrex_action = eosio::action_wrapper<"setrex"_n, &system_contract::setrex>;
+         using mvtosavings_action = eosio::action_wrapper<"mvtosavings"_n, &system_contract::mvtosavings>;
+         using mvfrsavings_action = eosio::action_wrapper<"mvfrsavings"_n, &system_contract::mvfrsavings>;
+         using consolidate_action = eosio::action_wrapper<"consolidate"_n, &system_contract::consolidate>;
+         using closerex_action = eosio::action_wrapper<"closerex"_n, &system_contract::closerex>;
+         using undelegatebw_action = eosio::action_wrapper<"undelegatebw"_n, &system_contract::undelegatebw>;
+         using buyram_action = eosio::action_wrapper<"buyram"_n, &system_contract::buyram>;
+         using buyrambytes_action = eosio::action_wrapper<"buyrambytes"_n, &system_contract::buyrambytes>;
+         using sellram_action = eosio::action_wrapper<"sellram"_n, &system_contract::sellram>;
+         using refund_action = eosio::action_wrapper<"refund"_n, &system_contract::refund>;
+         using regproducer_action = eosio::action_wrapper<"regproducer"_n, &system_contract::regproducer>;
+         using unregprod_action = eosio::action_wrapper<"unregprod"_n, &system_contract::unregprod>;
+         using setram_action = eosio::action_wrapper<"setram"_n, &system_contract::setram>;
+         using setramrate_action = eosio::action_wrapper<"setramrate"_n, &system_contract::setramrate>;
+         using voteproducer_action = eosio::action_wrapper<"voteproducer"_n, &system_contract::voteproducer>;
+         using regproxy_action = eosio::action_wrapper<"regproxy"_n, &system_contract::regproxy>;
+         using claimrewards_action = eosio::action_wrapper<"claimrewards"_n, &system_contract::claimrewards>;
+         using rmvproducer_action = eosio::action_wrapper<"rmvproducer"_n, &system_contract::rmvproducer>;
+         using updtrevision_action = eosio::action_wrapper<"updtrevision"_n, &system_contract::updtrevision>;
+         using bidname_action = eosio::action_wrapper<"bidname"_n, &system_contract::bidname>;
+         using bidrefund_action = eosio::action_wrapper<"bidrefund"_n, &system_contract::bidrefund>;
+         using setpriv_action = eosio::action_wrapper<"setpriv"_n, &system_contract::setpriv>;
+         using setalimits_action = eosio::action_wrapper<"setalimits"_n, &system_contract::setalimits>;
+         using setparams_action = eosio::action_wrapper<"setparams"_n, &system_contract::setparams>;
+
       private:
 
          // Implementation details:
@@ -669,7 +734,7 @@ namespace eosiosystem {
          void defund_rex_loan( T& table, const name& from, uint64_t loan_num, const asset& amount );
          void transfer_from_fund( const name& owner, const asset& amount );
          void transfer_to_fund( const name& owner, const asset& amount );
-         bool rex_loans_available()const { return _rexorders.begin() == _rexorders.end() && rex_available(); }
+         bool rex_loans_available()const;
          bool rex_system_initialized()const { return _rexpool.begin() != _rexpool.end(); }
          bool rex_available()const { return rex_system_initialized() && _rexpool.begin()->total_rex.amount > 0; }
          static time_point_sec get_rex_maturity();
@@ -678,14 +743,22 @@ namespace eosiosystem {
          void process_rex_maturities( const rex_balance_table::const_iterator& bitr );
          void consolidate_rex_balance( const rex_balance_table::const_iterator& bitr,
                                        const asset& rex_in_sell_order );
+         int64_t read_rex_savings( const rex_balance_table::const_iterator& bitr );
+         void put_rex_savings( const rex_balance_table::const_iterator& bitr, int64_t rex );
+         void update_rex_stake( const name& voter );
+
+         void add_loan_to_rex_pool( const asset& payment, int64_t rented_tokens, bool new_loan );
+         void remove_loan_from_rex_pool( const rex_loan& loan );
+         template <typename Index, typename Iterator>
+         int64_t update_renewed_loan( Index& idx, const Iterator& itr, int64_t rented_tokens );
 
          // defined in delegate_bandwidth.cpp
          void changebw( name from, name receiver,
                         asset stake_net_quantity, asset stake_cpu_quantity, bool transfer );
          void update_voting_power( const name& voter, const asset& total_update );
 
-         // defined in producer_pay.cpp 
-         void claimrewards_snapshot(); 
+         // defined in producer_pay.cpp
+         void claimrewards_snapshot();
 
          // defined in voting.cpp
          void update_elected_producers( block_timestamp timestamp );
@@ -700,7 +773,7 @@ namespace eosiosystem {
          double inverse_vote_weight(double staked, double amountVotedProducers);
          void recalculate_votes();
 
-         //defined in system_kick.cpp 
+         //defined in system_kick.cpp
          bool crossed_missed_blocks_threshold(uint32_t amountBlocksMissed, uint32_t schedule_size);
          void reset_schedule_metrics(name producer);
          void update_producer_missed_blocks(name producer);
@@ -708,12 +781,44 @@ namespace eosiosystem {
          bool check_missed_blocks(block_timestamp timestamp, name producer);
 
          //define in system_rotation.cpp
-         void set_bps_rotation(name bpOut, name sbpIn); 
+         void set_bps_rotation(name bpOut, name sbpIn);
          void update_rotation_time(block_timestamp block_time);
          void update_missed_blocks_per_rotation();
          void restart_missed_blocks_per_rotation(std::vector<eosio::producer_key> prods);
          bool is_in_range(int32_t index, int32_t low_bound, int32_t up_bound);
          std::vector<eosio::producer_key> check_rotation_state(std::vector<eosio::producer_key> producers, block_timestamp block_time);
+
+         template <auto system_contract::*...Ptrs>
+         class registration {
+            public:
+               template <auto system_contract::*P, auto system_contract::*...Ps>
+               struct for_each {
+                  template <typename... Args>
+                  static constexpr void call( system_contract* this_contract, Args&&... args )
+                  {
+                     std::invoke( P, this_contract, args... );
+                     for_each<Ps...>::call( this_contract, std::forward<Args>(args)... );
+                  }
+               };
+               template <auto system_contract::*P>
+               struct for_each<P> {
+                  template <typename... Args>
+                  static constexpr void call( system_contract* this_contract, Args&&... args )
+                  {
+                     std::invoke( P, this_contract, std::forward<Args>(args)... );
+                  }
+               };
+
+               template <typename... Args>
+               constexpr void operator() ( Args&&... args )
+               {
+                  for_each<Ptrs...>::call( this_contract, std::forward<Args>(args)... );
+               }
+
+               system_contract* this_contract;
+         };
+
+         registration<&system_contract::update_rex_stake> vote_stake_updater{ this };
    };
 
 } /// eosiosystem
