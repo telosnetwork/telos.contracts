@@ -35,6 +35,14 @@ The RatifyAmend contract stores and manages the core governance documents for Te
     `new_clause_num` is the clause number to update.
 
     `new_ipfs_url` is the link to the new clause text.
+    
+* `removeclause(uint64_t sub_id, uint8_t clause_to_remove)`
+
+    The removeclause action will remove a clause that was previously added to an existing submission.
+    
+    `sub_id` is the submission id of the submission from which the clause will be removed.
+
+    `clause_to_remove` is the clause number to be removed.
 
 * `openvoting(uint64_t sub_id)`
 
