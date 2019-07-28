@@ -204,6 +204,8 @@ void ratifyamend::removeclause(uint64_t sub_id, uint8_t clause_to_remove)
     submissions_table submissions(_self, _self.value);
     const auto& sub = submissions.get(sub_id, "submission does not exist");
 
+    require_auth(sub.proposer);	    // Clause can only be removed by the proposer
+	
     ballots_table ballots("eosio.trail"_n, "eosio.trail"_n.value);
     const auto& bal = ballots.get(sub.ballot_id, "Ballot ID doesn't exist");
 
