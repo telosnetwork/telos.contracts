@@ -204,6 +204,8 @@ void ratifyamend::removeclause(uint64_t sub_id, uint8_t clause_to_remove)
     submissions_table submissions(_self, _self.value);
     const auto& sub = submissions.get(sub_id, "submission does not exist");
 
+    require_auth(sub.proposer);	    // Clause can only be removed by the proposer
+	
     ballots_table ballots("eosio.trail"_n, "eosio.trail"_n.value);
     const auto& bal = ballots.get(sub.ballot_id, "Ballot ID doesn't exist");
 
@@ -306,14 +308,14 @@ void ratifyamend::closeprop(uint64_t sub_id) {
     asset non_abstain_votes = (prop.yes_count + prop.no_count); 
 
     //pass thresholds
-    uint64_t voters_pass_thresh = (e->total_voters * configs_struct.threshold_pass_voters) / 100;
+    uint64_t voters_pass_thresh = (e->supply.amount * configs_struct.threshold_pass_voters) / 100;
     asset votes_pass_thresh = (non_abstain_votes * configs_struct.threshold_pass_votes) / 100;
 
     //fee refund thresholds
-    uint64_t voters_fee_thresh = (e->total_voters * configs_struct.threshold_fee_voters) / 100; 
+    uint64_t voters_fee_thresh = (e->supply.amount * configs_struct.threshold_fee_voters) / 100; 
     asset votes_fee_thresh = (total_votes * configs_struct.threshold_fee_votes) / 100; 
 
-    if( prop.yes_count >= votes_fee_thresh && prop.unique_voters >= voters_fee_thresh) {
+    if( prop.yes_count >= votes_fee_thresh && total_votes >= voters_fee_thresh) {
         action(permission_level{ _self, "active"_n }, "eosio.token"_n, "transfer"_n, make_tuple(
             _self,
             sub.proposer,
@@ -323,7 +325,7 @@ void ratifyamend::closeprop(uint64_t sub_id) {
     }
 
     uint8_t new_status = 2;
-    if( prop.yes_count > votes_pass_thresh && prop.unique_voters >= voters_pass_thresh ) {
+    if( prop.yes_count > votes_pass_thresh && total_votes >= voters_pass_thresh ) {
         update_doc(sub.document_id, sub.new_clause_nums, sub.new_ipfs_urls);
         new_status = uint8_t(1);
     }
