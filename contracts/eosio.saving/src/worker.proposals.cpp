@@ -193,17 +193,17 @@ void workerproposal::claim(uint64_t sub_id) {
     asset non_abstain_votes = (prop.yes_count + prop.no_count); 
 
     //pass thresholds
-    uint64_t voters_pass_thresh = (e->total_voters * wp_env_struct.threshold_pass_voters) / 100;
+    uint64_t voters_pass_thresh = (e->supply.amount * wp_env_struct.threshold_pass_voters) / 100;
     asset votes_pass_thresh = (non_abstain_votes * wp_env_struct.threshold_pass_votes) / 100;
 
     //fee refund thresholds
-    uint64_t voters_fee_thresh = (e->total_voters * wp_env_struct.threshold_fee_voters) / 100; 
+    uint64_t voters_fee_thresh = (e->supply.amount * wp_env_struct.threshold_fee_voters) / 100; 
     asset votes_fee_thresh = (total_votes * wp_env_struct.threshold_fee_votes) / 100; 
 
     auto updated_fee = sub.fee;
 
-    // print("\n GET FEE BACK WHEN <<<< ", prop.yes_count, " >= ", votes_fee_thresh," && ", uint64_t(prop.unique_voters), " >= ", voters_fee_thresh);
-    if( sub.fee && prop.yes_count.amount > 0 && prop.yes_count >= votes_fee_thresh && prop.unique_voters >= voters_fee_thresh) {
+    // print("\n GET FEE BACK WHEN <<<< ", prop.yes_count, " >= ", votes_fee_thresh," && ", total_votes, " >= ", voters_fee_thresh);
+    if( sub.fee && prop.yes_count.amount > 0 && prop.yes_count >= votes_fee_thresh && total_votes >= voters_fee_thresh) {
         asset the_fee = asset(int64_t(sub.fee), symbol("TLOS", 4));
         if(sub.receiver == sub.proposer){
             outstanding += the_fee;
@@ -218,12 +218,12 @@ void workerproposal::claim(uint64_t sub_id) {
         updated_fee = 0;
     }
 
-    // print("\n GET MUNI WHEN <<<< ", prop.yes_count, " > ", votes_pass_thresh, " && ", uint64_t(prop.unique_voters), " >= ", voters_pass_thresh);
-    if( prop.yes_count > votes_pass_thresh && prop.unique_voters >= voters_pass_thresh ) {
+    // print("\n GET MUNI WHEN <<<< ", prop.yes_count, " > ", votes_pass_thresh, " && ", total_votes, " >= ", voters_pass_thresh);
+    if( prop.yes_count > votes_pass_thresh && total_votes >= voters_pass_thresh ) {
         outstanding += asset(int64_t(sub.amount), symbol("TLOS", 4));
     }
     
-    // print("\n numbers : ", e->total_voters, " * ", wp_env_struct.threshold_pass_voters, " | ", wp_env_struct.threshold_fee_voters, " ---- ", total_votes, " ", prop.yes_count, " ", prop.no_count);
+    // print("\n numbers : ", total_votes, " * ", wp_env_struct.threshold_pass_voters, " | ", wp_env_struct.threshold_fee_voters, " ---- ", total_votes, " ", prop.yes_count, " ", prop.no_count);
     if(outstanding.amount > 0) {
         action(permission_level{ _self, "active"_n }, "eosio.token"_n, "transfer"_n, make_tuple(
             _self,
