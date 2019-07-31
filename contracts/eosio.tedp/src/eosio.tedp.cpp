@@ -106,8 +106,7 @@ ACTION tedp::pay()
         {
             // channel_to_rex
             eosio::print("Channeling to rex\n");
-
-            action(permission_level{_self, name("active")}, name("eosio.token"), name("transfer"), make_tuple(_self, p.to, total_payout, std::string("TEDP REX Funding"))).send();
+            action(permission_level{_self, name("active")}, name("eosio"), name("distviarex"), make_tuple(_self, total_payout)).send();
         }
         else if (p.to == get_self())
         {

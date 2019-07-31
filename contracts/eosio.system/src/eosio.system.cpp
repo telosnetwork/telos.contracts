@@ -18,6 +18,7 @@ namespace eosiosystem {
     _rammarket(_self, _self.value),
     _schedule_metrics(_self, _self.value),
     _rotation(_self, _self.value),
+    _payrate(_self, _self.value),
     _payments(_self, _self.value),
 	_rexpool(_self, _self.value),
     _rexfunds(_self, _self.value),
@@ -29,6 +30,7 @@ namespace eosiosystem {
 
       _gschedule_metrics = _schedule_metrics.get_or_create(_self, schedule_metrics_state{ name(0), 0, std::vector<producer_metric>() });
       _grotation = _rotation.get_or_create(_self, rotation_state{ name(0), name(0), 21, 75, block_timestamp(), block_timestamp() });
+      _gpayrate = _payrate.get_or_create(_self, payrates{ max_bpay_rate, max_worker_monthly_amount });
    }
 
    eosio_global_state system_contract::get_default_parameters() {
@@ -61,6 +63,7 @@ namespace eosiosystem {
       _global.set( _gstate, _self );
       _schedule_metrics.set(_gschedule_metrics, _self);
       _rotation.set(_grotation, _self);
+      _payrate.set(_gpayrate, _self);
    }
 
    void system_contract::setram( uint64_t max_ram_size ) {
@@ -470,6 +473,17 @@ namespace eosiosystem {
      });
    }
 
+   void system_contract::setpayrates(uint64_t bpay, uint64_t worker) {
+      check(worker <= max_worker_monthly_amount, "WPS rate exceeds the max");
+      check(bpay <= max_bpay_rate, "BPAY rate exceeds the max");
+      _gpayrate.bpay_rate = bpay;
+      _gpayrate.worker_amount = worker;
+   }
+
+   void system_contract::distviarex(name from, asset amount) {
+      system_contract::channel_to_rex(from, amount);
+   }
+
 } /// eosio.system
 
 
@@ -478,10 +492,10 @@ EOSIO_DISPATCH( eosiosystem::system_contract,
      (newaccount)(updateauth)(deleteauth)(linkauth)(unlinkauth)(canceldelay)(onerror)(setabi)
      // eosio.system.cpp
      (init)(setram)(setramrate)(setparams)(setpriv)(setalimits)(setacctram)(setacctnet)(setacctcpu)
-     (rmvproducer)(updtrevision)(bidname)(bidrefund)(votebpout)
+     (rmvproducer)(updtrevision)(bidname)(bidrefund)(votebpout)(setpayrates)
      // rex.cpp
      (deposit)(withdraw)(buyrex)(unstaketorex)(sellrex)(cnclrexorder)(rentcpu)(rentnet)(fundcpuloan)(fundnetloan)
-     (defcpuloan)(defnetloan)(updaterex)(consolidate)(mvtosavings)(mvfrsavings)(setrex)(rexexec)(closerex)
+     (defcpuloan)(defnetloan)(updaterex)(consolidate)(mvtosavings)(mvfrsavings)(setrex)(rexexec)(closerex)(distviarex)
      // delegate_bandwidth.cpp
      (buyrambytes)(buyram)(sellram)(delegatebw)(undelegatebw)(refund)
      // voting.cpp

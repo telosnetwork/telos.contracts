@@ -45,6 +45,8 @@ namespace eosiosystem {
     */
    const uint32_t block_num_network_activation = 1000;
 
+   const uint64_t max_bpay_rate = 6000;
+   const uint64_t max_worker_monthly_amount = 1'000'000'0000;
 
    struct[[ eosio::table, eosio::contract("eosio.system") ]] payment_info {
      name bp;
@@ -106,6 +108,15 @@ namespace eosiosystem {
       else
          return ( flags & ~static_cast<F>(field) );
    }
+
+   struct[[ eosio::table, eosio::contract("eosio.system") ]] payrates {
+      uint64_t bpay_rate;
+      uint64_t worker_amount;
+      uint64_t primary_key() const { return bpay_rate; }
+      EOSLIB_SERIALIZE(payrates, (bpay_rate)(worker_amount))
+   };
+
+   typedef eosio::singleton< "payrate"_n, payrates > payrate_singleton;
 
    struct [[eosio::table, eosio::contract("eosio.system")]] name_bid {
      name            newname;
@@ -382,6 +393,8 @@ namespace eosiosystem {
          schedule_metrics_state      _gschedule_metrics;
          rotation_singleton          _rotation;
          rotation_state              _grotation;
+         payrate_singleton           _payrate;
+         payrates                    _gpayrate;
          payments_table              _payments;
 
       public:
@@ -654,6 +667,12 @@ namespace eosiosystem {
 
          [[eosio::action]]
          void votebpout(name bp, uint32_t penalty_hours);
+
+         [[eosio::action]]
+         void setpayrates(uint64_t inflation, uint64_t worker);
+
+         [[eosio::action]]
+         void distviarex(name from, asset amount); 
 
          using init_action = eosio::action_wrapper<"init"_n, &system_contract::init>;
          using setacctram_action = eosio::action_wrapper<"setacctram"_n, &system_contract::setacctram>;
