@@ -269,7 +269,7 @@ BOOST_FIXTURE_TEST_CASE( multiple_cycles_complete_flow, eosio_wps_tester ) try {
    register_voters(test_voters, 0, total_voters - 1, vote_symbol);
    
    auto registry_info = get_registry(symbol(4, "VOTE"));
-		BOOST_REQUIRE_EQUAL(registry_info["total_voters"], total_voters - 1);
+   BOOST_REQUIRE_EQUAL(registry_info["total_voters"], total_voters - 1);
 
    name proposer = test_voters[total_voters - 1];
    transfer(N(eosio), proposer.value, asset::from_string("1800.0000 TLOS"), "Blood Money");
@@ -280,22 +280,17 @@ BOOST_FIXTURE_TEST_CASE( multiple_cycles_complete_flow, eosio_wps_tester ) try {
    produce_blocks(1);
    auto env = get_wps_env();
    
-   double threshold_pass_voters = env["threshold_pass_voters"].as<double>();
-   double threshold_fee_voters = env["threshold_fee_voters"].as<double>();
-   unsigned int quorum_voters_size_pass = (total_voters * threshold_pass_voters) / 100;
-   unsigned int quorum_voters_size_fail = quorum_voters_size_pass - 1;
-   unsigned int fee_voters = (total_voters * threshold_fee_voters) / 100;
-   
-   double threshold_pass_votes = env["threshold_pass_votes"].as<double>();
-   double threshold_fee_votes = env["threshold_fee_votes"].as<double>();
+   double threshold_pass_voters = env["threshold_pass_voters"].as<double>(); // NOTE: the percentage of the VOTE supply needed to reach quorum
+   double threshold_pass_votes = env["threshold_pass_votes"].as<double>();   // NOTE: the percentage of NON abstain VOTEs required to pass a proposal
 
-   // std::cout<<"---- "<<quorum_voters_size_pass<<" = "<<quorum_voters_size_fail<<" = "<<fee_voters<<" = "<<threshold_pass_votes<<" = "<<threshold_fee_votes<<" ----"<<std::endl;
+   double threshold_fee_voters = env["threshold_fee_voters"].as<double>();   // NOTE: the percentage of the VOTE supply needed to get fee back
+   double threshold_fee_votes = env["threshold_fee_votes"].as<double>();     // NOTE: the percentage of the total VOTEs that are required to be yes in order to get fee back
    
    transfer(proposer, eosio::chain::name("eosio.saving"), core_sym::from_string("50.0000"), "proposal 1 fee");
    submit_worker_proposal(
       proposer.value,
       std::string("test proposal 1"),
-      (uint16_t)3,
+      uint16_t(2),
       std::string("32662273CFF99078EC3BFA5E7BBB1C369B1D3884DEDF2AF7D8748DEE080E4B99"),
       core_sym::from_string("1000.0000"),
       test_voters[0]
@@ -307,7 +302,7 @@ BOOST_FIXTURE_TEST_CASE( multiple_cycles_complete_flow, eosio_wps_tester ) try {
    submit_worker_proposal(
       proposer.value,
       std::string("test proposal 2"),
-      (uint16_t)3,
+      uint16_t(2),
       std::string("32662273CFF99078EC3BFA5E7BBB1C369B1D3884DEDF2AF7D8748DEE080E4B99"),
       core_sym::from_string("2000.0000"),
       proposer.value
@@ -327,10 +322,16 @@ BOOST_FIXTURE_TEST_CASE( multiple_cycles_complete_flow, eosio_wps_tester ) try {
 
    BOOST_REQUIRE_EXCEPTION( castvote(test_voters[0].value, 0, 1), eosio_assert_message_exception, 
       eosio_assert_message_is( "ballot voting window not open" ));
+      
+   BOOST_REQUIRE_EQUAL(0, get_proposal(0)["cycle_count"].as_uint64());
+   BOOST_REQUIRE_EQUAL(0, get_proposal(1)["cycle_count"].as_uint64());
 
 	openvoting(proposer.value, 0);
 	openvoting(proposer.value, 1);
    produce_blocks(1);
+
+   BOOST_REQUIRE_EQUAL(1, get_proposal(0)["cycle_count"].as_uint64());
+   BOOST_REQUIRE_EQUAL(1, get_proposal(1)["cycle_count"].as_uint64());
    
    BOOST_REQUIRE_EXCEPTION( openvoting(proposer.value, 0), eosio_assert_message_exception, 
       eosio_assert_message_is( "proposal is no longer in building stage" ));
@@ -350,141 +351,99 @@ BOOST_FIXTURE_TEST_CASE( multiple_cycles_complete_flow, eosio_wps_tester ) try {
 	BOOST_REQUIRE_EXCEPTION( mirrorcast(proposer.value, symbol(4, "TLOS")), eosio_assert_message_exception, 
       eosio_assert_message_is( "voter is not registered" ));
 
-   auto quorum = vector<account_name>(test_voters.begin(), test_voters.begin() + quorum_voters_size_pass); 
-
-   
-   auto calculateTippingPoint = [&](int quorum_size, int threshold, bool fee = false) {
-      if( fee )
-         return std::ceil( double(quorum_size * threshold) / 100);
-
-      return std::floor( double(quorum_size * threshold) / 100) + 1;
+   auto calculateTippingPoint = [&](asset supply, double threshold) {
+      return asset(supply.get_amount() * threshold / 100, symbol(4, "VOTE"));
    };
- 
-   int vote_tipping_point = calculateTippingPoint(quorum_voters_size_fail, threshold_pass_votes);
-   int fee_tipping_point = calculateTippingPoint(quorum_voters_size_fail, threshold_fee_votes, true);
 
-   // std::cout<<"conditions: [ "<<vote_tipping_point<<" ] / [ i < "<<fee_tipping_point<<" - 1 ] "<<std::endl;
+   voter_map(0, test_voters.size() - 1, [&](name &voter) {
+      mirrorcast(voter, symbol(4, "TLOS"));
+      produce_blocks();
+   });
 
-   // voting window (#0) started
-   // not enough voters in first cycle
-   for(int i = 0; i < quorum_voters_size_fail; i++) {
-      mirrorcast(quorum[i].value, symbol(4, "TLOS"));
+   asset supply = get_registry(symbol(4, "VOTE"))["supply"].as<asset>();
 
-      // fail vote from lack of voters, but get fee
-      uint16_t vote_direction_0 = 1;
-      // fail vote from lack of voters and the fee from no votes
-      uint16_t vote_direction_1 = ( i < fee_tipping_point - 1 ) ? uint16_t(1) : uint16_t(0);
+   asset quorum_threshold = calculateTippingPoint(supply, threshold_pass_voters);
+   asset yes_over_no_votes = calculateTippingPoint(supply, threshold_pass_votes);
+
+   asset fee_refund_threshold = calculateTippingPoint(supply, threshold_fee_voters);
+   asset fee_refund_yes_min = calculateTippingPoint(supply, threshold_fee_votes);
+
+   // TODO: prop 0 fails but gets fee back
+   // TODO: prop 1 fails but doesn't get fee back
+   asset vote_count = asset(0, symbol(4, "VOTE"));
+   asset votes_per_voter = asset(2000000, symbol(4, "VOTE"));
+   voter_map(0, test_voters.size() - 1, [&](name &voter) {
       
-      // std::cout<<i<<" => "<<vote_direction_0<<" "<<vote_direction_1<<std::endl;
+      if(vote_count + votes_per_voter < yes_over_no_votes) {
+         uint16_t dir0 = uint16_t(1);
+         uint16_t dir1 = (vote_count + votes_per_voter < fee_refund_yes_min) ? uint16_t(1) : uint16_t(0);
 
-      castvote(quorum[i].value, 0, vote_direction_0);
-      castvote(quorum[i].value, 1, vote_direction_1);
-      produce_blocks(1);
-   }
+         castvote(voter, 0, dir0);
+         castvote(voter, 1, dir1);
+         vote_count += votes_per_voter;
+      } else {
+         castvote(voter, 0, 0);
+         castvote(voter, 1, 0);
+      }
 
+      produce_blocks();
+   });
+   // cout << "vote_count: " << vote_count << endl;
+   // cout << "votes_per_voter: " << votes_per_voter << endl;
+
+   // cout << "yes_over_no_votes: " << yes_over_no_votes << endl;
+   // cout << "quorum_threshold: " << quorum_threshold << endl;
+
+   // cout << "fee_refund_threshold: " << fee_refund_threshold << endl;
+   // cout << "fee_refund_yes_min: " << fee_refund_yes_min << endl;
+
+   // TODO: call claim, cycle is still open should fail
    BOOST_REQUIRE_EQUAL( wasm_assert_msg( "Cycle is still open" ), claim_proposal_funds(0, proposer.value));
    BOOST_REQUIRE_EQUAL( core_sym::from_string("1890.0000"), get_balance( proposer ) );
 
+   // TODO: produce blocks to end cycle
    produce_block(fc::seconds(2500000)); // end the cycle
    produce_blocks(1);
 
-   // CLAIM: get fee back
+   // TODO: claim 0
+   // TODO: check 0 got fee back
+
    claim_proposal_funds(0, proposer.value);
    BOOST_REQUIRE_EQUAL( core_sym::from_string("200.0000"), get_balance( test_voters[0] ) );
    BOOST_REQUIRE_EQUAL( core_sym::from_string("1940.0000"), get_balance( proposer ) );
 
-   // CLAIM: nothing to claim
+   // TODO: claim 1
+   // TODO: check 1 didn't get fee
    claim_proposal_funds(1, proposer.value);
    BOOST_REQUIRE_EQUAL( core_sym::from_string("1940.0000"), get_balance( proposer ) );
-
    produce_blocks(1);
 
-//    // voting windows starts in 1 day
-// 	BOOST_REQUIRE_EXCEPTION( castvote(test_voters[0].value, 0, 1), eosio_assert_message_exception, 
-//       eosio_assert_message_is( "ballot voting window not open" ));
+   BOOST_REQUIRE_EQUAL(2, get_proposal(0)["cycle_count"].as_uint64());
+   BOOST_REQUIRE_EQUAL(2, get_proposal(1)["cycle_count"].as_uint64());
 
-//    // 1 day later voting window opens
-//    produce_block(fc::days(1));
+   // TODO: vote to pass both proposals
+   // TODO: produce blocks to end cycle
 
-   vote_tipping_point = calculateTippingPoint(quorum_voters_size_pass, threshold_pass_votes);
-   fee_tipping_point = calculateTippingPoint(quorum_voters_size_pass, threshold_fee_votes, true);
-
-   // std::cout<<"conditions: [ i < "<<vote_tipping_point<<" - 1 ] / [ i < "<<fee_tipping_point<<" - 1 ] "<<std::endl;
-
-   // voting window (#1) started
-   for(int i = 0; i < quorum_voters_size_pass; i++){
-      mirrorcast(quorum[i].value, symbol(4, "TLOS"));
-
-      // fail vote, fee already claimed but would pass
-      uint16_t vote_direction_0 = ( i < vote_tipping_point - 1 ) ? uint16_t(1) : uint16_t(0);
-      // fail vote and fee from no votes
-      uint16_t vote_direction_1 = ( i < fee_tipping_point - 1 ) ? uint16_t(1) : uint16_t(0);
-
-      // std::cout<<i<<" => "<<vote_direction_0<<" "<<vote_direction_1<<std::endl;
-
-      castvote(quorum[i].value, 0, vote_direction_0);
-      castvote(quorum[i].value, 1, vote_direction_1);
-      produce_blocks(1);
-   }
+   voter_map(0, test_voters.size() - 1, [&](name &voter) {
+         castvote(voter, 0, 1);
+         castvote(voter, 1, 1);
+      produce_blocks();
+   });
 
    BOOST_REQUIRE_EQUAL( wasm_assert_msg( "Cycle is still open" ), claim_proposal_funds(0, proposer.value));
    BOOST_REQUIRE_EQUAL( core_sym::from_string("1940.0000"), get_balance( proposer ) );
 
    produce_block(fc::seconds(2500000)); // end the cycle
+   produce_blocks();
 
-   // // CLAIM: nothing to claim
-   claim_proposal_funds(1, proposer.value);
-   BOOST_REQUIRE_EQUAL( core_sym::from_string("1940.0000"), get_balance( proposer ) );
-
-   // // CLAIM: nothing to claim
-   claim_proposal_funds(0, proposer.value);
-   BOOST_REQUIRE_EQUAL( core_sym::from_string("1940.0000"), get_balance( proposer ) );
-   BOOST_REQUIRE_EQUAL( core_sym::from_string("200.0000"), get_balance( test_voters[0] ) );
-
-   produce_blocks(2);
-
-//    // voting windows starts in 1 day
-// 	BOOST_REQUIRE_EXCEPTION( castvote(test_voters[0].value, 0, 1), eosio_assert_message_exception, 
-//       eosio_assert_message_is( "ballot voting window not open" ));
-
-//    // 1 day later voting window opens
-//    produce_block(fc::days(1));
-
-   vote_tipping_point = calculateTippingPoint(quorum_voters_size_pass, threshold_pass_votes);
-   fee_tipping_point = calculateTippingPoint(quorum_voters_size_pass, threshold_fee_votes, true);
-
-//    std::cout<<"conditions: [ i < "<<vote_tipping_point<<" ] / [ i < "<<fee_tipping_point<<" ] "<<std::endl;
-
-   // voting window (#2) started
-   for(int i = 0; i < quorum_voters_size_pass; i++){
-      mirrorcast(quorum[i].value, symbol(4, "TLOS"));
-      
-      // pass vote, fee already claimed
-      uint16_t vote_direction_0 = ( i < vote_tipping_point ) ? uint16_t(1) : uint16_t(0);
-      // pass vote and fee
-      uint16_t vote_direction_1 = ( i < vote_tipping_point ) ? uint16_t(1) : uint16_t(0);
-      
-      // std::cout<<i<<" => "<<vote_direction_0<<" "<<vote_direction_1<<std::endl;
-
-      castvote(quorum[i].value, 0, vote_direction_0);
-      castvote(quorum[i].value, 1, vote_direction_1);
-      produce_blocks(1);
-   }
-   
-   BOOST_REQUIRE_EQUAL( wasm_assert_msg( "Cycle is still open" ), claim_proposal_funds(0, proposer.value));
-   BOOST_REQUIRE_EQUAL( core_sym::from_string("1940.0000"), get_balance( proposer ) );
-
-   produce_block(fc::seconds(2500000)); // end the cycle
-
-   // // last cycle check = prep 0 + cycle 1, cycle 2 [ended] / cycle 3 waiting for claim [3rd cycle is not counted until claim]
-   BOOST_REQUIRE_EQUAL(1 + 2, get_proposal(0)["cycle_count"].as_uint64());
-   BOOST_REQUIRE_EQUAL(1 + 2, get_proposal(1)["cycle_count"].as_uint64());
+   // TODO: check that 0 received rewards + 0 (no fee), because it already has received the fee refund.
+   // TODO: check that 1 received rewards + fee, because it hasn't been refunded yet.
 
    // CLAIM: funds - 2060 should be added => close ballot
    claim_proposal_funds(1, proposer.value);
    BOOST_REQUIRE_EQUAL( core_sym::from_string("4000.0000"), get_balance( proposer ) );
-   
-   // CLAIM: funds - 1000 should be added => close ballot 
+
+    // CLAIM: funds - 1000 should be added => close ballot 
    claim_proposal_funds(0, proposer.value);
    BOOST_REQUIRE_EQUAL( core_sym::from_string("1200.0000"), get_balance( test_voters[0] ) );
    BOOST_REQUIRE_EQUAL( core_sym::from_string("4000.0000"), get_balance( proposer ) );
@@ -494,10 +453,15 @@ BOOST_FIXTURE_TEST_CASE( multiple_cycles_complete_flow, eosio_wps_tester ) try {
    BOOST_REQUIRE_EQUAL( wasm_assert_msg( "Proposal is closed" ), claim_proposal_funds(0, proposer.value));
    BOOST_REQUIRE_EQUAL( wasm_assert_msg( "Proposal is closed" ), claim_proposal_funds(1, proposer.value));
 
+   BOOST_REQUIRE_EQUAL(2, get_proposal(0)["cycle_count"].as_uint64());
+   BOOST_REQUIRE_EQUAL(2, get_proposal(1)["cycle_count"].as_uint64());
+
+   // TODO: check that 0 and 1 both have a closed status
    BOOST_REQUIRE_EXCEPTION( openvoting(proposer.value, 0), eosio_assert_message_exception, 
       eosio_assert_message_is( "proposal is no longer in building stage" ));
 
    // CHECK IF BOTH PROPOSALS ENDED 
+   
    BOOST_REQUIRE_EQUAL(get_proposal(0)["status"].as<uint8_t>(), uint8_t(1));
    BOOST_REQUIRE_EQUAL(get_proposal(1)["status"].as<uint8_t>(), uint8_t(1));
 

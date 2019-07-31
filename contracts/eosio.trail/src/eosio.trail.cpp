@@ -905,7 +905,7 @@ void trail::setseats(name publisher, uint64_t ballot_id, uint8_t num_seats) {
 }
 
 void trail::closeballot(name publisher, uint64_t ballot_id, uint8_t pass) {
-    require_auth(publisher);
+    require_auth(publisher); //QUESTION: Can anyone close a ballet right now?
 
     ballots_table ballots(_self, _self.value);
     auto b = ballots.find(ballot_id);
