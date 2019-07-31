@@ -565,6 +565,15 @@ class eosio_trail_tester : public tester
 			func(test_voters[i]);
 		}
 	}
+
+	template<typename Lambda>
+	void voter_map_index(int start, int end, Lambda&& func) {
+		BOOST_REQUIRE_EQUAL(true, start <= end);
+		BOOST_REQUIRE_EQUAL(true, end <= test_voters.size());
+		for (int i = start; i < end; i++) {
+			func(test_voters[i], i);
+		}
+	}
       
 	asset get_balance( const account_name& act, symbol balance_symbol = symbol{CORE_SYM}, const account_name& contract = N(eosio.token) ) {
 		return get_currency_balance(contract, balance_symbol, act);

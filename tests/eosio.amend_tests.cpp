@@ -78,7 +78,7 @@ BOOST_FIXTURE_TEST_CASE( ballot_id_and_fee, eosio_amend_tester ) try {
 
    auto title = std::string("my ratify test title");
    auto cycles = 1;
-   auto ipfs_location = std::string("32662273CFF99078EC3BFA5E7BBB1C369B1D3884DEDF2AF7D8748DEE080E4B9");
+   auto ipfs_location = std::string("https://web.ipfs.telosfoundation.io/32662273CFF99078EC3BFA5E7BBB1C369B1D3884DEDF2AF7D8748DEE080E4B9");
    auto receiver = test_voters[0];
 
    int num_proposals = 10;
@@ -97,18 +97,18 @@ BOOST_FIXTURE_TEST_CASE( ballot_id_and_fee, eosio_amend_tester ) try {
 
       uint64_t doc_num = i % documents.size();
       uint8_t clause_num = i % documents[doc_num]["clauses"].size(); 
-	   makeproposal(std::string(title+std::to_string(i)), uint64_t(doc_num), uint8_t(clause_num), ipfs_location, proposer);
+	   makeproposal(std::string(title + std::to_string(i)), uint64_t(doc_num), uint8_t(clause_num), ipfs_location, proposer);
    }
    produce_blocks(1);
 	
 	BOOST_REQUIRE_EXCEPTION( 
-      makeproposal(std::string(title+std::to_string(num_proposals)), uint64_t(documents.size()), uint8_t(0), ipfs_location, proposer), 
+      makeproposal(std::string(title + std::to_string(num_proposals)), uint64_t(documents.size()), uint8_t(0), ipfs_location, proposer), 
       eosio_assert_message_exception, 
       eosio_assert_message_is( "Document Not Found" )
    );
 
 	BOOST_REQUIRE_EXCEPTION( 
-      makeproposal(std::string(title+std::to_string(num_proposals)), uint64_t(0), uint8_t(documents[0]["clauses"].size()), ipfs_location, proposer),
+      makeproposal(std::string(title + std::to_string(num_proposals)), uint64_t(0), uint8_t(documents[0]["clauses"].size()), ipfs_location, proposer),
       eosio_assert_message_exception, 
       eosio_assert_message_is( "Deposit not found, please transfer your TLOS fee" )
    );
@@ -165,7 +165,7 @@ BOOST_FIXTURE_TEST_CASE( set_environment, eosio_amend_tester ) try {
          std::string("test ratify 1"), 
          uint64_t(0), 
          uint8_t(0), 
-         std::string("32662273CFF99078EC3BFA5E7BBB1C369B1D3884DEDF2AF7D8748DEE080E4B99"), 
+         std::string("https://web.ipfs.telosfoundation.io/32662273CFF99078EC3BFA5E7BBB1C369B1D3884DEDF2AF7D8748DEE080E4B99"), 
          proposer
       ), 
       eosio_assert_message_exception, 
@@ -177,7 +177,7 @@ BOOST_FIXTURE_TEST_CASE( set_environment, eosio_amend_tester ) try {
       std::string("test ratify 1"), 
       uint64_t(0), 
       uint8_t(0), 
-      std::string("32662273CFF99078EC3BFA5E7BBB1C369B1D3884DEDF2AF7D8748DEE080E4B99"), 
+      std::string("https://web.ipfs.telosfoundation.io/32662273CFF99078EC3BFA5E7BBB1C369B1D3884DEDF2AF7D8748DEE080E4B99"), 
       proposer
    );
 
@@ -200,7 +200,7 @@ BOOST_FIXTURE_TEST_CASE( create_proposal_and_cancel, eosio_amend_tester ) try {
          std::string("test ratify 1"), 
          uint64_t(0), 
          uint8_t(0), 
-         std::string("32662273CFF99078EC3BFA5E7BBB1C369B1D3884DEDF2AF7D8748DEE080E4B99"), 
+         std::string("https://web.ipfs.telosfoundation.io/2662273CFF99078EC3BFA5E7BBB1C369B1D3884DEDF2AF7D8748DEE080E4B99"), 
          proposer
       ), 
       eosio_assert_message_exception, eosio_assert_message_is( "Deposit not found, please transfer your TLOS fee" )
@@ -215,7 +215,7 @@ BOOST_FIXTURE_TEST_CASE( create_proposal_and_cancel, eosio_amend_tester ) try {
          std::string("test ratify 1"), 
          uint64_t(0), 
          uint8_t(0), 
-         std::string("32662273CFF99078EC3BFA5E7BBB1C369B1D3884DEDF2AF7D8748DEE080E4B99"), 
+         std::string("https://web.ipfs.telosfoundation.io/32662273CFF99078EC3BFA5E7BBB1C369B1D3884DEDF2AF7D8748DEE080E4B99"), 
          proposer
       ), 
       eosio_assert_message_exception, 
@@ -230,7 +230,7 @@ BOOST_FIXTURE_TEST_CASE( create_proposal_and_cancel, eosio_amend_tester ) try {
       std::string("test ratify 1"), 
       uint64_t(0), 
       uint8_t(0), 
-      std::string("32662273CFF99078EC3BFA5E7BBB1C369B1D3884DEDF2AF7D8748DEE080E4B99"), 
+      std::string("https://web.ipfs.telosfoundation.io/32662273CFF99078EC3BFA5E7BBB1C369B1D3884DEDF2AF7D8748DEE080E4B99"), 
       proposer
    );
    produce_blocks(1);
@@ -242,7 +242,7 @@ BOOST_FIXTURE_TEST_CASE( create_proposal_and_cancel, eosio_amend_tester ) try {
       std::string("test amend 2"), 
       uint64_t(0), 
       uint8_t(0), 
-      std::string("32662273CFF99078EC3BFA5E7BBB1C369B1D3884DEDF2AF7D8748DEE080E4B99"), 
+      std::string("https://web.ipfs.telosfoundation.io/32662273CFF99078EC3BFA5E7BBB1C369B1D3884DEDF2AF7D8748DEE080E4B99"), 
       proposer
    );
    produce_blocks(1);
@@ -257,6 +257,11 @@ BOOST_FIXTURE_TEST_CASE( create_proposal_and_cancel, eosio_amend_tester ) try {
    
    BOOST_REQUIRE(get_proposal(0).is_null());
    BOOST_REQUIRE(get_proposal(1).is_null());
+} FC_LOG_AND_RETHROW()
+
+
+BOOST_FIXTURE_TEST_CASE( full_flow, eosio_amend_tester ) try {
+
 } FC_LOG_AND_RETHROW()
 
 BOOST_AUTO_TEST_SUITE_END()
