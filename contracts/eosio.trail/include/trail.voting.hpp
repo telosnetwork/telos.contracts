@@ -15,6 +15,16 @@
 using namespace std;
 using namespace eosio;
 
+#pragma region Contants
+
+// enum status_code : uint8_t {
+//     UNDECIDED, //0
+//     PASS, //1
+//     FAIL
+// };
+
+#pragma endregion Constants
+
 #pragma region Structs
 
 //NOTE: vote receipts MUST be scoped by voter

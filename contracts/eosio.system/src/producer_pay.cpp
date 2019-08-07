@@ -127,7 +127,6 @@ namespace eosiosystem {
         TIP 0023 Implementation
         Title: Increase block producer inflation on a one year schedule
         Ref: https://github.com/Telos-Foundation/tips/blob/master/tip-0023.md
-        */
         double          continuous_rate     = 0.025;    // default annual inflation
         const double    worker_rate         = 0.015;    // fixed 1.5% annual rate for WPS
         const int64_t   rate_block_interval = 20000000; // decrease bp pay interval up to 1st yr
@@ -141,13 +140,45 @@ namespace eosiosystem {
         else if (_gstate.block_num >= (rate_block_interval * 2) && _gstate.block_num < (rate_block_interval * 3)) { // months 9-12 rate
             continuous_rate = 0.035;
         }
+        */
 
-        auto new_tokens = static_cast<int64_t>((continuous_rate * double(token_supply.amount) * double(usecs_since_last_fill)) / double(useconds_per_year));
-        auto to_workers = (worker_rate / continuous_rate) * new_tokens;
-        auto to_producers = new_tokens - to_workers;
+        //double continuous_rate = _gpayrate.inflation_rate / 100000;
+        //double worker_rate = _gpayrate.worker_rate / 100000;
 
-        INLINE_ACTION_SENDER(eosio::token, issue)
-        ("eosio.token"_n, {{"eosio"_n, "active"_n}}, {"eosio"_n, asset(new_tokens, core_symbol()), std::string("Issue new TLOS tokens")});
+        //auto new_tokens = static_cast<int64_t>((continuous_rate * double(token_supply.amount) * double(usecs_since_last_fill)) / double(useconds_per_year));
+        //auto to_workers = (worker_rate / continuous_rate) * new_tokens;
+        //auto to_producers = new_tokens - to_workers;
+
+        double bpay_rate = _gpayrate.bpay_rate / 100000;
+        auto to_workers = static_cast<int64_t>((12 * double(_gpayrate.worker_amount) * double(usecs_since_last_fill)) / double(useconds_per_year));
+        auto to_producers = static_cast<int64_t>((bpay_rate * double(token_supply.amount) * double(usecs_since_last_fill)) / double(useconds_per_year));
+        auto new_tokens = to_workers + to_producers;
+
+
+        asset tedp_balance = eosio::token::get_balance("eosio.token"_n, "eosio.tedp"_n, symbol_code("TLOS"));
+
+        uint64_t transfer_tokens = 0;
+        uint64_t issue_tokens = 0;
+        if (tedp_balance.amount > 0) {
+            if (tedp_balance.amount >= new_tokens) {
+                transfer_tokens = new_tokens;
+            } else {
+                transfer_tokens = tedp_balance.amount;
+                issue_tokens = new_tokens - transfer_tokens; 
+            }
+        } else {
+            issue_tokens = new_tokens;
+        }
+
+        if (transfer_tokens > 0) {
+            INLINE_ACTION_SENDER(eosio::token, transfer)
+            ("eosio.token"_n, {"eosio"_n, "active"_n}, {"eosio.tedp"_n, "eosio"_n, asset(transfer_tokens, core_symbol()), std::string("TEDP: Inflation offset")});
+        }                
+
+        if (issue_tokens > 0) {
+            INLINE_ACTION_SENDER(eosio::token, issue)
+            ("eosio.token"_n, {{"eosio"_n, "active"_n}}, {"eosio"_n, asset(issue_tokens, core_symbol()), std::string("Issue new TLOS tokens")});
+        }
 
         INLINE_ACTION_SENDER(eosio::token, transfer)
         ("eosio.token"_n, {"eosio"_n, "active"_n}, {"eosio"_n, "eosio.saving"_n, asset(to_workers, core_symbol()), std::string("Transfer worker proposal share to eosio.saving account")});
