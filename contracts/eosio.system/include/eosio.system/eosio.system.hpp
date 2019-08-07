@@ -375,7 +375,7 @@ namespace eosiosystem {
          global_state_singleton      _global;
          eosio_global_state          _gstate;
          rammarket                   _rammarket;
-		 rex_pool_table          	 _rexpool;
+		   rex_pool_table          	 _rexpool;
          rex_fund_table          	 _rexfunds;
          rex_balance_table       	 _rexbalance;
          rex_order_table         	 _rexorders;

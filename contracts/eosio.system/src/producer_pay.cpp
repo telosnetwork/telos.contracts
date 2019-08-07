@@ -37,6 +37,7 @@ namespace eosiosystem {
       if(check_missed_blocks(timestamp, producer)) {
         update_missed_blocks_per_rotation();
         reset_schedule_metrics(producer);
+
       }
 
       /**

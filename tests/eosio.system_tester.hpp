@@ -808,6 +808,26 @@ public:
       return msig_abi_ser;
    }
 
+   string base31 = "abcdefghijklmnopqrstuvwxyz12345";
+   string toBase31(uint32_t in) {
+	   vector<uint32_t> out = { 0, 0, 0, 0, 0, 0, 0 };
+	   uint32_t remainder = in;
+	   uint32_t divisor = 0;
+	   uint32_t quotient = 0;
+	   for (int i = 0; i < out.size(); i++) {
+		   divisor = pow(31, out.size() - 1 - i);
+		   quotient = remainder / divisor;
+		   remainder = remainder - (quotient * divisor);
+		   out[i] = quotient;
+	   }
+	   string output = "aaaaaaa";
+	   for (int i = 0; i < out.size(); i++) {
+		   output[i] = base31[out[i]];
+	   }
+
+	   return output;
+   }
+
    vector<name> active_and_vote_producers() {
       activate_network();
       //stake more than 15% of total EOS supply to activate chain
@@ -859,6 +879,62 @@ public:
       auto producer_keys = control->head_block_state()->active_schedule.producers;
       BOOST_REQUIRE_EQUAL( 21, producer_keys.size() );
       BOOST_REQUIRE_EQUAL( name("defproducera"), producer_keys[0].producer_name );
+
+      return producer_names;
+   }
+
+   vector<name> active_and_vote_producers2() {
+      activate_network();
+      //stake more than 15% of total EOS supply to activate chain
+      transfer( "eosio", "alice1111111", core_sym::from_string("650000000.0000"), "eosio" );
+      BOOST_REQUIRE_EQUAL( success(), stake( "alice1111111", "alice1111111", core_sym::from_string("300000000.0000"), core_sym::from_string("300000000.0000") ) );
+
+      // create accounts {defproducera, defproducerb, ..., defproducerz} and register as producers
+      std::vector<account_name> producer_names;
+      {
+         producer_names.reserve(51);
+         const std::string root("tprod");
+         for(uint8_t i = 0; i < 51; i++) {
+            name p = name(root + toBase31(i));
+            producer_names.emplace_back(p);
+         }
+         setup_producer_accounts(producer_names);
+         for (const auto& p: producer_names) {
+            BOOST_REQUIRE_EQUAL( success(), regproducer(p) );
+         }
+      }
+      produce_blocks( 250);
+
+      auto trace_auth = TESTER::push_action(config::system_account_name, updateauth::get_name(), config::system_account_name, mvo()
+                                            ("account", name(config::system_account_name).to_string())
+                                            ("permission", name(config::active_name).to_string())
+                                            ("parent", name(config::owner_name).to_string())
+                                            ("auth",  authority(1, {key_weight{get_public_key( config::system_account_name, "active" ), 1}}, {
+                                                  permission_level_weight{{config::system_account_name, config::eosio_code_name}, 1},
+                                                     permission_level_weight{{config::producers_account_name,  config::active_name}, 1}
+                                               }
+                                            ))
+      );
+      BOOST_REQUIRE_EQUAL(transaction_receipt::executed, trace_auth->receipt->status);
+
+      //vote for producers
+      {
+         transfer( config::system_account_name, "alice1111111", core_sym::from_string("100000000.0000"), config::system_account_name );
+         BOOST_REQUIRE_EQUAL(success(), stake( "alice1111111", core_sym::from_string("30000000.0000"), core_sym::from_string("30000000.0000") ) );
+         BOOST_REQUIRE_EQUAL(success(), buyram( "alice1111111", "alice1111111", core_sym::from_string("30000000.0000") ) );
+         BOOST_REQUIRE_EQUAL(success(), push_action(N(alice1111111), N(voteproducer), mvo()
+                                                    ("voter",  "alice1111111")
+                                                    ("proxy", name(0).to_string())
+                                                    ("producers", vector<account_name>(producer_names.begin(), producer_names.begin()+21))
+                             )
+         );
+      }
+      produce_blocks( 250 );
+
+      auto producer_keys = control->head_block_state()->active_schedule.producers;
+      BOOST_REQUIRE_EQUAL( 21, producer_keys.size() );
+      BOOST_REQUIRE_EQUAL( name("tprodaaaaaaa"), producer_keys[0].producer_name );
+      
 
       return producer_names;
    }
