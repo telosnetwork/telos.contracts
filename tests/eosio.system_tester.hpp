@@ -37,8 +37,9 @@ public:
       produce_blocks( 2 );
 
       create_accounts({ N(eosio.token), N(eosio.ram), N(eosio.ramfee), N(eosio.stake),
-               N(eosio.bpay), N(eosio.vpay), N(eosio.saving), N(eosio.names), N(eosio.trail), N(eosio.rex) });
+               N(eosio.bpay), N(eosio.vpay), N(eosio.saving), N(eosio.names), N(eosio.trail), N(eosio.rex), N(eosio.tedp) });
 
+      
 
       produce_blocks( 100 );
       set_code( N(eosio.token), contracts::token_wasm());
@@ -85,7 +86,7 @@ public:
          BOOST_REQUIRE_EQUAL(abi_serializer::to_abi(accnt.abi, abi), true);
          trail_abi_ser.set_abi(abi, abi_serializer_max_time);
       }
-      
+      issue( N(eosio.tedp), core_sym::from_string("0.0001"));
    }
 
    void remaining_setup() {
@@ -188,6 +189,19 @@ public:
       set_transaction_headers(trx);
       trx.sign( get_private_key( creator, "active" ), control->get_chain_id()  );
       return push_transaction( trx );
+   }
+
+   transaction_trace_ptr on_block() {
+      signed_transaction trx;
+      set_transaction_headers(trx);
+      action on_block_act;
+      on_block_act.account = config::system_account_name;
+      on_block_act.name = N(onblock);
+      on_block_act.authorization = vector<permission_level>{{config::system_account_name, config::active_name}};
+      on_block_act.data = fc::raw::pack(control->head_block_header());
+      trx.actions.emplace_back(on_block_act);
+      trx.sign( get_private_key( config::system_account_name, "active" ), control->get_chain_id()  );
+      return push_transaction(trx);
    }
 
    transaction_trace_ptr create_account_with_resources( account_name a, account_name creator, asset ramfunds, bool multisig,
@@ -657,6 +671,11 @@ public:
       return data.empty() ? fc::variant() : abi_ser.binary_to_variant( "rex_order", data, abi_serializer_max_time );
    }
 
+   fc::variant get_payrate_info() {
+      vector<char> data = get_row_by_account( config::system_account_name, config::system_account_name, N(payrate), N(payrate));
+      return data.empty() ? fc::variant() : abi_ser.binary_to_variant( "payrates", data, abi_serializer_max_time );
+   }
+
    fc::variant get_rex_pool() const {
       vector<char> data;
       const auto& db = control->db();
@@ -905,6 +924,11 @@ public:
    fc::variant get_refund_request( name account ) {
       vector<char> data = get_row_by_account( config::system_account_name, account, N(refunds), account );
       return data.empty() ? fc::variant() : abi_ser.binary_to_variant( "refund_request", data, abi_serializer_max_time );
+   }
+
+   fc::variant get_payment_info( name account ) {
+      vector<char> data = get_row_by_account( config::system_account_name, config::system_account_name, N(refunds), account );
+      return data.empty() ? fc::variant() : abi_ser.binary_to_variant( "payment_info", data, abi_serializer_max_time );
    }
 
    abi_serializer initialize_multisig() {

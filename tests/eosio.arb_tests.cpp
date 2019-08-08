@@ -43,25 +43,20 @@ BOOST_FIXTURE_TEST_CASE( check_config_setter, eosio_arb_tester ) try {
    setconfig ( max_elected_arbs, start_election, election_duration, arbitrator_term_length, fees);
    produce_blocks();
    
-
    auto config = get_config();
-   cout << config << endl;
-   cout << "last_time_edited: " << config["last_time_edited"].as<uint32_t>() << endl;
 
    REQUIRE_MATCHING_OBJECT(
       config, 
       mvo()
-		 ("publisher", eosio::chain::name("eosio.arb"))
+		   ("publisher", eosio::chain::name("eosio.arb"))
          ("max_elected_arbs", max_elected_arbs)
          ("election_duration", election_duration)
          ("election_start", start_election)
-		 ("fee_structure", vector<int64_t>({int64_t(1), int64_t(2), int64_t(3), int64_t(4)}))
+		   ("fee_structure", vector<int64_t>({int64_t(1), int64_t(2), int64_t(3), int64_t(4)}))
          ("arb_term_length", uint32_t(one_day * 10))
-		 // NOTE: test now() function returns time offset by +1 second
-		 // added this line so unit test would pass. 
-		 ("last_time_edited", config["last_time_edited"].as<uint32_t>()) 
-		 ("current_ballot_id", 0)
-		 ("auto_start_election", 0)
+		   ("last_time_edited", config["last_time_edited"].as<uint32_t>()) 
+		   ("current_ballot_id", 0)
+		   ("auto_start_election", 0)
    );
    
    produce_blocks(1);
@@ -70,7 +65,7 @@ BOOST_FIXTURE_TEST_CASE( check_config_setter, eosio_arb_tester ) try {
    produce_blocks(1);
    produce_block(fc::seconds(start_election + election_duration));
    produce_blocks(1);
-   regarb(test_voters[0], "12345678901234567890123456789012345678901234567890123123465");
+   regarb(test_voters[0], ipfs_hash1);
    endelection(test_voters[0]);
    produce_blocks(1);
 
@@ -89,11 +84,11 @@ BOOST_FIXTURE_TEST_CASE( check_config_setter, eosio_arb_tester ) try {
          ("max_elected_arbs", max_elected_arbs)
          ("election_duration", election_duration)
          ("election_start", start_election)
-		 ("fee_structure", vector<int64_t>({int64_t(1), int64_t(2), int64_t(3), int64_t(4)}))
+		   ("fee_structure", vector<int64_t>({int64_t(1), int64_t(2), int64_t(3), int64_t(4)}))
          ("arb_term_length", uint32_t(one_day * 10 + 1))
-		 ("last_time_edited", now())
-		 ("current_ballot_id", 1)
-		 ("auto_start_election", 1)
+		   ("last_time_edited", now())
+		   ("current_ballot_id", 1)
+		   ("auto_start_election", 1)
    );
    produce_blocks(1);
    
@@ -168,7 +163,7 @@ BOOST_FIXTURE_TEST_CASE( register_unregister_endelection, eosio_arb_tester ) try
    name dropout = test_voters[2];
    name noncandidate = test_voters[3];
 
-   std::string credentials = std::string("/ipfs/53CharacterLongHashToSatisfyIPFSHashCondition1123456/");
+   std::string credentials = ipfs_hash2;
 
    // candidates cannot register without an election
    regarb(candidate, credentials);
@@ -460,7 +455,7 @@ BOOST_FIXTURE_TEST_CASE( full_election, eosio_arb_tester ) try {
    name candidate3 = test_voters[2];
    name noncandidate = test_voters[3];
 
-   std::string credentials = std::string("/ipfs/53CharacterLongHashToSatisfyIPFSHashCondition1123456/");
+   std::string credentials = ipfs_hash3;
 
    // register and verifiy integrity of candidate info
    for(int i = 0; i <= 2; i++){
@@ -634,7 +629,7 @@ BOOST_FIXTURE_TEST_CASE( tiebreaker, eosio_arb_tester ) try {
    name candidate2 = test_voters[1];
    name candidate3 = test_voters[2];
 
-   std::string credentials = std::string("/ipfs/53CharacterLongHashToSatisfyIPFSHashCondition1123456/");
+   std::string credentials = ipfs_hash1;
 
    // register and verifiy integrity of candidate info
    for(int i = 0; i <= 2; i++){
@@ -783,18 +778,12 @@ BOOST_FIXTURE_TEST_CASE( case_setup_flow, eosio_arb_tester ) try {
 
     // specify claim link
     string claim_link_invalid = "http://google.com";
-    vector<string> claim_links = {
-            "ipfs://123456jkfadfhjlkldfajldfshjkldfahjfdsghaleedkjaagkso",
-            "ipfs://223456jkfadfhjlkldfajldfshjkldfahjfdsghaleedkjaagkso",
-            "ipfs://323456jkfadfhjlkldfajldfshjkldfahjfdsghaleedkjaagkso",
-            "ipfs://423456jkfadfhjlkldfajldfshjkldfahjfdsghaleedkjaagkso",
-    };
 
     // Lang codes
     vector<uint8_t> langcodes = {uint8_t(0)};
 
     // Test invalid claim link
-    std::cout <<"test invalid claim link" << endl;
+   //  std::cout <<"test invalid claim link" << endl;
     BOOST_REQUIRE_EXCEPTION(
             filecase(claimants[0], claim_link_invalid, langcodes, {}  ),
             eosio_assert_message_exception,
@@ -827,24 +816,21 @@ BOOST_FIXTURE_TEST_CASE( case_setup_flow, eosio_arb_tester ) try {
     BOOST_REQUIRE_EQUAL( casef["case_status"].as_uint64(), CASE_SETUP  );
 
     // Check new case file has one unread claims.
-    std::cout<<"Unread Claim Count for new case: " << cunread_claims.size() << endl;
+   //  std::cout << "Unread Claim Count for new case: " << cunread_claims.size() << endl;
     BOOST_REQUIRE_EQUAL(casef["unread_claims"].size(), 1 );
 
     // claimant who filed case is the only one allowed to add additional claims to casefile
     BOOST_REQUIRE_EXCEPTION(
-            addclaim( cid, claim_links[1], claimants[1]  ),
-            eosio_assert_message_exception,
-            eosio_assert_message_is( "you are not the claimant of this case." )
+         addclaim( cid, claim_links[1], claimants[1]  ),
+         eosio_assert_message_exception,
+         eosio_assert_message_is( "you are not the claimant of this case." )
     );
-
 
     // add additional claims to the case file
     addclaim( cid, claim_links[1], claimants[0]  );
     addclaim( cid, claim_links[2], claimants[0]  );
     addclaim( cid, claim_links[3], claimants[0]  );
     produce_blocks(1);
-	
-	//TODO: assert that claimant can NOT addclaim with same ipfs string
 
     // Check unread claim was added to casefile
     casef = get_casefile(uint64_t(0));
@@ -854,12 +840,12 @@ BOOST_FIXTURE_TEST_CASE( case_setup_flow, eosio_arb_tester ) try {
     // Retrieve 1st unread claim for first case and verify info
     auto unread_claim = get_unread_claim(0,0);
     REQUIRE_MATCHING_OBJECT (unread_claim,
-            mvo()
-            ("claim_id",0)
-            ("claim_summary", claim_links[0])
-            ("decision_link", "")
-            ("response_link", "")
-            ("decision_class", 0)
+         mvo()
+         ("claim_id",0)
+         ("claim_summary", claim_links[0])
+         ("decision_link", "")
+         ("response_link", "")
+         ("decision_class", 0)
     );
 
     BOOST_REQUIRE_EQUAL(false, get_unread_claim( cid, claim_links[2]).is_null() );
@@ -877,7 +863,6 @@ BOOST_FIXTURE_TEST_CASE( case_setup_flow, eosio_arb_tester ) try {
     BOOST_REQUIRE_EQUAL(true, get_casefile(uint64_t(2)).is_null() );
 
     //check number of cases after 1 case shredded (should be 3 after shred)
-
 
     //ready first case filed and verify status changed from CASE_SETUP to AWAITING_ARBS
     casef = get_casefile(uint64_t(0));
@@ -1001,7 +986,7 @@ BOOST_FIXTURE_TEST_CASE( advance_case, eosio_arb_tester ) try {
 	newarbstatus(AVAILABLE, test_voters[1]);
 	newarbstatus(AVAILABLE, test_voters[2]);
 	uint64_t current_case_id = 0;
-
+   // cout << "claim_link1: " << claim_link1 << endl;
 	filecase(claimant, claim_link1, lang_codes, respondant);
 	produce_blocks();
 
@@ -1085,7 +1070,7 @@ BOOST_FIXTURE_TEST_CASE( advance_case, eosio_arb_tester ) try {
 	BOOST_REQUIRE_EXCEPTION(
 		advancecase(current_case_id, test_voters[0]),
 		eosio_assert_message_exception,
-		eosio_assert_message_is("case_ruling must be set before advancing case to RESOLVED status")
+		eosio_assert_message_is("Case Ruling must be set before advancing case to RESOLVED status")
     );
 
 	eosio_arb_tester::setruling(current_case_id, test_voters[0], claim_link1);
@@ -1101,7 +1086,7 @@ BOOST_FIXTURE_TEST_CASE( advance_case, eosio_arb_tester ) try {
 	BOOST_REQUIRE_EQUAL(test_voters[0], approvals[0].as_string());
 	produce_blocks();
 
-	cout << "casefile: " << get_casefile(current_case_id) << endl;
+	// cout << "casefile: " << get_casefile(current_case_id) << endl;
 
 	BOOST_REQUIRE_EXCEPTION(
 	advancecase(current_case_id, test_voters[0]),
@@ -1130,7 +1115,7 @@ BOOST_FIXTURE_TEST_CASE( advance_case, eosio_arb_tester ) try {
 BOOST_FIXTURE_TEST_CASE( respondant_response, eosio_arb_tester ) try {
 	elect_arbitrators(8, 10); // test_voters 0-7 are arbitrators, 8-17 voted for 0-7
 	newarbstatus(AVAILABLE, test_voters[0]);
-
+   
 	filecase(claimant, claim_link1, lang_codes, respondant);
 	produce_blocks();
 
@@ -1225,7 +1210,7 @@ BOOST_FIXTURE_TEST_CASE( recuse_arb, eosio_arb_tester ) try {
 	BOOST_REQUIRE_EXCEPTION(
 		recuse(current_case_id, "because i'm bias and can't hear this case", test_voters[0]),
 		eosio_assert_message_exception,
-		eosio_assert_message_is("Arbitrator isn't selected for this case.")
+		eosio_assert_message_is("unable to recuse if the case is resolved")
     );
 
 	assigntocase(current_case_id, test_voters[0], assigner);
@@ -1291,14 +1276,14 @@ BOOST_FIXTURE_TEST_CASE( dismiss_case, eosio_arb_tester ) try {
     assigntocase(current_case_id, test_voters[0], assigner);
 
     cf = get_casefile(current_case_id);
-    std::cout << "Case status: " << cf["case_status"].as_string() << endl;
+   //  std::cout << "Case status: " << cf["case_status"].as_string() << endl;
     BOOST_REQUIRE_EQUAL ( cf["case_status"].as<uint8_t>(), CASE_INVESTIGATION );
     assigned_arbs = cf["arbitrators"].as<vector<fc::variant>>();
     BOOST_REQUIRE_EQUAL(assigned_arbs.size(), 1);
     BOOST_REQUIRE_EQUAL(assigned_arbs[0].as_string(), test_voters[0].to_string());
 
 	//TODO: dismisscase
-	std::cout << "Case status: " << cf["case_status"].as_string() << endl;
+	// std::cout << "Case status: " << cf["case_status"].as_string() << endl;
     //[[eosio::action]] void dismisscase(uint64_t case_id, name assigned_arb, string ruling_link);
 
     BOOST_REQUIRE_EXCEPTION(
@@ -1379,7 +1364,7 @@ BOOST_FIXTURE_TEST_CASE( accept_dismiss_claims, eosio_arb_tester ) try {
     assigntocase(current_case_id, test_voters[0], assigner);
 
     cf = get_casefile(current_case_id);
-    std::cout << "Case status: " << cf["case_status"].as_string() << endl;
+   //  std::cout << "Case status: " << cf["case_status"].as_string() << endl;
     BOOST_REQUIRE_EQUAL ( cf["case_status"].as<uint8_t>(), CASE_INVESTIGATION );
     assigned_arbs = cf["arbitrators"].as<vector<fc::variant>>();
     BOOST_REQUIRE_EQUAL(assigned_arbs.size(), 1);
@@ -1436,7 +1421,7 @@ BOOST_FIXTURE_TEST_CASE( accept_dismiss_claims, eosio_arb_tester ) try {
     BOOST_REQUIRE_EXCEPTION (
         acceptclaim(current_case_id, test_voters[0], claim_links[3], ruling_links[3],  40  ),
         eosio_assert_message_exception,
-        eosio_assert_message_is("decision_class must be valid [1 - 15]")
+        eosio_assert_message_is("decision_class must be valid [2 - 15]")
     );
 
 	//acceptclaim

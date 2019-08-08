@@ -16,28 +16,43 @@ public:
 	const name assigner = name("assigner");
 	const name non_claimant = name("nonclaimant");
 
-	const string claim_link1 = "QmPcfm42GpRbShfMv7aBuXSN3mWwmbmiq6ZrRT1LtqL3ZX";
-	const string claim_link2 = "QmaR8uSSy9MxFs6cftuaUNfirA6ypHKPpfB7eStds4AYDh";
+    string ipfs_hash1  = "QmeRuDErR125TxzKMxUuxcpT7QWaS7PqZryhma7rBzd8AN";
+    string ipfs_hash2  = "QmQveDjVxp9RAMowU5m8JddfmfjPhZsc5skqmB3x9awPrU";
+    string ipfs_hash3  = "QmeRuDErR125TxzKMxUuxcpT7QWaS7PqZryhma7rBzd8AN";
+    string ipfs_hash4  = "Qma5JQmYpg26NkGr9X16PXvpHW19MwaY4MGy3v49cgQhag";
+    string ipfs_hash5  = "QmV1TgLtLs6ZeBs68r4vdbt1rHANdB1qorJ2rf372NJudM";
+    string ipfs_hash6  = "QmSoxPmfwBbyfxQoztK99E69Ni2aXc579vRnsKeTHURvbu";
+    string ipfs_hash7  = "QmPfapuzBNWQpdtksSA8AAossQPecfsaxqpuBjeg4wdSfw";
+    string ipfs_hash8  = "Qmdhwerg8BZMUdCREqz6xXjMFwgEM9BJ7drThjFFnkSkAG";
+    string ipfs_hash9  = "QmQQf5easdpL5aVjvm7AMu6nNZqCmdwRv8dv9a5qU5dba6";
+    string ipfs_hash10 = "QmSgd1yDGTMqiouThMUEWnaoN9mGMLPREXjqmaUL7U68yM";
+    string ipfs_hash11 = "QmcUNtZbkSNT7Gs5w3i9MX8bzkRqgvG7AckANBVcnAWLF2";
+    string ipfs_hash12 = "QmUBvK5BFEh5MtATZj2r3LFms558xUvWj9PWWc6BdgY2Gy";
+    string ipfs_hash13 = "QmdapxQhLQCN1LW4hgMLRG3jYVhKaADiSBb3PpL1vd2boY";
+    string ipfs_hash14 = "QmPQvJNWtXGx8FbSSuKdCsbJb1esDirAiRfXDJxhykwtkv";
+
+	const string claim_link1 = ipfs_hash1;
+	const string claim_link2 = ipfs_hash2;
     const vector<string> claim_links = {
-            "QmaqXXdxX8CSDrLHidjRk51RVdGhyLLX1w8SMyudNy7Aye",
-            "QmQUxGfBBctLVQrAEQJjWHSLufaBUAzncRAf2o3Ue88n55",
-            "QmVXaHjxByYNsh7ZwzoJMWmpDQ6pTzzBqAymH9XK2JkvRK",
-            "QmTqdYyLPzZ5VjLB5v4yS44NVsjfYuBPtjMj5B8U8uPQMm",
+        ipfs_hash3,
+        ipfs_hash4,
+        ipfs_hash5,
+        ipfs_hash6,
     };
 
 
-    const string response_link1 = "QmQeqYBXbQZ91QVrLdczc43z5RKurPqJiZze3jpTQ7MY3G";
-	const string response_link2 = "QmfJcVYGDeK4SBudEPXWKRBG4dmTFapmUHJGx2SfpR5qPW";
+    const string response_link1 = ipfs_hash7;
+	const string response_link2 = ipfs_hash8;
     const vector<string> response_links ={
-            "QmR1mWk6DtJEC6k7qgucuhNyu3g6WsEmrb6Z3wMKprq43e",
-            "QmV59dyJn3RoJz1axfMk1BL2MMgj1iMFf99GR1w2veg9mK",
+            ipfs_hash9,
+            ipfs_hash10,
     };
 
     const vector<string> ruling_links = {
-            "QmekkVz5Jy1VgyQgH31p7LMfc6euXWfiHxPat2yf8BuhTM",
-            "QmQwNsNHBbG5WRai6jnmW2b3QdwVLxxQn4tiPcSgSEHnat",
-            "Qmcgk5fmBqXweDYq816i7m1abdGfzzbG2XY66AC1DvuWp7",
-            "QmbnYHXjb4qpC8GzvmgMUY5u3p2cjarTrNopkkjDQWhjuN",
+            ipfs_hash11,
+            ipfs_hash12,
+            ipfs_hash13,
+            ipfs_hash14
     };
 
 	const vector<uint8_t> lang_codes = {0, 1, 2};
@@ -176,8 +191,8 @@ public:
    		BOOST_REQUIRE_EQUAL(cbid, lid);
 
 		voter_map(0, num_arbitrators, [&](auto& account) {
-			regarb(account, "ipfs://123456jkfadfhjlkldfajldfshjkldfahjfdsghaleedkjaagkso");
-			candaddlead(account, "ipfs://123456jkfadfhjlkldfajldfshjkldfahjfdsghaleedkjaagkso");
+			regarb(account, claim_link1);
+			candaddlead(account, claim_link1);
 			produce_blocks();
 		});
 

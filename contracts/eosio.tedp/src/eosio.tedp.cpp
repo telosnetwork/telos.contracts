@@ -124,3 +124,5 @@ ACTION tedp::pay()
 
     eosio_assert(payouts_made, "No payouts are due");
 }
+
+EOSIO_DISPATCH( tedp, (settf)(setecondev)(setrex)(setdrawdown)(delpayout)(pay) )

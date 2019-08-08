@@ -109,7 +109,7 @@ namespace eosiosystem {
          return ( flags & ~static_cast<F>(field) );
    }
 
-   struct[[ eosio::table, eosio::contract("eosio.system") ]] payrates {
+   struct[[ eosio::table("payrate"), eosio::contract("eosio.system") ]] payrates {
       uint64_t bpay_rate;
       uint64_t worker_amount;
       uint64_t primary_key() const { return bpay_rate; }
