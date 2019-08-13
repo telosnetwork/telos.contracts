@@ -711,7 +711,7 @@ BOOST_FIXTURE_TEST_CASE( full_leaderboard_flow, eosio_trail_tester ) try {
 		vector<uint16_t> vote_directions;
 		for(int16_t j = direction; j >= 0; --j) {
 			// std::cout << "vote #" << j << std::endl;
-			// dump_trace(castvote(test_voters[i].value, current_ballot_id, j));
+			dump_trace(castvote(test_voters[i].value, current_ballot_id, j));
 			vote_directions.emplace_back(uint16_t(j));
 			candidate_votes[j] += voter_total;
 		}

@@ -39,8 +39,6 @@ public:
       create_accounts({ N(eosio.token), N(eosio.ram), N(eosio.ramfee), N(eosio.stake),
                N(eosio.bpay), N(eosio.vpay), N(eosio.saving), N(eosio.names), N(eosio.trail), N(eosio.rex), N(eosio.tedp) });
 
-      
-
       produce_blocks( 100 );
       set_code( N(eosio.token), contracts::token_wasm());
       set_abi( N(eosio.token), contracts::token_abi().data() );
@@ -185,6 +183,7 @@ public:
                                             ("transfer", 0 )
                                           )
                                 );
+                                
 
       set_transaction_headers(trx);
       trx.sign( get_private_key( creator, "active" ), control->get_chain_id()  );
@@ -927,7 +926,7 @@ public:
    }
 
    fc::variant get_payment_info( name account ) {
-      vector<char> data = get_row_by_account( config::system_account_name, config::system_account_name, N(refunds), account );
+      vector<char> data = get_row_by_account( config::system_account_name, config::system_account_name, N(payments), account );
       return data.empty() ? fc::variant() : abi_ser.binary_to_variant( "payment_info", data, abi_serializer_max_time );
    }
 
@@ -1087,6 +1086,15 @@ public:
       return producer_names;
    }
 
+   uint64_t get_current_time() {
+      return static_cast<uint64_t>( control->pending_block_time().time_since_epoch().count() );
+   }
+
+   time_point get_current_time_point() {
+      const static time_point ct{ microseconds{ static_cast<int64_t>( get_current_time() ) } };
+      return ct;
+   }
+
    void activate_network(){
       produce_blocks(1000);
    }
@@ -1134,7 +1142,6 @@ public:
       }
    }
 };
-
 
 inline fc::mutable_variant_object voter( account_name acct ) {
    return mutable_variant_object()

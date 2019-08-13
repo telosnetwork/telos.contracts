@@ -26,8 +26,10 @@ namespace eosiosystem {
 
         _gstate.block_num++;
         if (_gstate.thresh_activated_stake_time == time_point()) {
-            if(_gstate.block_num >= block_num_network_activation && _gstate.total_producer_vote_weight > 0) _gstate.thresh_activated_stake_time = current_time_point();
-            
+            if(_gstate.block_num >= block_num_network_activation && _gstate.total_producer_vote_weight > 0) {
+                _gstate.thresh_activated_stake_time = current_time_point();
+                _gstate.last_claimrewards = timestamp.slot;
+            }
             return;
         }
      
@@ -145,7 +147,7 @@ namespace eosiosystem {
 
             if (transfer_tokens > 0) {
                 INLINE_ACTION_SENDER(eosio::token, transfer)
-                ("eosio.token"_n, {"eosio"_n, "active"_n}, {"eosio"_n, "eosio.tedp"_n, asset(transfer_tokens, core_symbol()), std::string("TEDP: Inflation offset")});
+                ("eosio.token"_n, {"eosio"_n, "active"_n}, {"eosio.tedp"_n, "eosio"_n, asset(transfer_tokens, core_symbol()), std::string("TEDP: Inflation offset")});
             }     
 
             if (issue_tokens > 0) {
@@ -196,7 +198,6 @@ namespace eosiosystem {
             int64_t pay_amount = 0;
             index++;
             
-            //TODO: Refactor these conditions if we remove min_unpaid_blocks_threshold
             if (index <= 21) {
                 pay_amount = (shareValue * int64_t(2));
             } else if (index >= 22 && index <= 51) {

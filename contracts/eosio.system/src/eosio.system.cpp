@@ -474,6 +474,7 @@ namespace eosiosystem {
    }
 
    void system_contract::setpayrates(uint64_t bpay, uint64_t worker) {
+      require_auth(_self);
       check(worker <= max_worker_monthly_amount, "WPS rate exceeds the max");
       check(bpay <= max_bpay_rate, "BPAY rate exceeds the max");
       _gpayrate.bpay_rate = bpay;

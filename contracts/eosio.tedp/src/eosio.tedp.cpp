@@ -7,7 +7,7 @@
 // bpay 1760000
 // total 5260000 * 12 momths / 365 days = 172931.5068 per day (63.12mil per year)
 // rounding up to ensure contract always can have a surplus beyond the total max of all payouts
-const uint64_t max_drawdown_amount = 173000;
+// const uint64_t max_drawdown_amount = 173000;
 
 // 60sec * 60min * 24hrs
 const uint64_t daily_interval = 86400;
@@ -41,11 +41,6 @@ ACTION tedp::setrex(uint64_t amount) {
     setpayout(name("eosio.rex"), amount, rex_interval);
 }
 
-ACTION tedp::setdrawdown(uint64_t amount) {
-    eosio_assert(amount <= max_drawdown_amount, "Max drawdown amount is 173000 per day");
-    setpayout(get_self(), amount, daily_interval);
-}
-
 void tedp::setpayout(name to, uint64_t amount, uint64_t interval)
 {
     require_auth(name("eosio"));
@@ -57,7 +52,7 @@ void tedp::setpayout(name to, uint64_t amount, uint64_t interval)
             p.to = to;
             p.amount = amount;
             p.interval = interval;
-            p.last_payout = now() -  interval;
+            p.last_payout = now();
         });
     }
     else
@@ -106,13 +101,7 @@ ACTION tedp::pay()
         {
             // channel_to_rex
             eosio::print("Channeling to rex\n");
-            action(permission_level{_self, name("active")}, name("eosio"), name("distviarex"), make_tuple(_self, total_payout)).send();
-        }
-        else if (p.to == get_self())
-        {
-            // drawdown
-            eosio::print("Withdrawing from exrsrv.tf\n");
-            action(permission_level{name("exrsrv.tf"), name("active")}, name("eosio.token"), name("transfer"), make_tuple(name("exrsrv.tf"), p.to, total_payout, std::string("TEDP Withdrawl"))).send();
+            action(permission_level{_self, name("active")}, name("eosio"), name("distviarex"), make_tuple(get_self(), total_payout)).send();
         }
         else
         {
@@ -125,4 +114,4 @@ ACTION tedp::pay()
     eosio_assert(payouts_made, "No payouts are due");
 }
 
-EOSIO_DISPATCH( tedp, (settf)(setecondev)(setrex)(setdrawdown)(delpayout)(pay) )
+EOSIO_DISPATCH( tedp, (settf)(setecondev)(setrex)(delpayout)(pay) )
