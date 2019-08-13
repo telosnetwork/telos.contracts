@@ -37,7 +37,7 @@ public:
       produce_blocks( 2 );
 
       create_accounts({ N(eosio.token), N(eosio.ram), N(eosio.ramfee), N(eosio.stake),
-               N(eosio.bpay), N(eosio.vpay), N(eosio.saving), N(eosio.names), N(eosio.trail), N(eosio.rex), N(eosio.tedp) });
+               N(eosio.bpay), N(eosio.vpay), N(eosio.saving), N(eosio.names), N(eosio.trail), N(eosio.rex), N(exrsrv.tf) });
 
       produce_blocks( 100 );
       set_code( N(eosio.token), contracts::token_wasm());
@@ -77,14 +77,12 @@ public:
       
       set_code( N(eosio.trail), contracts::trail_wasm() );
       set_abi( N(eosio.trail),  contracts::trail_abi().data() );
-
       {
          const auto& accnt = control->db().get<account_object,by_name>( N(eosio.trail) );
          abi_def abi;
          BOOST_REQUIRE_EQUAL(abi_serializer::to_abi(accnt.abi, abi), true);
          trail_abi_ser.set_abi(abi, abi_serializer_max_time);
       }
-      issue( N(eosio.tedp), core_sym::from_string("0.0001"));
    }
 
    void remaining_setup() {
@@ -97,6 +95,8 @@ public:
       create_account_with_resources( N(carol1111111), config::system_account_name, core_sym::from_string("1.0000"), false );
 
       BOOST_REQUIRE_EQUAL( core_sym::from_string("1000000000.0000"), get_balance("eosio")  + get_balance("eosio.ramfee") + get_balance("eosio.stake") + get_balance("eosio.ram") );
+      produce_blocks();
+      open(N(exrsrv.tf), symbol{CORE_SYM}, N(exrsrv.tf));
    }
    
    enum class setup_level {
@@ -856,6 +856,15 @@ public:
                                 ("memo", "")
                                 );
    }
+
+   void open( name owner, const symbol& symbol, name ram_payer = config::system_account_name ) {
+      base_tester::push_action( N(eosio.token), N(open), ram_payer, mutable_variant_object()
+                                ("owner",      owner )
+                                ("symbol", symbol )
+                                ("ram_payer", ram_payer)
+                                );
+   }
+
    void transfer( name from, name to, const asset& amount, name manager = config::system_account_name ) {
       base_tester::push_action( N(eosio.token), N(transfer), manager, mutable_variant_object()
                                 ("from",    from)

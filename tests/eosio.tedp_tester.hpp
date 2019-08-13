@@ -34,17 +34,14 @@ public:
 
         create_accounts_with_resources({ N(tf), N(econdevfunds), N(exrsrv.tf) });
 
-        set_code( N(eosio.tedp), contracts::eosio_tedp_wasm() );
-        set_abi( N(eosio.tedp), contracts::eosio_tecp_abi().data() );
+        set_code( N(exrsrv.tf), contracts::eosio_tedp_wasm() );
+        set_abi( N(exrsrv.tf), contracts::eosio_tecp_abi().data() );
         {
             const auto& accnt = control->db().get<account_object, by_name>(N(eosio.tedp));
             abi_def abi;
             BOOST_REQUIRE_EQUAL(abi_serializer::to_abi(accnt.abi, abi), true);
             tedp_abi_ser.set_abi(abi, abi_serializer_max_time);
         }
-
-        issue( N(exrsrv.tf), core_sym::from_string("100000000.0000"));
-        issue( N(eosio.tedp), core_sym::from_string("100000000.0000"));
     }
 
     asset get_balance( const account_name& act, symbol balance_symbol = symbol{CORE_SYM}, const account_name& contract = N(eosio.token) ) {

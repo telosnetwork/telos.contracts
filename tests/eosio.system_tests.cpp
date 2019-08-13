@@ -1527,7 +1527,7 @@ BOOST_FIXTURE_TEST_CASE(producer_pay, eosio_system_tester, * boost::unit_test::t
    BOOST_REQUIRE_EQUAL(success(), vote( N(producvotera), { N(defproducera) }));
 
    produce_blocks((1000 - get_global_state()["block_num"].as<uint32_t>()) + 1);
-   transfer(name("eosio"), name("eosio.tedp"), core_sym::from_string("400000000.0000"), config::system_account_name);
+   transfer(name("eosio"), name("exrsrv.tf"), core_sym::from_string("400000000.0000"), config::system_account_name);
    {
       const uint32_t last_claim_time = get_global_state()["last_claimrewards"].as<uint32_t>();
       produce_blocks(3598);
@@ -1555,7 +1555,7 @@ BOOST_FIXTURE_TEST_CASE(producer_pay, eosio_system_tester, * boost::unit_test::t
       const asset initial_balance = get_balance(N(defproducera));
       const asset initial_wps_balance = get_balance(N(eosio.saving));
       const asset initial_bpay_balance = get_balance(N(eosio.bpay));
-      const asset initial_tedp_balance = get_balance(N(eosio.tedp));
+      const asset initial_tedp_balance = get_balance(N(exrsrv.tf));
 
       BOOST_REQUIRE_EQUAL(wasm_assert_msg("No payment exists for account"),
                           push_action(N(defproducera), N(claimrewards), mvo()("owner", "defproducera")));
@@ -1593,7 +1593,7 @@ BOOST_FIXTURE_TEST_CASE(producer_pay, eosio_system_tester, * boost::unit_test::t
       const asset supply  = get_token_supply();
       const asset balance = get_balance(N(defproducera));
       BOOST_REQUIRE_EQUAL(supply, initial_supply);
-      BOOST_REQUIRE_EQUAL(get_balance(N(eosio.tedp)), initial_tedp_balance + new_tokens);
+      BOOST_REQUIRE_EQUAL(get_balance(N(exrsrv.tf)), initial_tedp_balance + new_tokens);
       const asset payment = get_payment_info(N(defproducera))["pay"].as<asset>();
       BOOST_REQUIRE_EQUAL(payment, to_bpay);
       const asset initial_prod_balance = get_balance(N(defproducera));

@@ -147,7 +147,7 @@ namespace eosiosystem {
 
             if (transfer_tokens > 0) {
                 INLINE_ACTION_SENDER(eosio::token, transfer)
-                ("eosio.token"_n, {"eosio"_n, "active"_n}, {"eosio.tedp"_n, "eosio"_n, asset(transfer_tokens, core_symbol()), std::string("TEDP: Inflation offset")});
+                ("eosio.token"_n, {"eosio"_n, "active"_n}, {, "eosio"_n, "eosio.tedp"_n, asset(transfer_tokens, core_symbol()), std::string("TEDP: Inflation offset")});
             }     
 
             if (issue_tokens > 0) {
