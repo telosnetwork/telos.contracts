@@ -161,6 +161,7 @@ BOOST_FIXTURE_TEST_CASE( pay_flow, eosio_tedp_tester ) try {
     
     for(const auto &payout : payout_names) {
         fc::variant payout_info = get_payout(payout);
+
         uint64_t time_since_last_payout = now() - last_payout;
         uint64_t payouts_due = time_since_last_payout / payout_info["interval"].as<uint64_t>();
         uint64_t total_due = payouts_due * payout_info["amount"].as<uint64_t>();
