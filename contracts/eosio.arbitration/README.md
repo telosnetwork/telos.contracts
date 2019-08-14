@@ -1,6 +1,6 @@
 # Arbitration Setup/Usage
 
-The arbitration contract is a tool for Telos Blockchain Network members to contractually apply for arbitration because of grievances within the network.
+The arbitration contract is a tool for Telos Blockchain Network members and Arbitrators to contractually file for and process arbitration within the network.
 
 ## Setup
 
@@ -26,9 +26,9 @@ The following steps outline how to initialize the arbitration contract and elect
 
 * `regcand(name candidate, string creds_ipfs_url)`
 
-    The regcand action will create an arbitrator candidate application for the given candidate. Arbitrator candidates must then be elected through the regular arbitraotr election process in order to begin accepting cases.
+    The regcand action will create an arbitrator candidate application for the given candidate. Arbitrator candidates must then be elected through the regular arbitrator election process in order to begin accepting cases.
 
-    Note that this action only submits a candidate's application. In order to be elected as an arbitrator, the candidate must be explicitly added to an election through the `candaddlead` action.
+    Note that this action only submits a candidate's application for review. In order to be *elected* as an arbitrator, the candidate must be explicitly added to an election through the `candaddlead` action.
 
     `candidate` is the account name of the candidate applying for an arbitrator position.
 
@@ -65,3 +65,28 @@ The following steps outline how to initialize the arbitration contract and elect
     The endelection action will close an existing election that is no longer open for voting.
 
     `candidate` is the account calling the endelection action.
+
+## Filing For Arbitration
+
+Description here...
+
+### Common Terminology
+
+* `Claimant` : 
+
+* `Respondant` :
+
+* `Arbitrator` : 
+
+### Case Lifecycle
+
+* `CASE_SETUP` : When an arbitration case is filed it begins in the CASE_SETUP stage where the claimant can build the case file before opening it up for review by arbitrators.
+
+* `AWAITING_ARBS` : After a case file has been built and is ready for review by an arbitrator, the case enters the AWAITING_ARBS stage where it awaits for abritrators to be assigned.
+
+* `CASE_INVESTIGATION` : When a case has been assigned one or more arbitrators, the case then enters the CASE_INVESTIGATION stage. In this stage the arbitrators review and assess the claims within the case to determine their validity. This stage may also involve communication between the claimant and the arbitrator in situations that require clarification or more sufficient evidence.
+
+* `RESOLVED` : 
+
+* `DISMISSED` : If during the CASE_INVESTIGATION stage the case is found to be invalid or without merit the arbitrator may move to file the case as DISMISSED.
+

@@ -529,7 +529,7 @@ void tfvt::remove_and_seize_all() {
 void tfvt::remove_and_seize(name member) {
 	members_table members(get_self(), get_self().value);
 	asset amount_to_seize = asset(1, symbol("TFBOARD", 0));
-	auto& m = members.get(member.value, "board member not found");
+	auto m = members.get(member.value, "board member not found");
 
 	members.erase(m);
 
@@ -538,13 +538,6 @@ void tfvt::remove_and_seize(name member) {
 			get_self(),		//account to update
 			member,
 			amount_to_seize
-		)
-	).send();
-
-	action(permission_level{get_self(), "active"_n }, "eosio.trail"_n, "burntoken"_n,
-		std::make_tuple(
-			get_self(),
-			asset(1, symbol("TFBOARD", 0))
 		)
 	).send();
 }

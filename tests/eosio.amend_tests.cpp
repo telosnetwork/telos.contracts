@@ -31,7 +31,7 @@ BOOST_FIXTURE_TEST_CASE( deposit_system, eosio_amend_tester) try {
 		auto voter_balance = get_currency_balance(N(eosio.token), symbol(4, "TLOS"), test_voters[i].value);
 		
 		BOOST_REQUIRE_EQUAL(voter_balance, asset::from_string("200.0000 TLOS"));
-		std::cout << "transfer " << "1" << " account " << i << std::endl;
+		// std::cout << "transfer " << "1" << " account " << i << std::endl;
 		transfer(test_voters[i].value, N(eosio.amend), sum, "WPS deposit");
 		produce_blocks( 2 );
 		auto contract_balance = get_currency_balance(N(eosio.token), symbol(4, "TLOS"), N(eosio.amend));
@@ -44,7 +44,7 @@ BOOST_FIXTURE_TEST_CASE( deposit_system, eosio_amend_tester) try {
 			("owner", test_voters[i].to_string())
 			("escrow", sum.to_string())
 		);
-		std::cout << "transfer " << " 2 " << " account " << i << std::endl;
+		// std::cout << "transfer " << " 2 " << " account " << i << std::endl;
 		transfer(test_voters[i].value, N(eosio.amend), sum, "WPS depost");
 		produce_blocks( 2 );
 		contract_balance = get_currency_balance(N(eosio.token), symbol(4, "TLOS"), N(eosio.amend));

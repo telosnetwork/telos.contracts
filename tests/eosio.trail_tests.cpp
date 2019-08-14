@@ -703,14 +703,14 @@ BOOST_FIXTURE_TEST_CASE( full_leaderboard_flow, eosio_trail_tester ) try {
 		voter_info = get_voter(test_voters[i], test_code);
 		currency_balance = get_currency_balance(N(eosio.token), symbol(4, "TLOS"), test_voters[i].value);
 		voter_total = asset::from_string(voter_info["tokens"].as_string());
-		std::cout << voter_total.to_string() << std::endl;
+		// std::cout << voter_total.to_string() << std::endl;
 		BOOST_REQUIRE_EQUAL(currency_balance.get_amount(), voter_total.get_amount());
 
 		int16_t direction = std::rand() % 3;
-		std::cout << "random direction for vote: " << direction << std::endl;
+		// std::cout << "random direction for vote: " << direction << std::endl;
 		vector<uint16_t> vote_directions;
 		for(int16_t j = direction; j >= 0; --j) {
-			std::cout << "vote #" << j << std::endl;
+			// std::cout << "vote #" << j << std::endl;
 			dump_trace(castvote(test_voters[i].value, current_ballot_id, j));
 			vote_directions.emplace_back(uint16_t(j));
 			candidate_votes[j] += voter_total;

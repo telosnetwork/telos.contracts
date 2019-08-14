@@ -19,7 +19,7 @@ class eosio_amend_tester : public eosio_trail_tester
 
 	eosio_amend_tester()
 	{
-		std::cout << "init amend tester" << std::endl;
+		// std::cout << "init amend tester" << std::endl;
 		create_accounts({N(eosio.amend)});
 		produce_blocks();
 		{
