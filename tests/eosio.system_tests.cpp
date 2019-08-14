@@ -1593,7 +1593,7 @@ BOOST_FIXTURE_TEST_CASE(producer_pay, eosio_system_tester, * boost::unit_test::t
       const asset supply  = get_token_supply();
       const asset balance = get_balance(N(defproducera));
       BOOST_REQUIRE_EQUAL(supply, initial_supply);
-      BOOST_REQUIRE_EQUAL(get_balance(N(exrsrv.tf)), initial_tedp_balance + new_tokens);
+      BOOST_REQUIRE_EQUAL(get_balance(N(exrsrv.tf)), initial_tedp_balance - new_tokens);
       const asset payment = get_payment_info(N(defproducera))["pay"].as<asset>();
       BOOST_REQUIRE_EQUAL(payment, to_bpay);
       const asset initial_prod_balance = get_balance(N(defproducera));
@@ -1643,8 +1643,7 @@ BOOST_FIXTURE_TEST_CASE(multi_producer_pay, eosio_system_tester, * boost::unit_t
    BOOST_REQUIRE_EQUAL(success(), vote( N(producvotera), vector<name>( producer_names.begin(), producer_names.begin() + 30 )));
    BOOST_REQUIRE_EQUAL(success(), vote( N(producvoterb), vector<name>( producer_names.begin() + 31, producer_names.begin() + 51 )));
 
-   produce_blocks((1000 - get_global_state()["block_num"].as<uint32_t>()) + 1);
-
+   produce_blocks((1000 - get_global_state()["block_num"].as<uint32_t>()) + 1);\
    {
       const uint32_t last_claim_time = get_global_state()["last_claimrewards"].as<uint32_t>();
       produce_blocks(3598);
@@ -1676,9 +1675,6 @@ BOOST_FIXTURE_TEST_CASE(multi_producer_pay, eosio_system_tester, * boost::unit_t
 
       produce_blocks();
 
-      auto trace = dump_trace(on_block());
-      BOOST_REQUIRE_EQUAL(transaction_receipt::executed, trace->receipt->status);
-
       const fc::variant pay_rate_info = get_payrate_info();
       const uint64_t bpay_rate = pay_rate_info["bpay_rate"].as<uint64_t>();;
       const uint64_t worker_amount = pay_rate_info["worker_amount"].as<uint64_t>();
@@ -1700,7 +1696,7 @@ BOOST_FIXTURE_TEST_CASE(multi_producer_pay, eosio_system_tester, * boost::unit_t
 
       asset to_bpay = asset(to_producers, symbol{CORE_SYM});
       asset to_wps = asset(to_workers, symbol{CORE_SYM});
-      asset new_tokens = asset(to_workers + to_producers - 1, symbol{CORE_SYM});
+      asset new_tokens = asset(to_workers + to_producers, symbol{CORE_SYM});
 
       vector<variant> producer_infos;
       for(const name &p : producer_names) {
@@ -1732,8 +1728,8 @@ BOOST_FIXTURE_TEST_CASE(multi_producer_pay, eosio_system_tester, * boost::unit_t
 
       int producer_count = 0;
       for(const auto &prod : producer_infos) {
-         cout << producer_count << endl;
-         cout << "producer_info: " << prod << endl;
+         // cout << producer_count << endl;
+         // cout << "producer_info: " << prod << endl;
          if(producer_count < 51) {
             BOOST_REQUIRE_EQUAL(0, prod["unpaid_blocks"].as<uint32_t>());
             const asset balance = get_balance(prod["owner"].as<name>());

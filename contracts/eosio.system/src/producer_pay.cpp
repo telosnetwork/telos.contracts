@@ -121,6 +121,7 @@ namespace eosiosystem {
 
         const asset token_supply = eosio::token::get_supply(token_account, core_symbol().code() );
         const auto usecs_since_last_fill = (ct - _gstate.last_pervote_bucket_fill).count();
+        const name tedp_account = "exrsrv.tf"_n;
     
         if (usecs_since_last_fill > 0 && _gstate.last_pervote_bucket_fill > time_point())
         {
@@ -130,7 +131,7 @@ namespace eosiosystem {
             auto new_tokens = to_workers + to_producers;
 
             //NOTE: This line can cause failure if eosio.tedp doesn't have a balance emplacement
-            asset tedp_balance = eosio::token::get_balance("eosio.token"_n, "eosio.tedp"_n, symbol_code("TLOS"));
+            asset tedp_balance = eosio::token::get_balance("eosio.token"_n, tedp_account, symbol_code("TLOS"));
             
             int64_t transfer_tokens = 0;
             int64_t issue_tokens = 0;
@@ -147,7 +148,7 @@ namespace eosiosystem {
 
             if (transfer_tokens > 0) {
                 INLINE_ACTION_SENDER(eosio::token, transfer)
-                ("eosio.token"_n, {"eosio"_n, "active"_n}, {, "eosio"_n, "eosio.tedp"_n, asset(transfer_tokens, core_symbol()), std::string("TEDP: Inflation offset")});
+                ("eosio.token"_n, {tedp_account, "active"_n}, { tedp_account, "eosio"_n, asset(transfer_tokens, core_symbol()), std::string("TEDP: Inflation offset")});
             }     
 
             if (issue_tokens > 0) {

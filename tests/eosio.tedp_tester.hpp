@@ -29,15 +29,15 @@ class eosio_tedp_tester : public eosio_system::eosio_system_tester {
 public:
     abi_serializer tedp_abi_ser;
 
+    const name test_account = name("exrsrv.tf");
+
     eosio_tedp_tester() {
         produce_blocks( 2 );
-
-        create_accounts_with_resources({ N(tf), N(econdevfunds), N(exrsrv.tf) });
-
-        set_code( N(exrsrv.tf), contracts::eosio_tedp_wasm() );
-        set_abi( N(exrsrv.tf), contracts::eosio_tecp_abi().data() );
+        create_accounts_with_resources({ N(tf), N(econdevfunds) });
+        set_code( test_account, contracts::eosio_tedp_wasm() );
+        set_abi( test_account, contracts::eosio_tecp_abi().data() );
         {
-            const auto& accnt = control->db().get<account_object, by_name>(N(eosio.tedp));
+            const auto& accnt = control->db().get<account_object, by_name>(test_account);
             abi_def abi;
             BOOST_REQUIRE_EQUAL(abi_serializer::to_abi(accnt.abi, abi), true);
             tedp_abi_ser.set_abi(abi, abi_serializer_max_time);
@@ -72,7 +72,7 @@ public:
 
     transaction_trace_ptr settf(const uint64_t amount) {
         signed_transaction trx;
-        action act = get_action(N(eosio.tedp), N(settf), vector<permission_level>{{N(eosio), config::active_name}},
+        action act = get_action(test_account, N(settf), vector<permission_level>{{N(eosio), config::active_name}},
 			mvo()
 			    ("amount", amount));
         trx.actions.emplace_back(act);
@@ -83,7 +83,7 @@ public:
 
     transaction_trace_ptr setecondev(const uint64_t amount) {
         signed_transaction trx;
-        action act = get_action(N(eosio.tedp), N(setecondev), vector<permission_level>{{N(eosio), config::active_name}},
+        action act = get_action(test_account, N(setecondev), vector<permission_level>{{N(eosio), config::active_name}},
 			mvo()
 			    ("amount", amount));
         trx.actions.emplace_back(act);
@@ -94,7 +94,7 @@ public:
 
     transaction_trace_ptr setrex(const uint64_t amount) {
         signed_transaction trx;
-        action act = get_action(N(eosio.tedp), N(setrex), vector<permission_level>{{N(eosio), config::active_name}},
+        action act = get_action(test_account, N(setrex), vector<permission_level>{{N(eosio), config::active_name}},
 			mvo()
 			    ("amount", amount));
         trx.actions.emplace_back(act);
@@ -105,7 +105,7 @@ public:
 
     transaction_trace_ptr setdrawdown(const uint64_t amount) {
         signed_transaction trx;
-        action act = get_action(N(eosio.tedp), N(setdrawdown), vector<permission_level>{{N(eosio), config::active_name}},
+        action act = get_action(test_account, N(setdrawdown), vector<permission_level>{{N(eosio), config::active_name}},
 			mvo()
 			    ("amount", amount));
         trx.actions.emplace_back(act);
@@ -116,7 +116,7 @@ public:
 
     transaction_trace_ptr delpayout(const name to) {
         signed_transaction trx;
-        action act = get_action(N(eosio.tedp), N(delpayout), vector<permission_level>{{N(eosio), config::active_name}},
+        action act = get_action(test_account, N(delpayout), vector<permission_level>{{N(eosio), config::active_name}},
 			mvo()
 			    ("to", to));
         trx.actions.emplace_back(act);
@@ -127,7 +127,7 @@ public:
 
     transaction_trace_ptr payout() {
         signed_transaction trx;
-        action act = get_action(N(eosio.tedp), N(pay), vector<permission_level>{{N(eosio), config::active_name}},
+        action act = get_action(test_account, N(pay), vector<permission_level>{{N(eosio), config::active_name}},
 			mvo());
         trx.actions.emplace_back(act);
         set_transaction_headers(trx);
@@ -136,7 +136,7 @@ public:
     }
 
     fc::variant get_payout(name to) {
-      vector<char> data = get_row_by_account( N(eosio.tedp), N(eosio.tedp), N(payouts), to );
+      vector<char> data = get_row_by_account( test_account, test_account, N(payouts), to );
       return data.empty() ? fc::variant() : tedp_abi_ser.binary_to_variant("payout", data, abi_serializer_max_time);
     }
 
@@ -145,18 +145,30 @@ public:
     }
 
     template<typename Lambda>
-    void validate_payout(Lambda&& func, name payout_name, uint64_t amount, uint64_t interval) {
+    void validate_payout(Lambda&& func, name payout_name, uint64_t amount, uint64_t interval, bool is_new = true) {
+        fc::variant payout;
+        uint64_t previous_last_payout = 0;
+        if(!is_new) {
+            payout = get_payout(payout_name);
+            BOOST_REQUIRE(!payout.is_null());
+            previous_last_payout = payout["last_payout"].as<uint64_t>();
+        }
+
         auto trace = func(amount);
         BOOST_REQUIRE_EQUAL(transaction_receipt::executed, trace->receipt->status);
-        fc::variant payout = get_payout(payout_name);
+        payout = get_payout(payout_name);
 
-        cout << payout_name << ": " << payout << endl;
+        // cout << payout_name << ": " << payout << endl;
 
         BOOST_REQUIRE(!payout.is_null());
         BOOST_REQUIRE_EQUAL(payout["to"].as<name>(), payout_name);
         BOOST_REQUIRE_EQUAL(payout["interval"].as<uint64_t>(), interval);
         BOOST_REQUIRE_EQUAL(payout["amount"].as<uint64_t>(), amount);
-        BOOST_REQUIRE_EQUAL(payout["last_payout"].as<uint64_t>(), now());
+        if(is_new) {
+            BOOST_REQUIRE_EQUAL(payout["last_payout"].as<uint64_t>(), now());
+        } else {
+            BOOST_REQUIRE_EQUAL(payout["last_payout"].as<uint64_t>(), previous_last_payout);
+        }
     };
 
     template<typename Lambda>

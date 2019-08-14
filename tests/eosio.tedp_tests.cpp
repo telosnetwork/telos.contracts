@@ -27,8 +27,6 @@ const uint64_t max_rex_amount = 685;
 BOOST_AUTO_TEST_SUITE(eosio_tedp_tests)
 
 BOOST_FIXTURE_TEST_CASE( set_payouts, eosio_tedp_tester ) try {
-    // TODO: check for over max payout assertion messages
-
     validate_payout([&](uint64_t amount) -> transaction_trace_ptr { return settf(amount); }, 
         name("tf"), max_tf_amount, daily_interval);
 
@@ -37,6 +35,24 @@ BOOST_FIXTURE_TEST_CASE( set_payouts, eosio_tedp_tester ) try {
 
     validate_payout([&](uint64_t amount) -> transaction_trace_ptr { return setrex(amount); }, 
         name("eosio.rex"), max_rex_amount, rex_interval);
+
+    validate_payout([&](uint64_t amount) -> transaction_trace_ptr { return setrex(amount); }, 
+        name("eosio.rex"), max_rex_amount - 10, rex_interval);
+
+    validate_payout([&](uint64_t amount) -> transaction_trace_ptr { return setecondev(amount); }, 
+        name("econdevfunds"), max_econdev_amount - 10, daily_interval);
+
+    BOOST_REQUIRE_EXCEPTION(settf(max_tf_amount + 1),
+		eosio_assert_message_exception, eosio_assert_message_is( "Max amount for tf account is 32876 per day" ) 
+   	);
+
+    BOOST_REQUIRE_EXCEPTION(setecondev(max_econdev_amount + 1),
+		eosio_assert_message_exception, eosio_assert_message_is( "Max amount for econdevfunds account is 16438 per day" ) 
+   	);
+
+    BOOST_REQUIRE_EXCEPTION(setrex(max_rex_amount + 1),
+		eosio_assert_message_exception, eosio_assert_message_is( "Max amount for eosio.rex account is 685 per 30min" ) 
+   	);
 
     validate_payout_del([&](const name payout_name) -> transaction_trace_ptr {
         return delpayout(payout_name);
@@ -49,11 +65,10 @@ BOOST_FIXTURE_TEST_CASE( set_payouts, eosio_tedp_tester ) try {
     validate_payout_del([&](const name payout_name) -> transaction_trace_ptr {
         return delpayout(payout_name);
     }, name("eosio.rex"));
-
-    // TODO: update amount and interval of existing payout
 } FC_LOG_AND_RETHROW()
 
 BOOST_FIXTURE_TEST_CASE( pay_flow, eosio_tedp_tester ) try {
+    transfer( config::system_account_name, test_account, core_sym::from_string("139873804.3119"), config::system_account_name );
     const asset init_balance = core_sym::from_string("30000.0000");
     const std::vector<account_name> accounts = { N(aliceaccount), N(bobbyaccount), N(carolaccount), N(emilyaccount) };
     account_name alice = accounts[0], bob = accounts[1], carol = accounts[2], emily = accounts[3];
@@ -72,10 +87,6 @@ BOOST_FIXTURE_TEST_CASE( pay_flow, eosio_tedp_tester ) try {
     BOOST_REQUIRE_EQUAL( success(),                              updaterex( alice ) );
     BOOST_REQUIRE_EQUAL( payment + fee,                          get_rex_vote_stake(alice) );
     BOOST_REQUIRE_EQUAL( get_rex_vote_stake(alice).get_amount(), get_voter_info( alice )["staked"].as<int64_t>() - init_stake );
-
-    authority auth = authority(get_private_key(N(eosio), "active").get_public_key());
-    auth.accounts.emplace_back(permission_level_weight{{name("eosio.tedp"), name("eosio.code")}, 1});
-    set_authority(name("exrsrv.tf"), name("active"), auth, name("owner"));
 
     validate_payout([&](uint64_t amount) -> transaction_trace_ptr { return settf(amount); }, 
         name("tf"), max_tf_amount, daily_interval);
@@ -113,7 +124,6 @@ BOOST_FIXTURE_TEST_CASE( pay_flow, eosio_tedp_tester ) try {
     BOOST_REQUIRE_EQUAL(transaction_receipt::executed, trace->receipt->status);
 
     vector<name> payout_names { name("eosio.rex"), name("tf"), name("econdevfunds") };
-    // cout << endl << endl;
     
     for(const auto &payout : payout_names) {
         fc::variant payout_info = get_payout(payout);
@@ -122,13 +132,6 @@ BOOST_FIXTURE_TEST_CASE( pay_flow, eosio_tedp_tester ) try {
         uint64_t payouts_due = time_since_last_payout / payout_info["interval"].as<uint64_t>();
         uint64_t total_due = payouts_due * payout_info["amount"].as<uint64_t>();
         asset total_payout = asset(total_due * 10000, symbol(4, "TLOS"));
-
-        // cout << "payout name: "             << payout                   << endl;
-        // cout << "payout info: "             << payout_info              << endl;
-        // cout << "time_since_last_payout: "  << time_since_last_payout   << endl;
-        // cout << "payouts_due: "             << payouts_due              << endl;
-        // cout << "total_due: "               << total_due                << endl;
-        // cout << "total_payout: "            << total_payout             << endl;
 
         if (payout_info["to"].as<name>() == N(eosio.rex)) {
             fc::variant rex_pool = get_rex_pool();
@@ -139,7 +142,6 @@ BOOST_FIXTURE_TEST_CASE( pay_flow, eosio_tedp_tester ) try {
             cout << "initial_balance: " << initial_balance << endl;
             BOOST_REQUIRE_EQUAL(get_balance(payout), initial_balance + total_payout);
         }
-        // cout << endl << endl;
     }
 
     produce_blocks();
@@ -156,23 +158,13 @@ BOOST_FIXTURE_TEST_CASE( pay_flow, eosio_tedp_tester ) try {
 
     trace = dump_trace(payout());
     BOOST_REQUIRE_EQUAL(transaction_receipt::executed, trace->receipt->status);
-
-    // cout << endl << endl;
     
     for(const auto &payout : payout_names) {
         fc::variant payout_info = get_payout(payout);
-
         uint64_t time_since_last_payout = now() - last_payout;
         uint64_t payouts_due = time_since_last_payout / payout_info["interval"].as<uint64_t>();
         uint64_t total_due = payouts_due * payout_info["amount"].as<uint64_t>();
         asset total_payout = asset(total_due * 10000, symbol(4, "TLOS"));
-
-        // cout << "payout name: "             << payout                   << endl;
-        // cout << "payout info: "             << payout_info              << endl;
-        // cout << "time_since_last_payout: "  << time_since_last_payout   << endl;
-        // cout << "payouts_due: "             << payouts_due              << endl;
-        // cout << "total_due: "               << total_due                << endl;
-        // cout << "total_payout: "            << total_payout             << endl;
 
         if (payout_info["to"].as<name>() == N(eosio.rex)) {
             fc::variant rex_pool = get_rex_pool();
@@ -180,10 +172,8 @@ BOOST_FIXTURE_TEST_CASE( pay_flow, eosio_tedp_tester ) try {
             BOOST_REQUIRE_EQUAL(rex_pool["total_lendable"].as<asset>(), initial_total_lendable + total_payout);
         } else {
             auto initial_balance = (payout == N(econdevfunds) ? initial_econ_balance : initial_tf_balance);
-            cout << "initial_balance: " << initial_balance << endl;
             BOOST_REQUIRE_EQUAL(get_balance(payout), initial_balance + total_payout);
         }
-        // cout << endl << endl;
     }
     
 } FC_LOG_AND_RETHROW()

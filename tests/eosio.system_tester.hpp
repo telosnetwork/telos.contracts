@@ -86,7 +86,6 @@ public:
    }
 
    void remaining_setup() {
-      // set_kick(false);
       produce_blocks();
 
       // Assumes previous setup steps were done with core token symbol set to CORE_SYM
@@ -130,22 +129,7 @@ public:
       create_core_token();
       deploy_contract();
       remaining_setup();
-   }
-
-   // transaction_trace_ptr set_kick(bool state) {
-   //      signed_transaction trx;
-   //      set_transaction_headers(trx);
-   //      trx.actions.emplace_back( vector<permission_level>{{N(eosio),config::active_name}},
-   //                              setkick{
-   //                                 .state  = state
-   //                              });
-
-   //    set_transaction_headers(trx);
-   //    trx.sign( get_private_key( N(eosio), "active" ), control->get_chain_id()  );
-   //    return push_transaction( trx );
-   // }
-
-   //transaction_trace_ptr set_rotate(bool state) {}
+   } 
 
    void create_accounts_with_resources( vector<account_name> accounts, account_name creator = config::system_account_name ) {
       for( auto a : accounts ) {
