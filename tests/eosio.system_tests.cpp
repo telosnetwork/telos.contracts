@@ -19,19 +19,27 @@ struct _abi_hash {
 };
 FC_REFLECT( _abi_hash, (owner)(hash) );
 
+struct connector {
+   asset balance;
+   double weight = .5;
+};
+FC_REFLECT( connector, (balance)(weight) );
+
 using namespace eosio_system;
 using namespace std;
 
 auto dump_trace = [](transaction_trace_ptr trace_ptr) -> transaction_trace_ptr {
-      cout << endl << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
-      for(auto trace : trace_ptr->action_traces) {
-         cout << "action_name trace: " << trace.act.name.to_string() << endl;
-         //TODO: split by new line character, loop and indent output
-         cout << trace.console << endl << endl;
-      }
-      cout << endl << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" << endl << endl;
-      return trace_ptr;
-   };
+   cout << endl << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
+   for(auto trace : trace_ptr->action_traces) {
+      cout << "action_name trace: " << trace.act.name.to_string() << endl;
+      //TODO: split by new line character, loop and indent output
+      cout << trace.console << endl << endl;
+   }
+   cout << endl << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" << endl << endl;
+   return trace_ptr;
+};
+
+bool within_one(int64_t a, int64_t b) { return std::abs(a - b) <= 1; }
 
 BOOST_AUTO_TEST_SUITE(eosio_system_tests)
 
@@ -398,7 +406,51 @@ BOOST_FIXTURE_TEST_CASE( buysell, eosio_system_tester ) try {
 
    BOOST_REQUIRE_EQUAL( success(), sellram( "alice1111111", bought_bytes ) );
 
-   BOOST_REQUIRE_EQUAL( core_sym::from_string("99396507.4039"), get_balance( "alice1111111" ) );
+   BOOST_REQUIRE_EQUAL( false, get_row_by_account( config::system_account_name, config::system_account_name,
+                                                   N(rammarket), symbol{SY(4,RAMCORE)}.value() ).empty() );
+
+   auto get_ram_market = [this]() -> fc::variant {
+      vector<char> data = get_row_by_account( config::system_account_name, config::system_account_name,
+                                              N(rammarket), symbol{SY(4,RAMCORE)}.value() );
+      BOOST_REQUIRE( !data.empty() );
+      return abi_ser.binary_to_variant("exchange_state", data, abi_serializer_max_time);
+   };
+
+   {
+      transfer( config::system_account_name, "alice1111111", core_sym::from_string("10000000.0000"), config::system_account_name );
+      uint64_t bytes0 = get_total_stake( "alice1111111" )["ram_bytes"].as_uint64();
+
+      auto market = get_ram_market();
+      const asset r0 = market["base"].as<connector>().balance;
+      const asset e0 = market["quote"].as<connector>().balance;
+      BOOST_REQUIRE_EQUAL( asset::from_string("0 RAM").get_symbol(),     r0.get_symbol() );
+      BOOST_REQUIRE_EQUAL( core_sym::from_string("0.0000").get_symbol(), e0.get_symbol() );
+
+      const asset payment = core_sym::from_string("10000000.0000");
+      BOOST_REQUIRE_EQUAL( success(), buyram( "alice1111111", "alice1111111", payment ) );
+      uint64_t bytes1 = get_total_stake( "alice1111111" )["ram_bytes"].as_uint64();
+
+      const int64_t fee = (payment.get_amount() + 199) / 200;
+      const double net_payment = payment.get_amount() - fee;
+      const int64_t expected_delta = net_payment * r0.get_amount() / ( net_payment + e0.get_amount() );
+
+      BOOST_REQUIRE_EQUAL( expected_delta, bytes1 -  bytes0 );
+   }
+
+   {
+      transfer( config::system_account_name, "bob111111111", core_sym::from_string("100000.0000"), config::system_account_name );
+      BOOST_REQUIRE_EQUAL( wasm_assert_msg("must reserve a positive amount"),
+                           buyrambytes( "bob111111111", "bob111111111", 1 ) );
+
+      uint64_t bytes0 = get_total_stake( "bob111111111" )["ram_bytes"].as_uint64();
+      BOOST_REQUIRE_EQUAL( success(), buyrambytes( "bob111111111", "bob111111111", 1024 ) );
+      uint64_t bytes1 = get_total_stake( "bob111111111" )["ram_bytes"].as_uint64();
+      BOOST_REQUIRE( within_one( 1024, bytes1 - bytes0 ) );
+
+      BOOST_REQUIRE_EQUAL( success(), buyrambytes( "bob111111111", "bob111111111", 1024 * 1024) );
+      uint64_t bytes2 = get_total_stake( "bob111111111" )["ram_bytes"].as_uint64();
+      BOOST_REQUIRE( within_one( 1024 * 1024, bytes2 - bytes1 ) );
+   }
 
 } FC_LOG_AND_RETHROW()
 
@@ -470,8 +522,6 @@ BOOST_FIXTURE_TEST_CASE( stake_unstake, eosio_system_tester ) try {
 BOOST_FIXTURE_TEST_CASE( stake_unstake_with_transfer, eosio_system_tester ) try {
    activate_network();
 
-   issue( "eosio", core_sym::from_string("1000.0000"), config::system_account_name );
-   issue( "eosio.stake", core_sym::from_string("1000.0000"), config::system_account_name );
    BOOST_REQUIRE_EQUAL( core_sym::from_string("0.0000"), get_balance( "alice1111111" ) );
 
    //eosio stakes for alice with transfer flag
@@ -537,12 +587,9 @@ BOOST_FIXTURE_TEST_CASE( stake_to_self_with_transfer, eosio_system_tester ) try 
 BOOST_FIXTURE_TEST_CASE( stake_while_pending_refund, eosio_system_tester ) try {
    activate_network();
 
-   issue( "eosio", core_sym::from_string("1000.0000"), config::system_account_name );
-   issue( "eosio.stake", core_sym::from_string("1000.0000"), config::system_account_name );
    BOOST_REQUIRE_EQUAL( core_sym::from_string("0.0000"), get_balance( "alice1111111" ) );
 
    //eosio stakes for alice with transfer flag
-
    transfer( "eosio", "bob111111111", core_sym::from_string("1000.0000"), "eosio" );
    BOOST_REQUIRE_EQUAL( success(), stake_with_transfer( "bob111111111", "alice1111111", core_sym::from_string("200.0000"), core_sym::from_string("100.0000") ) );
 
@@ -592,7 +639,7 @@ BOOST_FIXTURE_TEST_CASE( stake_while_pending_refund, eosio_system_tester ) try {
 BOOST_FIXTURE_TEST_CASE( fail_without_auth, eosio_system_tester ) try {
    activate_network();
 
-   issue( "alice1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
+   issue_and_transfer( "alice1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
 
    BOOST_REQUIRE_EQUAL( success(), stake( "eosio", "alice1111111", core_sym::from_string("2000.0000"), core_sym::from_string("1000.0000") ) );
    BOOST_REQUIRE_EQUAL( success(), stake( "alice1111111", "bob111111111", core_sym::from_string("10.0000"), core_sym::from_string("10.0000") ) );
@@ -623,7 +670,7 @@ BOOST_FIXTURE_TEST_CASE( fail_without_auth, eosio_system_tester ) try {
 
 
 BOOST_FIXTURE_TEST_CASE( stake_negative, eosio_system_tester ) try {
-   issue( "alice1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
+   issue_and_transfer( "alice1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
 
    BOOST_REQUIRE_EQUAL( wasm_assert_msg("must stake a positive amount"),
                         stake( "alice1111111", core_sym::from_string("-0.0001"), core_sym::from_string("0.0000") )
@@ -647,7 +694,7 @@ BOOST_FIXTURE_TEST_CASE( stake_negative, eosio_system_tester ) try {
 
 
 BOOST_FIXTURE_TEST_CASE( unstake_negative, eosio_system_tester ) try {
-   issue( "alice1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
+   issue_and_transfer( "alice1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
 
    BOOST_REQUIRE_EQUAL( success(), stake( "alice1111111", "bob111111111", core_sym::from_string("200.0001"), core_sym::from_string("100.0001") ) );
 
@@ -678,7 +725,7 @@ BOOST_FIXTURE_TEST_CASE( unstake_negative, eosio_system_tester ) try {
 BOOST_FIXTURE_TEST_CASE( unstake_more_than_at_stake, eosio_system_tester ) try {
    activate_network();
 
-   issue( "alice1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
+   issue_and_transfer( "alice1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
    BOOST_REQUIRE_EQUAL( success(), stake( "alice1111111", core_sym::from_string("200.0000"), core_sym::from_string("100.0000") ) );
 
    auto total = get_total_stake( "alice1111111" );
@@ -710,7 +757,7 @@ BOOST_FIXTURE_TEST_CASE( unstake_more_than_at_stake, eosio_system_tester ) try {
 BOOST_FIXTURE_TEST_CASE( delegate_to_another_user, eosio_system_tester ) try {
    activate_network();
 
-   issue( "alice1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
+   issue_and_transfer( "alice1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
 
    BOOST_REQUIRE_EQUAL( success(), stake ( "alice1111111", "bob111111111", core_sym::from_string("200.0000"), core_sym::from_string("100.0000") ) );
 
@@ -732,7 +779,7 @@ BOOST_FIXTURE_TEST_CASE( delegate_to_another_user, eosio_system_tester ) try {
                         unstake( "bob111111111", core_sym::from_string("10.0000"),  core_sym::from_string("0.0000") )
    );
 
-   issue( "carol1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
+   issue_and_transfer( "carol1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
    BOOST_REQUIRE_EQUAL( success(), stake( "carol1111111", "bob111111111", core_sym::from_string("20.0000"), core_sym::from_string("10.0000") ) );
    total = get_total_stake( "bob111111111" );
    BOOST_REQUIRE_EQUAL( core_sym::from_string("230.0000"), total["net_weight"].as<asset>());
@@ -766,7 +813,7 @@ BOOST_FIXTURE_TEST_CASE( delegate_to_another_user, eosio_system_tester ) try {
 BOOST_FIXTURE_TEST_CASE( stake_unstake_separate, eosio_system_tester ) try {
    activate_network();
 
-   issue( "alice1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
+   issue_and_transfer( "alice1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
    BOOST_REQUIRE_EQUAL( core_sym::from_string("1000.0000"), get_balance( "alice1111111" ) );
 
    //everything at once
@@ -804,7 +851,7 @@ BOOST_FIXTURE_TEST_CASE( stake_unstake_separate, eosio_system_tester ) try {
 BOOST_FIXTURE_TEST_CASE( adding_stake_partial_unstake, eosio_system_tester ) try {
    activate_network();
 
-   issue( "alice1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
+   issue_and_transfer( "alice1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
    BOOST_REQUIRE_EQUAL( success(), stake( "alice1111111", "bob111111111", core_sym::from_string("200.0000"), core_sym::from_string("100.0000") ) );
 
    REQUIRE_MATCHING_OBJECT( voter( "alice1111111", core_sym::from_string("300.0000") ), get_voter_info( "alice1111111" ) );
@@ -845,7 +892,7 @@ BOOST_FIXTURE_TEST_CASE( adding_stake_partial_unstake, eosio_system_tester ) try
 BOOST_FIXTURE_TEST_CASE( stake_from_refund, eosio_system_tester ) try {
    activate_network();
 
-   issue( "alice1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
+   issue_and_transfer( "alice1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
    BOOST_REQUIRE_EQUAL( success(), stake( "alice1111111", "alice1111111", core_sym::from_string("200.0000"), core_sym::from_string("100.0000") ) );
 
    auto total = get_total_stake( "alice1111111" );
@@ -934,7 +981,7 @@ BOOST_FIXTURE_TEST_CASE( stake_from_refund, eosio_system_tester ) try {
 BOOST_FIXTURE_TEST_CASE( stake_to_another_user_not_from_refund, eosio_system_tester ) try {
    activate_network();
 
-   issue( "alice1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
+   issue_and_transfer( "alice1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
    BOOST_REQUIRE_EQUAL( success(), stake( "alice1111111", core_sym::from_string("200.0000"), core_sym::from_string("100.0000") ) );
 
    auto total = get_total_stake( "alice1111111" );
@@ -968,7 +1015,7 @@ BOOST_FIXTURE_TEST_CASE( stake_to_another_user_not_from_refund, eosio_system_tes
 
 // Tests for voting
 BOOST_FIXTURE_TEST_CASE( producer_register_unregister, eosio_system_tester ) try {
-   issue( "alice1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
+   issue_and_transfer( "alice1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
 
    //fc::variant params = producer_parameters_example(1);
    auto key =  fc::crypto::public_key( std::string("EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV") );
@@ -1040,7 +1087,7 @@ BOOST_FIXTURE_TEST_CASE( producer_register_unregister, eosio_system_tester ) try
 BOOST_FIXTURE_TEST_CASE( vote_for_producer, eosio_system_tester, * boost::unit_test::tolerance(1e-4) ) try {
    activate_network();
 
-   issue( "alice1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
+   issue_and_transfer( "alice1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
    fc::variant params = producer_parameters_example(1);
    BOOST_REQUIRE_EQUAL( success(), push_action( N(alice1111111), N(regproducer), mvo()
                                                ("producer",  "alice1111111")
@@ -1056,8 +1103,8 @@ BOOST_FIXTURE_TEST_CASE( vote_for_producer, eosio_system_tester, * boost::unit_t
    BOOST_REQUIRE_EQUAL( 0, prod["total_votes"].as_double() );
    BOOST_REQUIRE_EQUAL( "http://block.one", prod["url"].as_string() );
 
-   issue( "bob111111111", core_sym::from_string("2000.0000"),  config::system_account_name );
-   issue( "carol1111111", core_sym::from_string("3000.0000"),  config::system_account_name );
+   issue_and_transfer( "bob111111111", core_sym::from_string("2000.0000"),  config::system_account_name );
+   issue_and_transfer( "carol1111111", core_sym::from_string("3000.0000"),  config::system_account_name );
 
    //bob111111111 makes stake
    BOOST_REQUIRE_EQUAL( success(), stake( "bob111111111", core_sym::from_string("11.0000"), core_sym::from_string("0.1111") ) );
@@ -1154,17 +1201,17 @@ BOOST_FIXTURE_TEST_CASE( vote_for_producer, eosio_system_tester, * boost::unit_t
 } FC_LOG_AND_RETHROW()
 
 
-BOOST_FIXTURE_TEST_CASE( unregistered_producer_voting, eosio_system_tester, * boost::unit_test::tolerance(1e-4) ) try {
-   issue( "bob111111111", core_sym::from_string("2000.0000"),  config::system_account_name );
+BOOST_FIXTURE_TEST_CASE( unregistered_producer_voting, eosio_system_tester, * boost::unit_test::tolerance(1e+5) ) try {
+   issue_and_transfer( "bob111111111", core_sym::from_string("2000.0000"),  config::system_account_name );
    BOOST_REQUIRE_EQUAL( success(), stake( "bob111111111", core_sym::from_string("13.0000"), core_sym::from_string("0.5791") ) );
    REQUIRE_MATCHING_OBJECT( voter( "bob111111111", core_sym::from_string("13.5791") ), get_voter_info( "bob111111111" ) );
 
    //bob111111111 should not be able to vote for alice1111111 who is not a producer
-   BOOST_REQUIRE_EQUAL( wasm_assert_msg( "producer is not registered" ),
+   BOOST_REQUIRE_EQUAL( wasm_assert_msg( "producer alice1111111 is not registered" ),
                         vote( N(bob111111111), { N(alice1111111) } ) );
 
    //alice1111111 registers as a producer
-   issue( "alice1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
+   issue_and_transfer( "alice1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
    fc::variant params = producer_parameters_example(1);
    BOOST_REQUIRE_EQUAL( success(), push_action( N(alice1111111), N(regproducer), mvo()
                                                ("producer",  "alice1111111")
@@ -1183,14 +1230,14 @@ BOOST_FIXTURE_TEST_CASE( unregistered_producer_voting, eosio_system_tester, * bo
    BOOST_REQUIRE_EQUAL( fc::crypto::public_key(), fc::crypto::public_key(prod["producer_key"].as_string()) );
 
    //bob111111111 should not be able to vote for alice1111111 who is an unregistered producer
-   BOOST_REQUIRE_EQUAL( wasm_assert_msg( "producer is not currently registered" ),
+   BOOST_REQUIRE_EQUAL( wasm_assert_msg( "producer alice1111111 is not currently registered" ),
                         vote( N(bob111111111), { N(alice1111111) } ) );
 
 } FC_LOG_AND_RETHROW()
 
 
 BOOST_FIXTURE_TEST_CASE( more_than_30_producer_voting, eosio_system_tester ) try {
-   issue( "bob111111111", core_sym::from_string("2000.0000"),  config::system_account_name );
+   issue_and_transfer( "bob111111111", core_sym::from_string("2000.0000"),  config::system_account_name );
    BOOST_REQUIRE_EQUAL( success(), stake( "bob111111111", core_sym::from_string("13.0000"), core_sym::from_string("0.5791") ) );
    REQUIRE_MATCHING_OBJECT( voter( "bob111111111", core_sym::from_string("13.5791") ), get_voter_info( "bob111111111" ) );
 
@@ -1202,12 +1249,12 @@ BOOST_FIXTURE_TEST_CASE( more_than_30_producer_voting, eosio_system_tester ) try
 
 
 BOOST_FIXTURE_TEST_CASE( vote_same_producer_30_times, eosio_system_tester ) try {
-   issue( "bob111111111", core_sym::from_string("2000.0000"),  config::system_account_name );
+   issue_and_transfer( "bob111111111", core_sym::from_string("2000.0000"),  config::system_account_name );
    BOOST_REQUIRE_EQUAL( success(), stake( "bob111111111", core_sym::from_string("50.0000"), core_sym::from_string("50.0000") ) );
    REQUIRE_MATCHING_OBJECT( voter( "bob111111111", core_sym::from_string("100.0000") ), get_voter_info( "bob111111111" ) );
 
    //alice1111111 becomes a producer
-   issue( "alice1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
+   issue_and_transfer( "alice1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
    fc::variant params = producer_parameters_example(1);
    BOOST_REQUIRE_EQUAL( success(), push_action( N(alice1111111), N(regproducer), mvo()
                                                ("producer",  "alice1111111")
@@ -1227,8 +1274,8 @@ BOOST_FIXTURE_TEST_CASE( vote_same_producer_30_times, eosio_system_tester ) try 
 } FC_LOG_AND_RETHROW()
 
 
-BOOST_FIXTURE_TEST_CASE( producer_keep_votes, eosio_system_tester, * boost::unit_test::tolerance(1e-4) ) try {
-   issue( "alice1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
+BOOST_FIXTURE_TEST_CASE( producer_keep_votes, eosio_system_tester, * boost::unit_test::tolerance(1e+5) ) try {
+   issue_and_transfer( "alice1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
    fc::variant params = producer_parameters_example(1);
    vector<char> key = fc::raw::pack( get_public_key( N(alice1111111), "active" ) );
    BOOST_REQUIRE_EQUAL( success(), push_action( N(alice1111111), N(regproducer), mvo()
@@ -1240,7 +1287,7 @@ BOOST_FIXTURE_TEST_CASE( producer_keep_votes, eosio_system_tester, * boost::unit
    );
 
    //bob111111111 makes stake
-   issue( "bob111111111", core_sym::from_string("2000.0000"),  config::system_account_name );
+   issue_and_transfer( "bob111111111", core_sym::from_string("2000.0000"),  config::system_account_name );
    BOOST_REQUIRE_EQUAL( success(), stake( "bob111111111", core_sym::from_string("13.0000"), core_sym::from_string("0.5791") ) );
    REQUIRE_MATCHING_OBJECT( voter( "bob111111111", core_sym::from_string("13.5791") ), get_voter_info( "bob111111111" ) );
 
@@ -1317,7 +1364,7 @@ BOOST_FIXTURE_TEST_CASE( vote_for_two_producers, eosio_system_tester, * boost::u
    );
 
    //carol1111111 votes for alice1111111 and bob111111111
-   issue( "carol1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
+   issue_and_transfer( "carol1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
    BOOST_REQUIRE_EQUAL( success(), stake( "carol1111111", core_sym::from_string("15.0005"), core_sym::from_string("5.0000") ) );
    BOOST_REQUIRE_EQUAL( success(), vote( N(carol1111111), { N(alice1111111), N(bob111111111) } ) );
 
@@ -1335,7 +1382,7 @@ BOOST_FIXTURE_TEST_CASE( vote_for_two_producers, eosio_system_tester, * boost::u
    BOOST_TEST( 0 == bob_info["total_votes"].as_double() );
 
    //alice1111111 votes for herself and bob111111111
-   issue( "alice1111111", core_sym::from_string("2.0000"),  config::system_account_name );
+   issue_and_transfer( "alice1111111", core_sym::from_string("2.0000"),  config::system_account_name );
    BOOST_REQUIRE_EQUAL( success(), stake( "alice1111111", core_sym::from_string("1.0000"), core_sym::from_string("1.0000") ) );
    BOOST_REQUIRE_EQUAL( success(), vote(N(alice1111111), { N(alice1111111), N(bob111111111) } ) );
 
@@ -1366,7 +1413,7 @@ BOOST_FIXTURE_TEST_CASE( proxy_register_unregister_keeps_stake, eosio_system_tes
    REQUIRE_MATCHING_OBJECT( voter( "alice1111111" ), get_voter_info( "alice1111111" ) );
 
    //stake and then register as a proxy
-   issue( "bob111111111", core_sym::from_string("1000.0000"),  config::system_account_name );
+   issue_and_transfer( "bob111111111", core_sym::from_string("1000.0000"),  config::system_account_name );
    BOOST_REQUIRE_EQUAL( success(), stake( "bob111111111", core_sym::from_string("200.0002"), core_sym::from_string("100.0001") ) );
    BOOST_REQUIRE_EQUAL( success(), push_action( N(bob111111111), N(regproxy), mvo()
                                                ("proxy",  "bob111111111")
@@ -1388,7 +1435,7 @@ BOOST_FIXTURE_TEST_CASE( proxy_register_unregister_keeps_stake, eosio_system_tes
                                                ("isproxy", true)
                         )
    );
-   issue( "carol1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
+   issue_and_transfer( "carol1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
    BOOST_REQUIRE_EQUAL( success(), stake( "carol1111111", core_sym::from_string("246.0002"), core_sym::from_string("531.0001") ) );
    //check that both proxy flag and stake a correct
    REQUIRE_MATCHING_OBJECT( proxy( "carol1111111" )( "staked", 7770003 ), get_voter_info( "carol1111111" ) );
@@ -1412,7 +1459,7 @@ BOOST_FIXTURE_TEST_CASE( proxy_stake_unstake_keeps_proxy_flag, eosio_system_test
                                                ("isproxy", true)
                         )
    );
-   issue( "alice1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
+   issue_and_transfer( "alice1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
    REQUIRE_MATCHING_OBJECT( proxy( "alice1111111" ), get_voter_info( "alice1111111" ) );
 
    //stake
@@ -1452,7 +1499,7 @@ BOOST_FIXTURE_TEST_CASE( proxy_actions_affect_producers, eosio_system_tester, * 
    );
 
    //accumulate proxied votes
-   issue( "bob111111111", core_sym::from_string("1000.0000"),  config::system_account_name );
+   issue_and_transfer( "bob111111111", core_sym::from_string("1000.0000"),  config::system_account_name );
    BOOST_REQUIRE_EQUAL( success(), stake( "bob111111111", core_sym::from_string("100.0002"), core_sym::from_string("50.0001") ) );
    BOOST_REQUIRE_EQUAL( success(), vote(N(bob111111111), vector<account_name>(), N(alice1111111) ) );
    REQUIRE_MATCHING_OBJECT( proxy( "alice1111111" )( "proxied_vote_weight", 1500003 ), get_voter_info( "alice1111111" ) );
@@ -1491,7 +1538,7 @@ BOOST_FIXTURE_TEST_CASE( proxy_actions_affect_producers, eosio_system_tester, * 
    BOOST_TEST_REQUIRE( stake2votes(core_sym::from_string("150.0003"), 2, 3) == get_producer_info( "defproducer3" )["total_votes"].as_double() );
 
    //stake increase by proxy itself affects producers
-   issue( "alice1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
+   issue_and_transfer( "alice1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
    BOOST_REQUIRE_EQUAL( success(), stake( "alice1111111", core_sym::from_string("30.0001"), core_sym::from_string("20.0001") ) );
    BOOST_REQUIRE_EQUAL( stake2votes(core_sym::from_string("200.0005"), 2, 3), get_producer_info( "defproducer1" )["total_votes"].as_double() );
    BOOST_REQUIRE_EQUAL( 0, get_producer_info( "defproducer2" )["total_votes"].as_double() );
@@ -1669,7 +1716,7 @@ BOOST_FIXTURE_TEST_CASE(multi_producer_pay, eosio_system_tester, * boost::unit_t
       BOOST_REQUIRE_EQUAL(wasm_assert_msg("No payment exists for account"),
                           push_action(producer_names[0], N(claimrewards), mvo()("owner", producer_names[0])));
 
-      auto comparator = [&](variant a, variant b) -> bool {
+      auto comparator = [&](fc::variant a, fc::variant b) -> bool {
          return a["total_votes"].as<double>() > b["total_votes"].as<double>();
       };
 
@@ -1698,7 +1745,7 @@ BOOST_FIXTURE_TEST_CASE(multi_producer_pay, eosio_system_tester, * boost::unit_t
       asset to_wps = asset(to_workers, symbol{CORE_SYM});
       asset new_tokens = asset(to_workers + to_producers, symbol{CORE_SYM});
 
-      vector<variant> producer_infos;
+      vector<fc::variant> producer_infos;
       for(const name &p : producer_names) {
          producer_infos.emplace_back(get_producer_info(p));
          // cout << "producer pay info: " << get_payment_info(p) << endl << endl;
@@ -1707,7 +1754,7 @@ BOOST_FIXTURE_TEST_CASE(multi_producer_pay, eosio_system_tester, * boost::unit_t
       std::sort(producer_infos.begin(), producer_infos.end(), comparator);
       BOOST_REQUIRE_EQUAL(get_balance(N(eosio.bpay)), initial_bpay_balance + to_bpay);
 
-      for(const variant &prod_info : producer_infos) {
+      for(const fc::variant &prod_info : producer_infos) {
          BOOST_REQUIRE(!prod_info.is_null());
       }
 
@@ -1794,7 +1841,7 @@ BOOST_FIXTURE_TEST_CASE(producers_upgrade_system_contract, eosio_system_tester) 
       msg[0] = 'P';
       std::copy( msg.begin(), msg.end(), it );
 
-      variant pretty_trx = fc::mutable_variant_object()
+      fc::variant pretty_trx = fc::mutable_variant_object()
          ("expiration", "2020-01-01T00:30")
          ("ref_block_num", 2)
          ("ref_block_prefix", 3)
@@ -1859,7 +1906,12 @@ BOOST_FIXTURE_TEST_CASE(producers_upgrade_system_contract, eosio_system_tester) 
    }
 
    transaction_trace_ptr trace;
-   control->applied_transaction.connect([&]( const transaction_trace_ptr& t) { if (t->scheduled) { trace = t; } } );
+   control->applied_transaction.connect(
+   [&]( std::tuple<const transaction_trace_ptr&, const signed_transaction&> p ) {
+      const auto& t = std::get<0>(p);
+      if( t->scheduled ) { trace = t; }
+   } );
+
    BOOST_REQUIRE_EQUAL(success(), push_action_msig( N(alice1111111), N(exec), mvo()
                                                     ("proposer",      "alice1111111")
                                                     ("proposal_name", "upgrade1")
@@ -2018,7 +2070,8 @@ BOOST_FIXTURE_TEST_CASE( voter_and_proxy_actions_affect_producers_and_totals, eo
    REQUIRE_MATCHING_OBJECT( proxy( "bob111111111" ), get_voter_info( "bob111111111" ) );
 
    //alice1111111 makes stake and votes
-   issue( "alice1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
+   // issue( "alice1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
+   issue_and_transfer( name("alice1111111"), asset(10000000, symbol{CORE_SYM}));
    BOOST_REQUIRE_EQUAL( success(), stake( "alice1111111", core_sym::from_string("30.0001"), core_sym::from_string("20.0001") ) );
    BOOST_REQUIRE_EQUAL( success(), vote( N(alice1111111), { N(defproducer1), N(defproducer2) } ) );
    auto expected_value = stake2votes(core_sym::from_string("50.0002"),2,3);
@@ -2027,12 +2080,12 @@ BOOST_FIXTURE_TEST_CASE( voter_and_proxy_actions_affect_producers_and_totals, eo
    BOOST_REQUIRE_EQUAL( 0, get_producer_info( "defproducer3" )["total_votes"].as_double() );
 
    //donald111111 makes bob his proxy
-   issue( "donald111111", core_sym::from_string("1000.0000"),  config::system_account_name );
+   issue_and_transfer( name("donald111111"), asset(10000000, symbol{CORE_SYM}));
    BOOST_REQUIRE_EQUAL( success(), stake( "donald111111", core_sym::from_string("5.0000"), core_sym::from_string("5.0000") ) );
    BOOST_REQUIRE_EQUAL( success(), vote( N(donald111111), vector<account_name>(), "bob111111111" ) );
 
    //bob111111111 bob stakes and votes
-   issue( "bob111111111", core_sym::from_string("1000.0000"),  config::system_account_name );
+   issue_and_transfer( name("bob111111111"), asset(10000000, symbol{CORE_SYM}));
    BOOST_REQUIRE_EQUAL( success(), stake( "bob111111111", core_sym::from_string("20.0001"), core_sym::from_string("20.0001") ) );
    BOOST_REQUIRE_EQUAL( success(), vote( N(bob111111111), { N(defproducer1), N(defproducer2) } ) );
    expected_value = stake2votes(core_sym::from_string("50.0002"),2,3) * 2;
@@ -2072,7 +2125,7 @@ BOOST_FIXTURE_TEST_CASE( voters_actions_affect_proxy_and_producers, eosio_system
    REQUIRE_MATCHING_OBJECT( proxy( "alice1111111" ), get_voter_info( "alice1111111" ) );
 
    //alice1111111 makes stake and votes
-   issue( "alice1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
+   issue_and_transfer( "alice1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
    BOOST_REQUIRE_EQUAL( success(), stake( "alice1111111", core_sym::from_string("30.0001"), core_sym::from_string("20.0001") ) );
    BOOST_REQUIRE_EQUAL( success(), vote( N(alice1111111), { N(defproducer1), N(defproducer2) } ) );
    BOOST_TEST_REQUIRE( stake2votes(core_sym::from_string("50.0002"),2,3) == get_producer_info( "defproducer1" )["total_votes"].as_double() );
@@ -2087,7 +2140,7 @@ BOOST_FIXTURE_TEST_CASE( voters_actions_affect_proxy_and_producers, eosio_system
    REQUIRE_MATCHING_OBJECT( proxy( "donald111111" ), get_voter_info( "donald111111" ) );
 
    //bob111111111 chooses alice1111111 as a proxy
-   issue( "bob111111111", core_sym::from_string("1000.0000"),  config::system_account_name );
+   issue_and_transfer( "bob111111111", core_sym::from_string("1000.0000"),  config::system_account_name );
    BOOST_REQUIRE_EQUAL( success(), stake( "bob111111111", core_sym::from_string("100.0002"), core_sym::from_string("50.0001") ) );
    BOOST_REQUIRE_EQUAL( success(), vote( N(bob111111111), vector<account_name>(), "alice1111111" ) );
    BOOST_TEST_REQUIRE( 1500003 == get_voter_info( "alice1111111" )["proxied_vote_weight"].as_double() );
@@ -2096,7 +2149,7 @@ BOOST_FIXTURE_TEST_CASE( voters_actions_affect_proxy_and_producers, eosio_system
    BOOST_REQUIRE_EQUAL( 0, get_producer_info( "defproducer3" )["total_votes"].as_double() );
 
    //carol1111111 chooses alice1111111 as a proxy
-   issue( "carol1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
+   issue_and_transfer( "carol1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
    BOOST_REQUIRE_EQUAL( success(), stake( "carol1111111", core_sym::from_string("30.0001"), core_sym::from_string("20.0001") ) );
    BOOST_REQUIRE_EQUAL( success(), vote( N(carol1111111), vector<account_name>(), "alice1111111" ) );
    BOOST_TEST_REQUIRE( 2000005 == get_voter_info( "alice1111111" )["proxied_vote_weight"].as_double() );
@@ -2150,7 +2203,7 @@ BOOST_FIXTURE_TEST_CASE( vote_both_proxy_and_producers, eosio_system_tester ) tr
 
    //bob111111111 chooses alice1111111 as a proxy
 
-   issue( "bob111111111", core_sym::from_string("1000.0000"),  config::system_account_name );
+   issue_and_transfer( "bob111111111", core_sym::from_string("1000.0000"),  config::system_account_name );
    BOOST_REQUIRE_EQUAL( success(), stake( "bob111111111", core_sym::from_string("100.0002"), core_sym::from_string("50.0001") ) );
    BOOST_REQUIRE_EQUAL( wasm_assert_msg("cannot vote for producers and proxy at same time"),
                         vote( N(bob111111111), { N(carol1111111) }, "alice1111111" ) );
@@ -2160,7 +2213,7 @@ BOOST_FIXTURE_TEST_CASE( vote_both_proxy_and_producers, eosio_system_tester ) tr
 
 BOOST_FIXTURE_TEST_CASE( select_invalid_proxy, eosio_system_tester ) try {
    //accumulate proxied votes
-   issue( "bob111111111", core_sym::from_string("1000.0000"),  config::system_account_name );
+   issue_and_transfer( "bob111111111", core_sym::from_string("1000.0000"),  config::system_account_name );
    BOOST_REQUIRE_EQUAL( success(), stake( "bob111111111", core_sym::from_string("100.0002"), core_sym::from_string("50.0001") ) );
 
    //selecting account not registered as a proxy
@@ -2181,13 +2234,13 @@ BOOST_FIXTURE_TEST_CASE( double_register_unregister_proxy_keeps_votes, eosio_sys
                                                 ("isproxy",  1)
                         )
    );
-   issue( "alice1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
+   issue_and_transfer( "alice1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
    BOOST_REQUIRE_EQUAL( success(), stake( "alice1111111", core_sym::from_string("5.0000"), core_sym::from_string("5.0000") ) );
    edump((get_voter_info("alice1111111")));
    REQUIRE_MATCHING_OBJECT( proxy( "alice1111111" )( "staked", 100000 ), get_voter_info( "alice1111111" ) );
 
    //bob111111111 stakes and selects alice1111111 as a proxy
-   issue( "bob111111111", core_sym::from_string("1000.0000"),  config::system_account_name );
+   issue_and_transfer( "bob111111111", core_sym::from_string("1000.0000"),  config::system_account_name );
    BOOST_REQUIRE_EQUAL( success(), stake( "bob111111111", core_sym::from_string("100.0002"), core_sym::from_string("50.0001") ) );
    BOOST_REQUIRE_EQUAL( success(), vote( N(bob111111111), vector<account_name>(), "alice1111111" ) );
    REQUIRE_MATCHING_OBJECT( proxy( "alice1111111" )( "proxied_vote_weight", 1500003 )( "staked", 100000 ), get_voter_info( "alice1111111" ) );
@@ -2237,13 +2290,13 @@ BOOST_FIXTURE_TEST_CASE( proxy_cannot_use_another_proxy, eosio_system_tester ) t
    );
 
    //proxy should not be able to use a proxy
-   issue( "bob111111111", core_sym::from_string("1000.0000"),  config::system_account_name );
+   issue_and_transfer( "bob111111111", core_sym::from_string("1000.0000"),  config::system_account_name );
    BOOST_REQUIRE_EQUAL( success(), stake( "bob111111111", core_sym::from_string("100.0002"), core_sym::from_string("50.0001") ) );
    BOOST_REQUIRE_EQUAL( wasm_assert_msg( "account registered as a proxy is not allowed to use a proxy" ),
                         vote( N(bob111111111), vector<account_name>(), "alice1111111" ) );
 
    //voter that uses a proxy should not be allowed to become a proxy
-   issue( "carol1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
+   issue_and_transfer( "carol1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
    BOOST_REQUIRE_EQUAL( success(), stake( "carol1111111", core_sym::from_string("100.0002"), core_sym::from_string("50.0001") ) );
    BOOST_REQUIRE_EQUAL( success(), vote( N(carol1111111), vector<account_name>(), "alice1111111" ) );
    BOOST_REQUIRE_EQUAL( wasm_assert_msg( "account that uses a proxy is not allowed to become a proxy" ),
@@ -2303,7 +2356,7 @@ BOOST_FIXTURE_TEST_CASE( elect_producers /*_and_parameters*/, eosio_system_teste
    //REQUIRE_EQUAL_OBJECTS(prod1_config, config);
 
    // elect 2 producers
-   issue( "bob111111111", core_sym::from_string("80000.0000"),  config::system_account_name );
+   issue_and_transfer( "bob111111111", core_sym::from_string("80000.0000"),  config::system_account_name );
    ilog("stake");
    BOOST_REQUIRE_EQUAL( success(), stake( "bob111111111", core_sym::from_string("40000.0000"), core_sym::from_string("40000.0000") ) );
    ilog("start vote");
@@ -2677,7 +2730,7 @@ BOOST_FIXTURE_TEST_CASE( setparams, eosio_system_tester ) try {
 
    transaction trx;
    {
-      variant pretty_trx = fc::mutable_variant_object()
+      fc::variant pretty_trx = fc::mutable_variant_object()
          ("expiration", "2020-01-01T00:30")
          ("ref_block_num", 2)
          ("ref_block_prefix", 3)
@@ -2716,7 +2769,12 @@ BOOST_FIXTURE_TEST_CASE( setparams, eosio_system_tester ) try {
    }
 
    transaction_trace_ptr trace;
-   control->applied_transaction.connect([&]( const transaction_trace_ptr& t) { if (t->scheduled) { trace = t; } } );
+   control->applied_transaction.connect(
+   [&]( std::tuple<const transaction_trace_ptr&, const signed_transaction&> p ) {
+      const auto& t = std::get<0>(p);
+      if( t->scheduled ) { trace = t; }
+   } );
+
    BOOST_REQUIRE_EQUAL(success(), push_action_msig( N(alice1111111), N(exec), mvo()
                                                     ("proposer",      "alice1111111")
                                                     ("proposal_name", "setparams1")
@@ -3305,8 +3363,6 @@ BOOST_FIXTURE_TEST_CASE( buy_sell_sell_rex, eosio_system_tester ) try {
 
 
 BOOST_FIXTURE_TEST_CASE( buy_sell_claim_rex, eosio_system_tester ) try {
-
-   auto within_one = [](int64_t a, int64_t b) -> bool { return std::abs( a - b ) <= 1; };
 
    const asset init_balance = core_sym::from_string("3000000.0000");
    const std::vector<account_name> accounts = { N(aliceaccount), N(bobbyaccount), N(carolaccount), N(emilyaccount), N(frankaccount) };
@@ -4049,7 +4105,6 @@ BOOST_FIXTURE_TEST_CASE( update_rex, eosio_system_tester, * boost::unit_test::to
 
    const asset fee = core_sym::from_string("50.0000");
    BOOST_REQUIRE_EQUAL( success(),                              rentcpu( emily, bob, fee ) );
-
    BOOST_REQUIRE_EQUAL( success(),                              updaterex( alice ) );
    BOOST_REQUIRE_EQUAL( payment + fee,                          get_rex_vote_stake(alice) );
    BOOST_REQUIRE_EQUAL( get_rex_vote_stake(alice).get_amount(), get_voter_info( alice )["staked"].as<int64_t>() - init_stake );
@@ -4098,7 +4153,6 @@ BOOST_FIXTURE_TEST_CASE( update_rex, eosio_system_tester, * boost::unit_test::to
    const int64_t total_lendable       = current_rex_pool["total_lendable"].as<asset>().get_amount();
    const int64_t total_rex            = current_rex_pool["total_rex"].as<asset>().get_amount();
    const int64_t init_alice_rex_stake = ( eosio::chain::uint128_t(init_rex.get_amount()) * total_lendable ) / total_rex;
-
    produce_block( fc::days(5) );
    const asset rex_sell_amount( get_rex_balance(alice).get_amount() / 4, symbol( SY(4,REX) ) );
    BOOST_REQUIRE_EQUAL( success(),                                       sellrex( alice, rex_sell_amount ) );
@@ -4373,6 +4427,7 @@ BOOST_FIXTURE_TEST_CASE( set_rex, eosio_system_tester ) try {
 
 BOOST_AUTO_TEST_CASE( setabi_bios ) try {
    validating_tester t( validating_tester::default_config() );
+   t.execute_setup_policy( setup_policy::preactivate_feature_only );
    abi_serializer abi_ser(fc::json::from_string( (const char*)contracts::bios_abi().data()).template as<abi_def>(), base_tester::abi_serializer_max_time);
    t.set_code( config::system_account_name, contracts::bios_wasm() );
    t.set_abi( config::system_account_name, contracts::bios_abi().data() );
@@ -4388,7 +4443,6 @@ BOOST_AUTO_TEST_CASE( setabi_bios ) try {
 
       BOOST_REQUIRE( abi_hash.hash == result );
    }
-   BOOST_REQUIRE(true);
 
    t.set_abi( N(eosio.token), contracts::system_abi().data() );
    {

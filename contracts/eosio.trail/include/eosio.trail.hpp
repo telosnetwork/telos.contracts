@@ -11,10 +11,10 @@
 #include "trail.system.hpp"
 #include "trail.tokens.hpp"
 
-#include <eosiolib/asset.hpp>
-#include <eosiolib/eosio.hpp>
-#include <eosiolib/singleton.hpp>
-#include <eosiolib/dispatcher.hpp>
+#include <eosio/asset.hpp>
+#include <eosio/eosio.hpp>
+#include <eosio/singleton.hpp>
+#include <eosio/dispatcher.hpp>
 #include <string>
 
 using namespace eosio;

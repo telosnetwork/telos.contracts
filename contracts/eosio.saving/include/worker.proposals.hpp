@@ -2,11 +2,11 @@
 #include <trail.tokens.hpp>
 #include <trail.system.hpp>
 
-#include <eosiolib/eosio.hpp>
-#include <eosiolib/permission.hpp>
-#include <eosiolib/asset.hpp>
-#include <eosiolib/action.hpp>
-#include <eosiolib/singleton.hpp>
+#include <eosio/eosio.hpp>
+#include <eosio/permission.hpp>
+#include <eosio/asset.hpp>
+#include <eosio/action.hpp>
+#include <eosio/singleton.hpp>
 
 using namespace std;
 using namespace eosio;
@@ -78,5 +78,6 @@ class[[eosio::contract("eosio.saving")]] workerproposal : public contract
 
 	[[eosio::action]] void openvoting(uint64_t sub_id);
 
-	void transfer_handler(name from, name to, asset quantity);
+	[[eosio::on_notify("eosio.token::transfer")]]
+	void transfer_handler(name from, name to, asset quantity, string memo);
 };

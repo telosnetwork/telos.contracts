@@ -1,14 +1,15 @@
 #include <eosio.system/eosio.system.hpp>
 
-#include <eosiolib/eosio.hpp>
-#include <eosiolib/crypto.h>
-#include <eosiolib/datastream.hpp>
-#include <eosiolib/serialize.hpp>
-#include <eosiolib/multi_index.hpp>
-#include <eosiolib/privileged.hpp>
-#include <eosiolib/singleton.hpp>
-#include <eosiolib/transaction.hpp>
+#include <eosio/eosio.hpp>
+#include <eosio/datastream.hpp>
+#include <eosio/serialize.hpp>
+#include <eosio/multi_index.hpp>
+#include <eosio/privileged.hpp>
+#include <eosio/singleton.hpp>
+#include <eosio/transaction.hpp>
 #include <eosio.token/eosio.token.hpp>
+
+#include <boost/container/flat_map.hpp>
 
 #include "system_rotation.cpp"
 
@@ -16,42 +17,35 @@
 #include <cmath>
 
 namespace eosiosystem {
-   using eosio::indexed_by;
-   using eosio::const_mem_fun;
-   using eosio::singleton;
-   using eosio::transaction;
 
-   /**
-    *  This method will create a producer_config and producer_info object for 'producer'
-    *
-    *  @pre producer is not already registered
-    *  @pre producer to register is an account
-    *  @pre authority of producer to register
-    *
-    */
-   void system_contract::regproducer( const name producer, const eosio::public_key& producer_key, const std::string& url, uint16_t location ) {
+   using eosio::const_mem_fun;
+   using eosio::current_time_point;
+   using eosio::indexed_by;
+   using eosio::microseconds;
+   using eosio::singleton;
+
+   void system_contract::regproducer( const name& producer, const eosio::public_key& producer_key, const std::string& url, uint16_t location ) {
       check( url.size() < 512, "url too long" );
       check( producer_key != eosio::public_key(), "public key should not be the default value" );
       require_auth( producer );
-
-      auto prod = _producers.find( producer.value );
       const auto ct = current_time_point();
 
+      auto prod = _producers.find(producer.value);
       if ( prod != _producers.end() ) {
-         _producers.modify( prod, producer, [&]( producer_info& info ){
-          auto now = block_timestamp(eosio::time_point(eosio::microseconds(int64_t(current_time()))));
-          block_timestamp penalty_expiration_time = block_timestamp(info.last_time_kicked.to_time_point() + time_point(hours(int64_t(info.kick_penalty_hours))));
-          
-          eosio_assert(now.slot > penalty_expiration_time.slot,
-            std::string("Producer is not allowed to register at this time. Please fix your node and try again later in: " 
-            + std::to_string( uint32_t((penalty_expiration_time.slot - now.slot) / 2 ))  
-            + " seconds").c_str());
+         _producers.modify( prod, producer, [&]( producer_info& info ) {
+            auto now = block_timestamp(current_time_point());
+            block_timestamp penalty_expiration_time = block_timestamp(info.last_time_kicked.to_time_point() + time_point(hours(int64_t(info.kick_penalty_hours))));
             
-          info.producer_key = producer_key;
-          info.url          = url;
-          info.location     = location;
-          info.is_active    = true;
-          info.unreg_reason = "";
+            check(now.slot > penalty_expiration_time.slot,
+               std::string("Producer is not allowed to register at this time. Please fix your node and try again later in: " 
+               + std::to_string( uint32_t((penalty_expiration_time.slot - now.slot) / 2 ))  
+               + " seconds").c_str());
+               
+            info.producer_key = producer_key;
+            info.url          = url;
+            info.location     = location;
+            info.is_active    = true;
+            info.unreg_reason = "";
          });
       } else {
          _producers.emplace( producer, [&]( producer_info& info ){
@@ -68,7 +62,7 @@ namespace eosiosystem {
 
    }
 
-   void system_contract::unregprod( const name producer ) {
+   void system_contract::unregprod( const name& producer ) {
       require_auth( producer );
 
       const auto& prod = _producers.get( producer.value, "producer not found" );
@@ -78,7 +72,7 @@ namespace eosiosystem {
    }
    
    void system_contract::unregreason( name producer, std::string reason ) {
-      eosio_assert( reason.size() < 255, "The reason is too long. Reason should not have more than 255 characters.");
+      check( reason.size() < 255, "The reason is too long. Reason should not have more than 255 characters.");
       require_auth( producer );
 
       const auto& prod = _producers.get( producer.value, "producer not found" );
@@ -88,7 +82,7 @@ namespace eosiosystem {
       });
    }
 
-   void system_contract::update_elected_producers( block_timestamp block_time ) {
+   void system_contract::update_elected_producers( const block_timestamp& block_time ) {
       _gstate.last_producer_schedule_update = block_time;
 
       auto idx = _producers.get_index<"prototalvote"_n>();
@@ -107,9 +101,8 @@ namespace eosiosystem {
 
       /// sort by producer name
       std::sort( top_producers.begin(), top_producers.end() );
-      auto packed_schedule = pack(top_producers);
 
-      auto schedule_version = set_proposed_producers( packed_schedule.data(),  packed_schedule.size());
+      auto schedule_version = set_proposed_producers(top_producers);
       if (schedule_version >= 0) {
         print("\n**new schedule was proposed**");
         
@@ -143,23 +136,7 @@ namespace eosiosystem {
      return (voteWeight * staked);
    }
 
-   /**
-    *  @pre producers must be sorted from lowest to highest and must be registered and active
-    *  @pre if proxy is set then no producers can be voted for
-    *  @pre if proxy is set then proxy account must exist and be registered as a proxy
-    *  @pre every listed producer or proxy must have been previously registered
-    *  @pre voter must authorize this action
-    *  @pre voter must have previously staked some amount of CORE_SYMBOL for voting
-    *  @pre voter->staked must be up to date
-    *
-    *  @post every producer previously voted for will have vote reduced by previous vote weight
-    *  @post every producer newly voted for will have vote increased by new vote amount
-    *  @post prior proxy will proxied_vote_weight decremented by previous vote weight
-    *  @post new proxy will proxied_vote_weight incremented by new vote weight
-    *
-    *  If voting for a proxy, the producer votes will not change until the proxy updates their own vote.
-    */
-   void system_contract::voteproducer( const name voter_name, const name proxy, const std::vector<name>& producers ) {
+   void system_contract::voteproducer( const name& voter_name, const name& proxy, const std::vector<name>& producers ) {
       require_auth( voter_name );
       vote_stake_updater( voter_name );
       update_votes( voter_name, proxy, producers, true );
@@ -169,7 +146,7 @@ namespace eosiosystem {
       }
    }
 
-   void system_contract::update_votes( const name voter_name, const name proxy, const std::vector<name>& producers, bool voting ) {
+   void system_contract::update_votes( const name& voter_name, const name& proxy, const std::vector<name>& producers, bool voting ) {
       //validate input
       if ( proxy ) {
          check( producers.size() == 0, "cannot vote for producers and proxy at same time" );
@@ -203,8 +180,8 @@ namespace eosiosystem {
          _gstate.total_activated_stake += totalStaked - voter->last_stake;
       }
 
-      auto new_vote_weight = inverse_vote_weight((double )totalStaked, (double) producers.size());
-      boost::container::flat_map<name, pair< double, bool > > producer_deltas;
+      auto new_vote_weight = inverse_vote_weight((double)totalStaked, (double) producers.size());
+      boost::container::flat_map<name, std::pair< double, bool > > producer_deltas;
 
       // print("\n Voter : ", voter->last_stake, " = ", voter->last_vote_weight, " = ", proxy, " = ", producers.size(), " = ", totalStaked, " = ", new_vote_weight);
       
@@ -260,7 +237,9 @@ namespace eosiosystem {
       for( const auto& pd : producer_deltas ) {
          auto pitr = _producers.find( pd.first.value );
          if( pitr != _producers.end() ) {
-            check( !voting || pitr->active() || !pd.second.second /* not from new set */, "producer is not currently registered" );
+            if( voting && !pitr->active() && pd.second.second /* from new set */ ) {
+               check( false, ( "producer " + pitr->owner.to_string() + " is not currently registered" ).data() );
+            }
             _producers.modify( pitr, same_payer, [&]( auto& p ) {
                p.total_votes += pd.second.first;
                if ( p.total_votes < 0 ) { // floating point arithmetics can give small negative numbers
@@ -270,7 +249,9 @@ namespace eosiosystem {
                //check( p.total_votes >= 0, "something bad happened" );
             });
          } else {
-            check( !pd.second.second /* not from new set */, "producer is not registered" ); //data corruption
+            if( pd.second.second ) {
+               check( false, ( "producer " + pd.first.to_string() + " is not registered" ).data() );
+            }
          }
       }
 
@@ -282,16 +263,7 @@ namespace eosiosystem {
       });
    }
 
-   /**
-    *  An account marked as a proxy can vote with the weight of other accounts which
-    *  have selected it as a proxy. Other accounts must refresh their voteproducer to
-    *  update the proxy's weight.
-    *
-    *  @param isproxy - true if proxy wishes to vote on behalf of others, false otherwise
-    *  @pre proxy must have something staked (existing row in voters table)
-    *  @pre new state must be different than current state
-    */
-   void system_contract::regproxy( const name proxy, bool isproxy ) {
+   void system_contract::regproxy( const name& proxy, bool isproxy ) {
       require_auth( proxy );
       auto pitr = _voters.find( proxy.value );
       if ( pitr != _voters.end() ) {

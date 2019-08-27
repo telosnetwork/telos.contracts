@@ -13,17 +13,17 @@
 #include <trail.tokens.hpp>
 #include <trail.system.hpp>
 
-#include <eosiolib/eosio.hpp>
-#include <eosiolib/permission.hpp>
-#include <eosiolib/asset.hpp>
-#include <eosiolib/action.hpp>
-#include <eosiolib/singleton.hpp>
+#include <eosio/eosio.hpp>
+#include <eosio/permission.hpp>
+#include <eosio/asset.hpp>
+#include <eosio/action.hpp>
+#include <eosio/singleton.hpp>
 
 using namespace std;
 using namespace eosio;
 
 class [[eosio::contract("eosio.amend")]] ratifyamend : public contract {
-    // protected:
+    public:
         struct [[eosio::table, eosio::contract("eosio.amend")]] deposit
         {
             name owner;
@@ -106,8 +106,6 @@ class [[eosio::contract("eosio.amend")]] ratifyamend : public contract {
     }
 
     #pragma endregion Helper_Functions
-    
-    public:
 
         ratifyamend(name self, name code, datastream<const char*> ds);
 
@@ -140,7 +138,8 @@ class [[eosio::contract("eosio.amend")]] ratifyamend : public contract {
         [[eosio::action]]
 	    void setenv(config new_environment);
 
-	    void transfer_handler(name from, name to, asset quantity);
+        [[eosio::on_notify("eosio.token::transfer")]]
+	    void transfer_handler(name from, name to, asset quantity, string memo);
 
 		void validate_ipfs_link(string ipfs_link)
 		{

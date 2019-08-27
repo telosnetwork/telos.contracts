@@ -7,12 +7,11 @@
 
 #pragma once
 #include <trail.voting.hpp>
-#include <eosiolib/action.hpp>
-#include <eosiolib/asset.hpp>
-#include <eosiolib/eosio.hpp>
-#include <eosiolib/permission.hpp>
-#include <eosiolib/singleton.hpp>
-#include <eosiolib/types.h>
+#include <eosio/action.hpp>
+#include <eosio/asset.hpp>
+#include <eosio/eosio.hpp>
+#include <eosio/permission.hpp>
+#include <eosio/singleton.hpp>
 
 using namespace std;
 using namespace eosio;
@@ -411,7 +410,7 @@ class[[eosio::contract("eosio.arbitration")]] arbitration : public eosio::contra
 	config_singleton configs;
 	config _config;
 
-	using exec_claim = action_wrapper<"execaccept"_n, &arbitration::execclaim>;
+	using exec_claim = action_wrapper<"execclaim"_n, &arbitration::execclaim>;
 	using exec_file = action_wrapper<"execfile"_n, &arbitration::execfile>;
 
 #pragma endregion Tables and Structs
@@ -442,7 +441,8 @@ class[[eosio::contract("eosio.arbitration")]] arbitration : public eosio::contra
 
 	void del_claim_at(const string claim_hash, vector<claim> claims);
 
-	void transfer_handler(name from, name to, asset quantity);
+	[[eosio::on_notify("eosio.token::transfer")]]
+	void transfer_handler(name from, name to, asset quantity, string memo);
 
 	void sub_balance(name owner, asset value)
 	{

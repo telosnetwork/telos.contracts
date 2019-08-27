@@ -7,14 +7,14 @@ trail::trail(name self, name code, datastream<const char*> ds) : contract(self, 
         env_struct = env{
             self, //publisher
             new_totals, //totals
-            now(), //time_now
+            current_time_point().sec_since_epoch(), //time_now
             0 //last_ballot_id
         };
 
         environment.set(env_struct, self);
     } else {
         env_struct = environment.get();
-        env_struct.time_now = now();
+        env_struct.time_now = current_time_point().sec_since_epoch();
     }
 }
 
@@ -33,7 +33,7 @@ void trail::regtoken(asset max_supply, name publisher, string info_url) {
 
     registries_table registries(_self, _self.value);
     auto r = registries.find(sym.code().raw());
-    eosio_assert(r == registries.end(), "Token Registry with that symbol already exists in Trail");
+    check(r == registries.end(), "Token Registry with that symbol already exists in Trail");
 
     token_settings default_settings;
 
@@ -55,14 +55,14 @@ void trail::initsettings(name publisher, symbol token_symbol, token_settings new
 
     registries_table registries(_self, _self.value);
     auto r = registries.find(token_symbol.code().raw());
-    eosio_assert(r != registries.end(), "Token Registry with that symbol doesn't exist");
+    check(r != registries.end(), "Token Registry with that symbol doesn't exist");
     auto reg = *r;
 
-    eosio_assert(reg.publisher == publisher, "cannot change settings of another account's registry");
-    eosio_assert(new_settings.counterbal_decay_rate > 0, "cannot have a counterbalance with zero decay");
+    check(reg.publisher == publisher, "cannot change settings of another account's registry");
+    check(new_settings.counterbal_decay_rate > 0, "cannot have a counterbalance with zero decay");
 
     if (reg.settings.is_initialized) {
-        eosio_assert(!reg.settings.lock_after_initialize, "settings have been locked");
+        check(!reg.settings.lock_after_initialize, "settings have been locked");
     } else {
         new_settings.is_initialized = true;
     }
@@ -79,10 +79,10 @@ void trail::unregtoken(symbol token_symbol, name publisher) {
     
     registries_table registries(_self, _self.value);
     auto r = registries.find(token_symbol.code().raw());
-    eosio_assert(r != registries.end(), "No Token Registry found matching given symbol");
+    check(r != registries.end(), "No Token Registry found matching given symbol");
     auto reg = *r;
 
-    eosio_assert(reg.settings.is_destructible == true, "Token Registry has been set as indestructible");
+    check(reg.settings.is_destructible == true, "Token Registry has been set as indestructible");
 
     registries.erase(r);
 
@@ -96,16 +96,16 @@ void trail::unregtoken(symbol token_symbol, name publisher) {
 
 void trail::issuetoken(name publisher, name recipient, asset tokens, bool airgrab) {
     require_auth(publisher);
-    eosio_assert(tokens > asset(0, tokens.symbol), "must issue more than 0 tokens");
+    check(tokens > asset(0, tokens.symbol), "must issue more than 0 tokens");
 
     registries_table registries(_self, _self.value);
     auto r = registries.find(tokens.symbol.code().raw());
-    eosio_assert(r != registries.end(), "registry doesn't exist for that token");
+    check(r != registries.end(), "registry doesn't exist for that token");
     auto reg = *r;
-    eosio_assert(reg.publisher == publisher, "only publisher can issue tokens");
+    check(reg.publisher == publisher, "only publisher can issue tokens");
 
     asset new_supply = (reg.supply + tokens);
-    eosio_assert(new_supply <= reg.max_supply, "Issuing tokens would breach max supply");
+    check(new_supply <= reg.max_supply, "Issuing tokens would breach max supply");
 
     registries.modify(r, same_payer, [&]( auto& a ) { //NOTE: update supply
         a.supply = new_supply;
@@ -157,14 +157,14 @@ void trail::claimairgrab(name claimant, name publisher, symbol token_symbol) {
 
     registries_table registries(_self, _self.value);
     auto r = registries.find(token_symbol.code().raw());
-    eosio_assert(r != registries.end(), "Token Registry with that symbol doesn't exist in Trail");
+    check(r != registries.end(), "Token Registry with that symbol doesn't exist in Trail");
     auto reg = *r;
 
     airgrabs_table airgrabs(_self, reg.publisher.value);
     auto g = airgrabs.find(claimant.value);
-    eosio_assert(g != airgrabs.end(), "no airgrab to claim");
+    check(g != airgrabs.end(), "no airgrab to claim");
     auto grab = *g;
-    eosio_assert(grab.recipient == claimant, "cannot claim another account's airdrop");
+    check(grab.recipient == claimant, "cannot claim another account's airdrop");
 
     balances_table balances(_self, token_symbol.code().raw());
     auto b = balances.find(claimant.value);
@@ -188,25 +188,25 @@ void trail::claimairgrab(name claimant, name publisher, symbol token_symbol) {
 //NOTE: only balance owner can burn tokens
 void trail::burntoken(name balance_owner, asset amount) {
     require_auth(balance_owner);
-    eosio_assert(amount > asset(0, amount.symbol), "must claim more than 0 tokens");
+    check(amount > asset(0, amount.symbol), "must claim more than 0 tokens");
 
     registries_table registries(_self, _self.value);
     auto r = registries.find(amount.symbol.code().raw());
-    eosio_assert(r != registries.end(), "registry doesn't exist for given token");
+    check(r != registries.end(), "registry doesn't exist for given token");
     auto reg = *r;
 
     //TODO: make is_burnable_by_publisher/is_burnable_by_holder?
-    eosio_assert(reg.settings.is_burnable == true, "token registry doesn't allow burning");
+    check(reg.settings.is_burnable == true, "token registry doesn't allow burning");
 
     balances_table balances(_self, amount.symbol.code().raw());
     auto b = balances.find(balance_owner.value);
-    eosio_assert(b != balances.end(), "balance owner has no balance to burn");
+    check(b != balances.end(), "balance owner has no balance to burn");
     auto bal = *b;
 
     asset new_supply = (reg.supply - amount);
     asset new_balance = bal.tokens - amount;
 
-    eosio_assert(new_balance >= asset(0, bal.tokens.symbol), "cannot burn more tokens than are owned");
+    check(new_balance >= asset(0, bal.tokens.symbol), "cannot burn more tokens than are owned");
 
     registries.modify(r, same_payer, [&]( auto& a ) {
         a.supply = new_supply;
@@ -222,22 +222,22 @@ void trail::burntoken(name balance_owner, asset amount) {
 //TODO: allow seizing if registry doesn't exist?
 void trail::seizetoken(name publisher, name owner, asset tokens) {
     require_auth(publisher);
-    eosio_assert(publisher != owner, "cannot seize your own tokens");
-    eosio_assert(tokens > asset(0, tokens.symbol), "must seize greater than 0 tokens");
+    check(publisher != owner, "cannot seize your own tokens");
+    check(tokens > asset(0, tokens.symbol), "must seize greater than 0 tokens");
 
     registries_table registries(_self, _self.value);
     auto r = registries.find(tokens.symbol.code().raw());
-    eosio_assert(r != registries.end(), "registry doesn't exist for given token");
+    check(r != registries.end(), "registry doesn't exist for given token");
     auto reg = *r;
 
-    eosio_assert(reg.publisher == publisher, "only publisher can seize tokens");
-    eosio_assert(reg.settings.is_seizable == true, "token registry doesn't allow seizing");
+    check(reg.publisher == publisher, "only publisher can seize tokens");
+    check(reg.settings.is_seizable == true, "token registry doesn't allow seizing");
 
     balances_table ownerbals(_self, tokens.symbol.code().raw());
     auto ob = ownerbals.find(owner.value);
-    eosio_assert(ob != ownerbals.end(), "user has no balance to seize");
+    check(ob != ownerbals.end(), "user has no balance to seize");
     auto obal = *ob;
-    eosio_assert(obal.tokens - tokens >= asset(0, obal.tokens.symbol), "cannot seize more tokens than user owns");
+    check(obal.tokens - tokens >= asset(0, obal.tokens.symbol), "cannot seize more tokens than user owns");
 
     ownerbals.modify(ob, same_payer, [&]( auto& a ) { //NOTE: subtract amount from balance
         a.tokens -= tokens;
@@ -245,7 +245,7 @@ void trail::seizetoken(name publisher, name owner, asset tokens) {
 
     balances_table publisherbal(_self, tokens.symbol.code().raw());
     auto pb = publisherbal.find(publisher.value);
-    eosio_assert(pb != publisherbal.end(), "publisher has no balance to hold seized tokens");
+    check(pb != publisherbal.end(), "publisher has no balance to hold seized tokens");
     auto pbal = *pb;
 
     publisherbal.modify(pb, same_payer, [&]( auto& a ) { //NOTE: add seized tokens to publisher balance
@@ -257,22 +257,22 @@ void trail::seizetoken(name publisher, name owner, asset tokens) {
 
 void trail::seizeairgrab(name publisher, name recipient, asset amount) {
     require_auth(publisher);
-    eosio_assert(amount > asset(0, amount.symbol), "must seize greater than 0 tokens");
+    check(amount > asset(0, amount.symbol), "must seize greater than 0 tokens");
 
     registries_table registries(_self, _self.value);
     auto r = registries.find(amount.symbol.code().raw());
-    eosio_assert(r != registries.end(), "registry doesn't exist for given token");
+    check(r != registries.end(), "registry doesn't exist for given token");
     auto reg = *r;
 
-    eosio_assert(reg.publisher == publisher, "only publisher can seize airgrabs");
-    eosio_assert(reg.settings.is_seizable == true, "token registry doesn't allow seizing");
+    check(reg.publisher == publisher, "only publisher can seize airgrabs");
+    check(reg.settings.is_seizable == true, "token registry doesn't allow seizing");
 
     airgrabs_table airgrabs(_self, publisher.value);
     auto g = airgrabs.find(recipient.value);
-    eosio_assert(g != airgrabs.end(), "recipient has no airgrab");
+    check(g != airgrabs.end(), "recipient has no airgrab");
     auto grab = *g;
 
-    eosio_assert(grab.tokens - amount >= asset(0, grab.tokens.symbol), "cannot seize more tokens than airgrab holds");
+    check(grab.tokens - amount >= asset(0, grab.tokens.symbol), "cannot seize more tokens than airgrab holds");
 
     if (amount - grab.tokens == asset(0, grab.tokens.symbol)) { //NOTE: all tokens seized :(
         airgrabs.erase(g);
@@ -284,7 +284,7 @@ void trail::seizeairgrab(name publisher, name recipient, asset amount) {
 
     balances_table publisherbal(_self, amount.symbol.code().raw());
     auto pb = publisherbal.find(publisher.value);
-    eosio_assert(pb != publisherbal.end(), "publisher has no balance to hold seized tokens");
+    check(pb != publisherbal.end(), "publisher has no balance to hold seized tokens");
     auto pbal = *pb;
 
     publisherbal.modify(pb, same_payer, [&]( auto& a ) { //NOTE: add seized tokens to publisher balance
@@ -296,24 +296,24 @@ void trail::seizeairgrab(name publisher, name recipient, asset amount) {
 
 void trail::seizebygroup(name publisher, vector<name> group, asset tokens) {
     require_auth(publisher);
-    //eosio_assert(publisher != owner, "cannot seize your own tokens");
-    eosio_assert(tokens > asset(0, tokens.symbol), "must seize greater than 0 tokens");
+    //check(publisher != owner, "cannot seize your own tokens");
+    check(tokens > asset(0, tokens.symbol), "must seize greater than 0 tokens");
 
     registries_table registries(_self, _self.value);
     auto r = registries.find(tokens.symbol.code().raw());
-    eosio_assert(r != registries.end(), "registry doesn't exist for given token");
+    check(r != registries.end(), "registry doesn't exist for given token");
     auto reg = *r;
 
-    eosio_assert(reg.publisher == publisher, "only publisher can seize tokens");
-    eosio_assert(reg.settings.is_seizable == true, "token registry doesn't allow seizing");
+    check(reg.publisher == publisher, "only publisher can seize tokens");
+    check(reg.settings.is_seizable == true, "token registry doesn't allow seizing");
 
     for (name n : group) {
 
         balances_table ownerbals(_self, tokens.symbol.code().raw());
         auto ob = ownerbals.find(n.value);
-        eosio_assert(ob != ownerbals.end(), "user has no balance to seize");
+        check(ob != ownerbals.end(), "user has no balance to seize");
         auto obal = *ob;
-        eosio_assert(obal.tokens - tokens >= asset(0, obal.tokens.symbol), "cannot seize more tokens than user owns");
+        check(obal.tokens - tokens >= asset(0, obal.tokens.symbol), "cannot seize more tokens than user owns");
 
         ownerbals.modify(ob, same_payer, [&]( auto& a ) { //NOTE: subtract amount from balance
             a.tokens -= tokens;
@@ -321,7 +321,7 @@ void trail::seizebygroup(name publisher, vector<name> group, asset tokens) {
 
         balances_table publisherbal(_self, tokens.symbol.code().raw());
         auto pb = publisherbal.find(publisher.value);
-        eosio_assert(pb != publisherbal.end(), "publisher has no balance to hold seized tokens");
+        check(pb != publisherbal.end(), "publisher has no balance to hold seized tokens");
         auto pbal = *pb;
 
         publisherbal.modify(pb, same_payer, [&]( auto& a ) { //NOTE: add seized tokens to publisher balance
@@ -334,15 +334,15 @@ void trail::seizebygroup(name publisher, vector<name> group, asset tokens) {
 
 void trail::raisemax(name publisher, asset amount) {
     require_auth(publisher);
-    eosio_assert(amount > asset(0, amount.symbol), "amount must be greater than 0");
+    check(amount > asset(0, amount.symbol), "amount must be greater than 0");
 
     registries_table registries(_self, _self.value);
     auto r = registries.find(amount.symbol.code().raw());
-    eosio_assert(r != registries.end(), "registry doesn't exist for given token");
+    check(r != registries.end(), "registry doesn't exist for given token");
     auto reg = *r;
 
-    eosio_assert(reg.publisher == publisher, "cannot raise another registry's max supply");
-    eosio_assert(reg.settings.is_max_mutable == true, "token registry doesn't allow raising max supply");
+    check(reg.publisher == publisher, "cannot raise another registry's max supply");
+    check(reg.settings.is_max_mutable == true, "token registry doesn't allow raising max supply");
 
     registries.modify(r, same_payer, [&]( auto& a ) {
         a.max_supply += amount;
@@ -353,17 +353,17 @@ void trail::raisemax(name publisher, asset amount) {
 
 void trail::lowermax(name publisher, asset amount) {
     require_auth(publisher);
-    eosio_assert(amount > asset(0, amount.symbol), "amount must be greater than 0");
+    check(amount > asset(0, amount.symbol), "amount must be greater than 0");
 
     registries_table registries(_self, _self.value);
     auto r = registries.find(amount.symbol.code().raw());
-    eosio_assert(r != registries.end(), "registry doesn't exist for that token");
+    check(r != registries.end(), "registry doesn't exist for that token");
     auto reg = *r;
 
-    eosio_assert(reg.publisher == publisher, "cannot lower another account's max supply");
-    eosio_assert(reg.settings.is_max_mutable == true, "token settings don't allow lowering max supply");
-    eosio_assert(reg.supply <= reg.max_supply - amount, "cannot lower max supply below circulating supply");
-    eosio_assert(reg.max_supply - amount >= asset(0, amount.symbol), "cannot lower max supply below 0");
+    check(reg.publisher == publisher, "cannot lower another account's max supply");
+    check(reg.settings.is_max_mutable == true, "token settings don't allow lowering max supply");
+    check(reg.supply <= reg.max_supply - amount, "cannot lower max supply below circulating supply");
+    check(reg.max_supply - amount >= asset(0, amount.symbol), "cannot lower max supply below 0");
 
     registries.modify(r, same_payer, [&]( auto& a ) {
         a.max_supply -= amount;
@@ -374,25 +374,25 @@ void trail::lowermax(name publisher, asset amount) {
 
 void trail::transfer(name sender, name recipient, asset amount) {
     require_auth(sender);
-    eosio_assert(sender != recipient, "cannot send tokens to yourself");
-    eosio_assert(amount > asset(0, amount.symbol), "must transfer grater than 0 tokens");
+    check(sender != recipient, "cannot send tokens to yourself");
+    check(amount > asset(0, amount.symbol), "must transfer grater than 0 tokens");
 
     registries_table registries(_self, _self.value);
     auto r = registries.find(amount.symbol.code().raw());
-    eosio_assert(r != registries.end(), "token registry doesn't exist");
+    check(r != registries.end(), "token registry doesn't exist");
     auto reg = *r;
 
-    eosio_assert(reg.settings.is_transferable == true, "token registry disallows transfers");
+    check(reg.settings.is_transferable == true, "token registry disallows transfers");
 
     balances_table senderbal(_self, amount.symbol.code().raw());
     auto sb = senderbal.find(sender.value);
-    eosio_assert(sb != senderbal.end(), "sender doesn't have a balance");
+    check(sb != senderbal.end(), "sender doesn't have a balance");
     auto sbal = *sb;
-    eosio_assert(sbal.tokens - amount >= asset(0, amount.symbol), "insufficient funds in sender's balance");
+    check(sbal.tokens - amount >= asset(0, amount.symbol), "insufficient funds in sender's balance");
 
     balances_table recbal(_self, amount.symbol.code().raw());
     auto rb = recbal.find(recipient.value);
-    eosio_assert(rb != recbal.end(), "recipient doesn't have a balance to hold transferred funds");
+    check(rb != recbal.end(), "recipient doesn't have a balance to hold transferred funds");
     auto rbal = *rb;
 
     //NOTE: subtract amount from sender
@@ -415,7 +415,7 @@ void trail::transfer(name sender, name recipient, asset amount) {
             a.owner = sender;
             a.decayable_cb = asset(0, amount.symbol);
             a.persistent_cb = asset(0, amount.symbol);
-            a.last_decay = now();
+            a.last_decay = current_time_point().sec_since_epoch();
         });
     } else {
         auto scbal = *scb;
@@ -441,7 +441,7 @@ void trail::transfer(name sender, name recipient, asset amount) {
             a.owner = recipient;
             a.decayable_cb = amount;
             a.persistent_cb = asset(0, amount.symbol);
-            a.last_decay = now();
+            a.last_decay = current_time_point().sec_since_epoch();
         });
     } else {
         auto rcbal = *rcb;
@@ -475,11 +475,11 @@ void trail::regvoter(name voter, symbol token_symbol) {
 
     registries_table registries(_self, _self.value);
     auto r = registries.find(token_symbol.code().raw());
-    eosio_assert(r != registries.end(), "registry doesn't exist for given token");
+    check(r != registries.end(), "registry doesn't exist for given token");
 
     balances_table balances(_self, token_symbol.code().raw());
     auto b = balances.find(voter.value);
-    eosio_assert(b == balances.end(), "Voter already exists");
+    check(b == balances.end(), "Voter already exists");
 
     balances.emplace(voter, [&]( auto& a ){
         a.owner = voter;
@@ -501,15 +501,15 @@ void trail::unregvoter(name voter, symbol token_symbol) {
 
     balances_table balances(_self, token_symbol.code().raw());
     auto b = balances.find(voter.value);
-    eosio_assert(b != balances.end(), "voter doesn't exist to unregister");
+    check(b != balances.end(), "voter doesn't exist to unregister");
     auto bal = *b;
 
     registries_table registries(_self, _self.value);
     auto r = registries.find(token_symbol.code().raw());
-    eosio_assert(r != registries.end(), "registry doesn't exist");
+    check(r != registries.end(), "registry doesn't exist");
     auto reg = *r;
 
-    eosio_assert(reg.settings.is_burnable == true, "token registry disallows burning of funds, transfer whole balance before attempting to unregister.");
+    check(reg.settings.is_burnable == true, "token registry disallows burning of funds, transfer whole balance before attempting to unregister.");
 
     registries.modify(r, same_payer, [&]( auto& a ) {
         a.supply -= bal.tokens;
@@ -532,23 +532,23 @@ void trail::mirrorcast(name voter, symbol token_symbol) {
     require_auth(voter);
 
     //TODO: add ability to mirrorcast any eosio.token? casted tokens could still be transferable but would inherit the counterbalance system
-    eosio_assert(token_symbol == symbol("TLOS", 4), "feature in development. can only mirrorcast TLOS");
+    check(token_symbol == symbol("TLOS", 4), "feature in development. can only mirrorcast TLOS");
     auto vote_sym = symbol("VOTE", 4);
 
     asset max_votes = get_liquid_tlos(voter) + get_staked_tlos(voter);
 	auto new_votes = asset(max_votes.amount, symbol("VOTE", 4)); //NOTE: converts TLOS balance to VOTE tokens
-    eosio_assert(max_votes.symbol == symbol("TLOS", 4), "only TLOS can be used to get VOTEs"); //NOTE: redundant?
-    eosio_assert(max_votes > asset(0, symbol("TLOS", 4)), "must get a positive amount of VOTEs"); //NOTE: redundant?
+    check(max_votes.symbol == symbol("TLOS", 4), "only TLOS can be used to get VOTEs"); //NOTE: redundant?
+    check(max_votes > asset(0, symbol("TLOS", 4)), "must get a positive amount of VOTEs"); //NOTE: redundant?
 
     balances_table balances(_self, new_votes.symbol.code().raw());
     auto b = balances.find(voter.value);
-    eosio_assert(b != balances.end(), "voter is not registered");
+    check(b != balances.end(), "voter is not registered");
     auto bal = *b;
 
     //subtract old balance from supply
     registries_table registries(_self, _self.value);
     auto r = registries.find(vote_sym.code().raw());
-    eosio_assert(r != registries.end(), "Token Registry with that symbol doesn't exist in Trail");
+    check(r != registries.end(), "Token Registry with that symbol doesn't exist in Trail");
     auto reg = *r;
     reg.supply -= bal.tokens;
 
@@ -561,7 +561,7 @@ void trail::mirrorcast(name voter, symbol token_symbol) {
     
     if (cb != counterbals.end()) { //NOTE: if no cb found, give cb of 0
         auto counter_bal = *cb;
-        //eosio_assert(now() - counter_bal.last_decay >= MIN_LOCK_PERIOD, "cannot get more votes until min lock period is over");
+        //check(current_time_point().sec_since_epoch() - counter_bal.last_decay >= MIN_LOCK_PERIOD, "cannot get more votes until min lock period is over");
         asset new_cb = (counter_bal.decayable_cb - decay_amount); //subtracting total cb
 
 		//TODO: should mirrorcasting add new_votes to counterbalance? same logically as adding when calling issuetokens
@@ -608,23 +608,23 @@ void trail::castvote(name voter, uint64_t ballot_id, uint16_t direction) {
 
     ballots_table ballots(_self, _self.value);
     auto b = ballots.find(ballot_id);
-    eosio_assert(b != ballots.end(), "ballot with given ballot_id doesn't exist");
+    check(b != ballots.end(), "ballot with given ballot_id doesn't exist");
     auto bal = *b;
 
     //TODO: factor out get_weight?
     // balances_table balances(_self, _self.value);
     // auto v = balances.find(voter.value);
-    // eosio_assert(v != balances.end(), "voter is not registered");
+    // check(v != balances.end(), "voter is not registered");
 
     bool vote_success = false;
 
     switch (bal.table_id) {
         case 0 : 
-            eosio_assert(direction >= uint16_t(0) && direction <= uint16_t(2), "Invalid Vote. [0 = NO, 1 = YES, 2 = ABSTAIN]");
+            check(direction >= uint16_t(0) && direction <= uint16_t(2), "Invalid Vote. [0 = NO, 1 = YES, 2 = ABSTAIN]");
             vote_success = vote_for_proposal(voter, ballot_id, bal.reference_id, direction);
             break;
         case 1 : 
-            eosio_assert(true == false, "feature still in development...");
+            check(true == false, "feature still in development...");
             //vote_success = vote_for_election(voter, ballot_id, bal.reference_id, direction);
             break;
         case 2 : 
@@ -636,7 +636,7 @@ void trail::castvote(name voter, uint64_t ballot_id, uint16_t direction) {
 
 void trail::deloldvotes(name voter, uint16_t num_to_delete) {
     require_auth(voter);
-    eosio_assert(num_to_delete > uint16_t(0), "must delete greater than 0 receipts");
+    check(num_to_delete > uint16_t(0), "must delete greater than 0 receipts");
 
     votereceipts_table votereceipts(_self, voter.value);
     auto itr = votereceipts.begin();
@@ -673,12 +673,12 @@ void trail::deloldvotes(name voter, uint16_t num_to_delete) {
 
 void trail::regballot(name publisher, uint8_t ballot_type, symbol voting_symbol, uint32_t begin_time, uint32_t end_time, string info_url) {
     require_auth(publisher);
-    eosio_assert(ballot_type >= 0 && ballot_type <= 2, "invalid ballot type"); //NOTE: update valid range as new ballot types are developed
-    eosio_assert(begin_time < end_time, "begin time must be less than end time");
+    check(ballot_type >= 0 && ballot_type <= 2, "invalid ballot type"); //NOTE: update valid range as new ballot types are developed
+    check(begin_time < end_time, "begin time must be less than end time");
 
     registries_table registries(_self, _self.value);
     auto r = registries.find(voting_symbol.code().raw());
-    eosio_assert(r != registries.end(), "Token registry with that symbol doesn't exist in Trail");
+    check(r != registries.end(), "Token registry with that symbol doesn't exist in Trail");
 
     uint64_t new_ref_id;
 
@@ -688,7 +688,7 @@ void trail::regballot(name publisher, uint8_t ballot_type, symbol voting_symbol,
             env_struct.totals[0]++;
             break;
         case 1 : 
-            eosio_assert(true == false, "feature still in development...");
+            check(true == false, "feature still in development...");
             //new_ref_id = make_election(publisher, voting_symbol, begin_time, end_time, info_url);
             //env_struct.totals[1]++;
             break;
@@ -718,7 +718,7 @@ void trail::unregballot(name publisher, uint64_t ballot_id) {
 
     ballots_table ballots(_self, _self.value);
     auto b = ballots.find(ballot_id);
-    eosio_assert(b != ballots.end(), "Ballot Doesn't Exist");
+    check(b != ballots.end(), "Ballot Doesn't Exist");
     auto bal = *b;
 
     bool del_success = false;
@@ -729,7 +729,7 @@ void trail::unregballot(name publisher, uint64_t ballot_id) {
             env_struct.totals[0]--;
             break;
         case 1 : 
-            eosio_assert(true == false, "feature still in development...");
+            check(true == false, "feature still in development...");
             //del_success = delete_election(bal.reference_id, publisher);
             //env_struct.totals[1]--;
             break;
@@ -754,27 +754,27 @@ void trail::unregballot(name publisher, uint64_t ballot_id) {
 //TODO: refactor for elections when implemented
 void trail::addcandidate(name publisher, uint64_t ballot_id, name new_candidate, string info_link) {
     require_auth(publisher);
-    eosio_assert(is_account(new_candidate), "new candidate is not an account");
+    check(is_account(new_candidate), "new candidate is not an account");
 
     ballots_table ballots(_self, _self.value);
     auto b = ballots.find(ballot_id);
-    eosio_assert(b != ballots.end(), "ballot with given ballot_id doesn't exist");
+    check(b != ballots.end(), "ballot with given ballot_id doesn't exist");
     auto bal = *b;
-    eosio_assert(bal.table_id == 2, "ballot type doesn't support candidates");
+    check(bal.table_id == 2, "ballot type doesn't support candidates");
 
     leaderboards_table leaderboards(_self, _self.value);
     auto l = leaderboards.find(bal.reference_id);
-    eosio_assert(l != leaderboards.end(), "leaderboard doesn't exist");
+    check(l != leaderboards.end(), "leaderboard doesn't exist");
     auto board = *l;
-	eosio_assert(board.available_seats > 0, "num_seats must be a non-zero number");
-    eosio_assert(board.publisher == publisher, "cannot add candidate to another account's leaderboard");
-    eosio_assert(now() < board.begin_time , "cannot add candidates once voting has begun");
+	check(board.available_seats > 0, "num_seats must be a non-zero number");
+    check(board.publisher == publisher, "cannot add candidate to another account's leaderboard");
+    check(current_time_point().sec_since_epoch() < board.begin_time , "cannot add candidates once voting has begun");
 
     auto existing_candidate = std::find_if(board.candidates.begin(), board.candidates.end(), [&new_candidate](const candidate &c) {
         return c.member == new_candidate; 
     });
 
-    eosio_assert(existing_candidate == board.candidates.end(), "candidate already in leaderboard");
+    check(existing_candidate == board.candidates.end(), "candidate already in leaderboard");
 
     candidate new_candidate_struct = candidate{
         new_candidate,
@@ -798,16 +798,16 @@ void trail::setallcands(name publisher, uint64_t ballot_id, vector<candidate> ne
 
     ballots_table ballots(_self, _self.value);
     auto b = ballots.find(ballot_id);
-    eosio_assert(b != ballots.end(), "ballot with given ballot_id doesn't exist");
+    check(b != ballots.end(), "ballot with given ballot_id doesn't exist");
     auto bal = *b;
-    eosio_assert(bal.table_id == 2, "ballot type doesn't support candidates");
+    check(bal.table_id == 2, "ballot type doesn't support candidates");
 
     leaderboards_table leaderboards(_self, _self.value);
     auto l = leaderboards.find(bal.reference_id);
-    eosio_assert(l != leaderboards.end(), "leaderboard doesn't exist");
+    check(l != leaderboards.end(), "leaderboard doesn't exist");
     auto board = *l;
-    eosio_assert(board.publisher == publisher, "cannot change candidates on another account's leaderboard");
-    eosio_assert(now() < board.begin_time , "cannot change candidates once voting has begun");
+    check(board.publisher == publisher, "cannot change candidates on another account's leaderboard");
+    check(current_time_point().sec_since_epoch() < board.begin_time , "cannot change candidates once voting has begun");
 
     leaderboards.modify(l, same_payer, [&]( auto& a ) {
         a.candidates = new_candidates;
@@ -822,16 +822,16 @@ void trail::setallstats(name publisher, uint64_t ballot_id, vector<uint8_t> new_
 
     ballots_table ballots(_self, _self.value);
     auto b = ballots.find(ballot_id);
-    eosio_assert(b != ballots.end(), "ballot with given ballot_id doesn't exist");
+    check(b != ballots.end(), "ballot with given ballot_id doesn't exist");
     auto bal = *b;
-    eosio_assert(bal.table_id == 2, "ballot type doesn't support candidates");
+    check(bal.table_id == 2, "ballot type doesn't support candidates");
 
     leaderboards_table leaderboards(_self, _self.value);
     auto l = leaderboards.find(bal.reference_id);
-    eosio_assert(l != leaderboards.end(), "leaderboard doesn't exist");
+    check(l != leaderboards.end(), "leaderboard doesn't exist");
     auto board = *l;
-    eosio_assert(board.publisher == publisher, "cannot change candidate statuses on another account's leaderboard");
-    eosio_assert(now() > board.end_time , "cannot change candidate statuses until voting has ended");
+    check(board.publisher == publisher, "cannot change candidate statuses on another account's leaderboard");
+    check(current_time_point().sec_since_epoch() > board.end_time , "cannot change candidate statuses until voting has ended");
 
     auto new_cands = set_candidate_statuses(board.candidates, new_cand_statuses);
 
@@ -848,16 +848,16 @@ void trail::rmvcandidate(name publisher, uint64_t ballot_id, name candidate) {
 
     ballots_table ballots(_self, _self.value);
     auto b = ballots.find(ballot_id);
-    eosio_assert(b != ballots.end(), "ballot with given ballot_id doesn't exist");
+    check(b != ballots.end(), "ballot with given ballot_id doesn't exist");
     auto bal = *b;
-    eosio_assert(bal.table_id == 2, "ballot type doesn't support candidates");
+    check(bal.table_id == 2, "ballot type doesn't support candidates");
 
     leaderboards_table leaderboards(_self, _self.value);
     auto l = leaderboards.find(bal.reference_id);
-    eosio_assert(l != leaderboards.end(), "leaderboard doesn't exist");
+    check(l != leaderboards.end(), "leaderboard doesn't exist");
     auto board = *l;
-    eosio_assert(board.publisher == publisher, "cannot remove candidate from another account's leaderboard");
-    eosio_assert(now() < board.begin_time, "cannot remove candidates once voting has begun");
+    check(board.publisher == publisher, "cannot remove candidate from another account's leaderboard");
+    check(current_time_point().sec_since_epoch() < board.begin_time, "cannot remove candidates once voting has begun");
 
     auto new_candidates = board.candidates;
     bool found = false;
@@ -871,7 +871,7 @@ void trail::rmvcandidate(name publisher, uint64_t ballot_id, name candidate) {
         }
     }
 
-    eosio_assert(found == true, "candidate not found in leaderboard list");
+    check(found == true, "candidate not found in leaderboard list");
 
     leaderboards.modify(*l, same_payer, [&]( auto& a ) {
         a.candidates = new_candidates;
@@ -882,20 +882,20 @@ void trail::rmvcandidate(name publisher, uint64_t ballot_id, name candidate) {
 
 void trail::setseats(name publisher, uint64_t ballot_id, uint8_t num_seats) {
     require_auth(publisher);
-    eosio_assert(num_seats > uint8_t(0), "num seats must be greater than 0");
+    check(num_seats > uint8_t(0), "num seats must be greater than 0");
 
     ballots_table ballots(_self, _self.value);
     auto b = ballots.find(ballot_id);
-    eosio_assert(b != ballots.end(), "ballot with given ballot_id doesn't exist");
+    check(b != ballots.end(), "ballot with given ballot_id doesn't exist");
     auto bal = *b;
 
     leaderboards_table leaderboards(_self, _self.value);
     auto l = leaderboards.find(bal.reference_id);
-    eosio_assert(l != leaderboards.end(), "leaderboard doesn't exist");
+    check(l != leaderboards.end(), "leaderboard doesn't exist");
     auto board = *l;
 
-    eosio_assert(now() < board.begin_time, "cannot set seats after voting has begun");
-    eosio_assert(board.publisher == publisher, "cannot set seats for another account's leaderboard");
+    check(current_time_point().sec_since_epoch() < board.begin_time, "cannot set seats after voting has begun");
+    check(board.publisher == publisher, "cannot set seats for another account's leaderboard");
 
     leaderboards.modify(l, same_payer, [&]( auto& a ) {
         a.available_seats = num_seats;
@@ -909,7 +909,7 @@ void trail::closeballot(name publisher, uint64_t ballot_id, uint8_t pass) {
 
     ballots_table ballots(_self, _self.value);
     auto b = ballots.find(ballot_id);
-    eosio_assert(b != ballots.end(), "ballot with given ballot_id doesn't exist");
+    check(b != ballots.end(), "ballot with given ballot_id doesn't exist");
     auto bal = *b;
 
     bool close_success = false;
@@ -919,7 +919,7 @@ void trail::closeballot(name publisher, uint64_t ballot_id, uint8_t pass) {
             close_success = close_proposal(bal.reference_id, pass, publisher);
             break;
         case 1 : 
-            eosio_assert(true == false, "feature still in development...");
+            check(true == false, "feature still in development...");
             //close_success = close_election(bal.reference_id, pass);
             break;
         case 2: 
@@ -932,23 +932,23 @@ void trail::closeballot(name publisher, uint64_t ballot_id, uint8_t pass) {
 
 void trail::nextcycle(name publisher, uint64_t ballot_id, uint32_t new_begin_time, uint32_t new_end_time) {
     require_auth(publisher);
-    eosio_assert(new_begin_time < new_end_time, "begin time must be less than end time");
+    check(new_begin_time < new_end_time, "begin time must be less than end time");
 
     ballots_table ballots(_self, _self.value);
     auto b = ballots.find(ballot_id);
-    eosio_assert(b != ballots.end(), "Ballot Doesn't Exist");
+    check(b != ballots.end(), "Ballot Doesn't Exist");
     auto bal = *b;
 
     //TODO: support cycles for other ballot types?
     //NOTE: currently only supports proposals
-    eosio_assert(bal.table_id == 0, "ballot type doesn't support cycles");
+    check(bal.table_id == 0, "ballot type doesn't support cycles");
 
     proposals_table proposals(_self, _self.value);
     auto p = proposals.find(bal.reference_id);
-    eosio_assert(p != proposals.end(), "proposal doesn't exist");
+    check(p != proposals.end(), "proposal doesn't exist");
     auto prop = *p;
 
-	eosio_assert(env_struct.time_now < prop.begin_time || env_struct.time_now > prop.end_time, 
+	check(env_struct.time_now < prop.begin_time || env_struct.time_now > prop.end_time, 
 		"a proposal can only be cycled before begin_time or after end_time");
 
     auto sym = prop.no_count.symbol; //NOTE: uses same voting symbol as before
@@ -998,13 +998,13 @@ uint64_t trail::make_proposal(name publisher, symbol voting_symbol, uint32_t beg
 bool trail::delete_proposal(uint64_t prop_id, name publisher) {
     proposals_table proposals(_self, _self.value);
     auto p = proposals.find(prop_id);
-    eosio_assert(p != proposals.end(), "proposal doesn't exist");
+    check(p != proposals.end(), "proposal doesn't exist");
     auto prop = *p;
 
-    eosio_assert(now() < prop.begin_time, "cannot delete proposal once voting has begun");
-	eosio_assert(prop.publisher == publisher, "cannot delete another account's proposal");
-    eosio_assert(prop.cycle_count == 0, "proposal must be on initial cycle to delete");
-    //TODO: eosio_assert that status > 0?
+    check(current_time_point().sec_since_epoch() < prop.begin_time, "cannot delete proposal once voting has begun");
+	check(prop.publisher == publisher, "cannot delete another account's proposal");
+    check(prop.cycle_count == 0, "proposal must be on initial cycle to delete");
+    //TODO: check that status > 0?
 
     proposals.erase(p);
 
@@ -1017,22 +1017,22 @@ bool trail::vote_for_proposal(name voter, uint64_t ballot_id, uint64_t prop_id, 
     
     proposals_table proposals(_self, _self.value);
     auto p = proposals.find(prop_id);
-    eosio_assert(p != proposals.end(), "proposal doesn't exist");
+    check(p != proposals.end(), "proposal doesn't exist");
     auto prop = *p;
 
 	registries_table registries(_self, _self.value);
     auto r = registries.find(prop.no_count.symbol.code().raw());
-    eosio_assert(r != registries.end(), "Token Registry with that symbol doesn't exist");
+    check(r != registries.end(), "Token Registry with that symbol doesn't exist");
     auto reg = *r;
 
-    eosio_assert(env_struct.time_now >= prop.begin_time && env_struct.time_now <= prop.end_time, "ballot voting window not open");
+    check(env_struct.time_now >= prop.begin_time && env_struct.time_now <= prop.end_time, "ballot voting window not open");
 
     votereceipts_table votereceipts(_self, voter.value);
     auto vr_itr = votereceipts.find(ballot_id);
     
     uint32_t new_voter = 1;
     asset vote_weight = get_vote_weight(voter, prop.no_count.symbol);
-    eosio_assert(vote_weight > asset(0, prop.no_count.symbol), "vote weight must be greater than 0"); //TODO: add to get_vote_weight?
+    check(vote_weight > asset(0, prop.no_count.symbol), "vote weight must be greater than 0"); //TODO: add to get_vote_weight?
 
     if (vr_itr == votereceipts.end()) { //NOTE: voter hasn't voted on ballot before
 
@@ -1053,7 +1053,7 @@ bool trail::vote_for_proposal(name voter, uint64_t ballot_id, uint64_t prop_id, 
 
         if (vr.expiration == prop.end_time) { //NOTE: vote is for same cycle
 
-			eosio_assert(reg.settings.is_recastable, "token registry disallows vote recasting");
+			check(reg.settings.is_recastable, "token registry disallows vote recasting");
 
             if (vr.directions[0] == direction) {
                 vote_weight -= vr.weight;
@@ -1107,11 +1107,11 @@ bool trail::vote_for_proposal(name voter, uint64_t ballot_id, uint64_t prop_id, 
 bool trail::close_proposal(uint64_t prop_id, uint8_t pass, name publisher) {
     proposals_table proposals(_self, _self.value);
     auto p = proposals.find(prop_id);
-    eosio_assert(p != proposals.end(), "proposal doesn't exist");
+    check(p != proposals.end(), "proposal doesn't exist");
     auto prop = *p;
 
-    eosio_assert(now() > prop.end_time, "can't close proposal while voting is still open");
-	eosio_assert(prop.publisher == publisher, "cannot close another account's proposal");
+    check(current_time_point().sec_since_epoch() > prop.end_time, "can't close proposal while voting is still open");
+	check(prop.publisher == publisher, "cannot close another account's proposal");
 
     proposals.modify(p, same_payer, [&]( auto& a ) {
         a.status = pass;
@@ -1146,11 +1146,11 @@ uint64_t trail::make_election(name publisher, symbol voting_symbol, uint32_t beg
 bool trail::delete_election(uint64_t elec_id, name publisher) {
     elections_table elections(_self, _self.value);
     auto e = elections.find(elec_id);
-    eosio_assert(e != elections.end(), "election doesn't exist");
+    check(e != elections.end(), "election doesn't exist");
     auto elec = *e;
 
-    eosio_assert(now() < elec.begin_time, "cannot delete election once voting has begun");
-    eosio_assert(elec.publisher == publisher, "cannot delete another account's election");
+    check(current_time_point().sec_since_epoch() < elec.begin_time, "cannot delete election once voting has begun");
+    check(elec.publisher == publisher, "cannot delete another account's election");
 
     elections.erase(e);
 
@@ -1199,11 +1199,11 @@ uint64_t trail::make_leaderboard(name publisher, symbol voting_symbol, uint32_t 
 bool trail::delete_leaderboard(uint64_t board_id, name publisher) {
     leaderboards_table leaderboards(_self, _self.value);
     auto b = leaderboards.find(board_id);
-    eosio_assert(b != leaderboards.end(), "leaderboard doesn't exist");
+    check(b != leaderboards.end(), "leaderboard doesn't exist");
     auto board = *b;
 
-    eosio_assert(now() < board.begin_time, "cannot delete leaderboard once voting has begun");
-    eosio_assert(board.publisher == publisher, "cannot delete another account's leaderboard");
+    check(current_time_point().sec_since_epoch() < board.begin_time, "cannot delete leaderboard once voting has begun");
+    check(board.publisher == publisher, "cannot delete another account's leaderboard");
 
     leaderboards.erase(b);
 
@@ -1215,23 +1215,23 @@ bool trail::delete_leaderboard(uint64_t board_id, name publisher) {
 bool trail::vote_for_leaderboard(name voter, uint64_t ballot_id, uint64_t board_id, uint16_t direction) {
     leaderboards_table leaderboards(_self, _self.value);
     auto b = leaderboards.find(board_id);
-    eosio_assert(b != leaderboards.end(), "leaderboard doesn't exist");
+    check(b != leaderboards.end(), "leaderboard doesn't exist");
     auto board = *b;
 	print("\nboard.candidates.size(): ", board.candidates.size());
-	eosio_assert(direction < board.candidates.size(), "direction must map to an existing candidate in the leaderboard struct");
-    eosio_assert(env_struct.time_now >= board.begin_time && env_struct.time_now <= board.end_time, "ballot voting window not open");
+	check(direction < board.candidates.size(), "direction must map to an existing candidate in the leaderboard struct");
+    check(env_struct.time_now >= board.begin_time && env_struct.time_now <= board.end_time, "ballot voting window not open");
 
     votereceipts_table votereceipts(_self, voter.value);
     auto vr_itr = votereceipts.find(ballot_id);
 
 	registries_table registries(_self, _self.value);
 	auto r = registries.find(board.voting_symbol.code().raw());
-	eosio_assert(r != registries.end(), "token registry does not exist");
+	check(r != registries.end(), "token registry does not exist");
     
     uint32_t new_voter = 1;
     asset vote_weight = get_vote_weight(voter, board.voting_symbol);
 	print("\nvote weight amount: ", vote_weight);
-	eosio_assert(vote_weight > asset(0, board.voting_symbol), "vote weight must be greater than 0");
+	check(vote_weight > asset(0, board.voting_symbol), "vote weight must be greater than 0");
 
     if (vr_itr == votereceipts.end()) { //NOTE: voter hasn't voted on ballot before
 
@@ -1262,8 +1262,8 @@ bool trail::vote_for_leaderboard(name voter, uint64_t ballot_id, uint64_t board_
             print("\nVote Recast: SUCCESS");
 
         } else if (vr.expiration == board.end_time && has_direction(direction, vr.directions)) { //NOTE: vote already exists for candidate (recasting)
-			eosio_assert(reg.settings.is_recastable, "token registry disallows vote recasting");
-            eosio_assert(true == false, "Feature currently disabled"); //NOTE: temp fix
+			check(reg.settings.is_recastable, "token registry disallows vote recasting");
+            check(true == false, "Feature currently disabled"); //NOTE: temp fix
             new_voter = 0;
 		}
         
@@ -1283,11 +1283,11 @@ bool trail::vote_for_leaderboard(name voter, uint64_t ballot_id, uint64_t board_
 bool trail::close_leaderboard(uint64_t board_id, uint8_t pass, name publisher) {
     leaderboards_table leaderboards(_self, _self.value);
     auto b = leaderboards.find(board_id);
-    eosio_assert(b != leaderboards.end(), "leaderboard doesn't exist");
+    check(b != leaderboards.end(), "leaderboard doesn't exist");
     auto board = *b;
 
-    eosio_assert(now() > board.end_time, "cannot close leaderboard while voting is still open");
-    eosio_assert(board.publisher == publisher, "cannot close another account's leaderboard");
+    check(current_time_point().sec_since_epoch() > board.end_time, "cannot close leaderboard while voting is still open");
+    check(board.publisher == publisher, "cannot close another account's leaderboard");
 
     leaderboards.modify(b, same_payer, [&]( auto& a ) {
         a.status = pass;
@@ -1323,7 +1323,7 @@ bool trail::has_direction(uint16_t direction, vector<uint16_t> direction_list) {
 }
 
 vector<candidate> trail::set_candidate_statuses(vector<candidate> candidate_list, vector<uint8_t> new_status_list) {
-    eosio_assert(candidate_list.size() == new_status_list.size(), "status list does not correctly map to candidate list");
+    check(candidate_list.size() == new_status_list.size(), "status list does not correctly map to candidate list");
 
     for (int idx = 0; idx < candidate_list.size(); idx++) {
         candidate_list[idx].status = new_status_list[idx];
@@ -1342,7 +1342,7 @@ void trail::update_from_cb(name from, asset amount) {
     auto cb_itr = fromcbs.find(from.value);
     
     if (cb_itr == fromcbs.end()) {
-		uint32_t new_now = now();
+		uint32_t new_now = current_time_point().sec_since_epoch();
         fromcbs.emplace(_self, [&]( auto& a ){ //TODO: change ram payer to user? may prevent TLOS transfers
             a.owner = from;
             a.decayable_cb = asset(0, symbol("VOTE", 4));

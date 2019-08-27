@@ -294,7 +294,7 @@ public:
 
     //note: case setup
 
-    transaction_trace_ptr filecase(name claimant, string claim_link, vector <uint8_t> lang_codes, optional<name> respondant ) {
+    transaction_trace_ptr filecase(name claimant, string claim_link, vector <uint8_t> lang_codes, fc::optional<name> respondant ) {
         signed_transaction trx;
         trx.actions.emplace_back(get_action(N(eosio.arb), N(filecase), vector<permission_level>{{claimant, config::active_name}}, mvo()
             ("claimant", claimant)

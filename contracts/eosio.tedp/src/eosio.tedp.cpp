@@ -26,25 +26,25 @@ const uint64_t max_rex_amount = 685;
 
 ACTION tedp::settf(uint64_t amount)
 {
-    eosio_assert(amount <= max_tf_amount, "Max amount for tf account is 32876 per day");
+    check(amount <= max_tf_amount, "Max amount for tf account is 32876 per day");
     setpayout(name("tf"), amount, daily_interval);
 }
 
 ACTION tedp::setecondev(uint64_t amount)
 {
-    eosio_assert(amount <= max_econdev_amount, "Max amount for econdevfunds account is 16438 per day");
+    check(amount <= max_econdev_amount, "Max amount for econdevfunds account is 16438 per day");
     setpayout(name("econdevfunds"), amount, daily_interval);
 }
 
 ACTION tedp::setrex(uint64_t amount) {
-    eosio_assert(amount <= max_rex_amount, "Max amount for eosio.rex account is 685 per 30min");
+    check(amount <= max_rex_amount, "Max amount for eosio.rex account is 685 per 30min");
     setpayout(name("eosio.rex"), amount, rex_interval);
 }
 
 void tedp::setpayout(name to, uint64_t amount, uint64_t interval)
 {
     require_auth(name("eosio"));
-    eosio_assert(is_account(to), "The payee is not a valid account");
+    check(is_account(to), "The payee is not a valid account");
     auto itr = payouts.find(to.value);
     if (itr == payouts.end())
     {
@@ -52,7 +52,7 @@ void tedp::setpayout(name to, uint64_t amount, uint64_t interval)
             p.to = to;
             p.amount = amount;
             p.interval = interval;
-            p.last_payout = now();
+            p.last_payout = current_time_point().sec_since_epoch();
         });
     }
     else
@@ -68,14 +68,14 @@ ACTION tedp::delpayout(name to)
 {
     require_auth(name("eosio"));
     auto itr = payouts.find(to.value);
-    eosio_assert(itr != payouts.end(), "Payout does not exist, can't delete");
+    check(itr != payouts.end(), "Payout does not exist, can't delete");
     payouts.erase(itr);
 }
 
 ACTION tedp::pay()
 {
     //uint64_t now_ms = eosio::current_time_point().sec_since_epoch();
-    uint64_t now_ms = now();
+    uint64_t now_ms = current_time_point().sec_since_epoch();
     bool payouts_made = false;
     for (auto itr = payouts.begin(); itr != payouts.end(); itr++)
     {
@@ -111,7 +111,5 @@ ACTION tedp::pay()
         }
     }
 
-    eosio_assert(payouts_made, "No payouts are due");
+    check(payouts_made, "No payouts are due");
 }
-
-EOSIO_DISPATCH( tedp, (settf)(setecondev)(setrex)(delpayout)(pay) )

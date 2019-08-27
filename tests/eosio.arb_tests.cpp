@@ -1271,39 +1271,37 @@ BOOST_FIXTURE_TEST_CASE( dismiss_case, eosio_arb_tester ) try {
 
 	//TODO: assigntocase
     //cf = get_casefile(current_case_id);
-    auto assigned_arbs = cf["arbitrators"].as<vector<fc::variant>>();
+   auto assigned_arbs = cf["arbitrators"].as<vector<fc::variant>>();
 	BOOST_REQUIRE_EQUAL(assigned_arbs.size(), 0);
-    assigntocase(current_case_id, test_voters[0], assigner);
+   assigntocase(current_case_id, test_voters[0], assigner);
 
     cf = get_casefile(current_case_id);
    //  std::cout << "Case status: " << cf["case_status"].as_string() << endl;
-    BOOST_REQUIRE_EQUAL ( cf["case_status"].as<uint8_t>(), CASE_INVESTIGATION );
-    assigned_arbs = cf["arbitrators"].as<vector<fc::variant>>();
-    BOOST_REQUIRE_EQUAL(assigned_arbs.size(), 1);
-    BOOST_REQUIRE_EQUAL(assigned_arbs[0].as_string(), test_voters[0].to_string());
+   BOOST_REQUIRE_EQUAL ( cf["case_status"].as<uint8_t>(), CASE_INVESTIGATION );
+   assigned_arbs = cf["arbitrators"].as<vector<fc::variant>>();
+   BOOST_REQUIRE_EQUAL(assigned_arbs.size(), 1);
+   BOOST_REQUIRE_EQUAL(assigned_arbs[0].as_string(), test_voters[0].to_string());
 
 	//TODO: dismisscase
 	// std::cout << "Case status: " << cf["case_status"].as_string() << endl;
     //[[eosio::action]] void dismisscase(uint64_t case_id, name assigned_arb, string ruling_link);
 
-    BOOST_REQUIRE_EXCEPTION(
-            dismisscase(current_case_id, bad_actor, ruling_links[0]   ),
-            eosio_assert_message_exception,
-            eosio_assert_message_is("Arbitrator isn't selected for this case")
-    );
+   BOOST_REQUIRE_EXCEPTION(
+         dismisscase(current_case_id, bad_actor, ruling_links[0]   ),
+         eosio_assert_message_exception,
+         eosio_assert_message_is("Arbitrator isn't selected for this case")
+   );
 
-    dismisscase(current_case_id, test_voters[0], ruling_links[0]   );
-    produce_blocks();
+   dismisscase(current_case_id, test_voters[0], ruling_links[0]   );
+   produce_blocks();
 
-    cf = get_casefile(current_case_id);
-    BOOST_REQUIRE_EQUAL ( cf["case_status"].as<uint8_t>(), DISMISSED );
-    BOOST_REQUIRE_EXCEPTION(
-            dismisscase(current_case_id, test_voters[0], ruling_links[0]   ),
-            eosio_assert_message_exception,
-            eosio_assert_message_is("Case is already dismissed or complete")
-    );
-
-
+   cf = get_casefile(current_case_id);
+   BOOST_REQUIRE_EQUAL ( cf["case_status"].as<uint8_t>(), DISMISSED );
+   BOOST_REQUIRE_EXCEPTION(
+         dismisscase(current_case_id, test_voters[0], ruling_links[0]   ),
+         eosio_assert_message_exception,
+         eosio_assert_message_is("Case is already dismissed or complete")
+   );
 } FC_LOG_AND_RETHROW()
 
 BOOST_FIXTURE_TEST_CASE( accept_dismiss_claims, eosio_arb_tester ) try {
@@ -1425,23 +1423,29 @@ BOOST_FIXTURE_TEST_CASE( accept_dismiss_claims, eosio_arb_tester ) try {
     );
 
 	//acceptclaim
-    acceptclaim(current_case_id, test_voters[0], claim_links[1], ruling_links[1], A_TORT   );
+   BOOST_REQUIRE(true);
+   acceptclaim(current_case_id, test_voters[0], claim_links[1], ruling_links[1], A_TORT);
+   BOOST_REQUIRE(true);
+   // check claim was removed from unread claims
+   BOOST_REQUIRE(true);
+   claim = get_unread_claim(current_case_id, claim_links[1]);
+   BOOST_REQUIRE(true);
+   BOOST_REQUIRE_EQUAL(true, claim.is_null());
 
-    // check claim was removed from unread claims
-    claim = get_unread_claim(current_case_id, claim_links[1]);
-    BOOST_REQUIRE_EQUAL(true, claim.is_null());
-
-    //check accept claim(s) were moved into claim table
-    auto claim_accepted = get_claim(0);
-    //std::cout << "Claim Summary: " << claim_accepted["claim_summary"].as_string() << endl;
-    REQUIRE_MATCHING_OBJECT (claim_accepted,
-                mvo()
-    ("claim_id",0)
-    ("claim_summary", claim_links[1])
-    ("decision_link", ruling_links[1])
-    ("response_link", response_links[1])
-    ("decision_class", 9 )
-    );
+   //check accept claim(s) were moved into claim table
+   BOOST_REQUIRE(true);
+   auto claim_accepted = get_claim(0);
+   BOOST_REQUIRE(true);
+   //std::cout << "Claim Summary: " << claim_accepted["claim_summary"].as_string() << endl;
+   REQUIRE_MATCHING_OBJECT (claim_accepted,
+               mvo()
+               ("claim_id",0)
+               ("claim_summary", claim_links[1])
+               ("decision_link", ruling_links[1])
+               ("response_link", response_links[1])
+               ("decision_class", 9 )
+   );
+   BOOST_REQUIRE(true);
 } FC_LOG_AND_RETHROW()
 
 BOOST_FIXTURE_TEST_CASE( case_resolution, eosio_arb_tester ) try {

@@ -1,35 +1,35 @@
 #include <eosio.amend.hpp>
-#include <eosiolib/symbol.hpp>
-#include <eosiolib/print.hpp>
+#include <eosio/symbol.hpp>
+#include <eosio/print.hpp>
 
 ratifyamend::ratifyamend(name self, name code, datastream<const char*> ds) : contract(self, code, ds), configs(self, self.value) {
     if (!configs.exists()) {
         configs_struct = config{
             _self, //publisher
-            uint32_t(2500000),    // cycle duration in seconds (default 2,500,000 or 5,000,000 blocks or ~29 days)
-            uint64_t(1000000),    // default fee amount 100 TLOS
-			uint32_t(864000000),  // delay before voting starts on a submission in seconds (~1 day) // or building time ~30 years
-            double(5),          // % of all registered voters to pass (minimum, including exactly this value)
-            double(66.67),      // % yes over no, to consider it passed (minimum, including exactly this value)
-            double(4),          // % of all registered voters to refund fee (minimum, including exactly this value)
-            double(25)          // % of yes to give fee back
+            uint32_t(2500000),      // cycle duration in seconds (default 2,500,000 or 5,000,000 blocks or ~29 days)
+            uint64_t(1000000),      // default fee amount 100 TLOS
+			uint32_t(864000000),    // delay before voting starts on a submission in seconds (~1 day) // or building time ~30 years
+            double(5),              // % of all registered voters to pass (minimum, including exactly this value)
+            double(66.67),          // % yes over no, to consider it passed (minimum, including exactly this value)
+            double(4),              // % of all registered voters to refund fee (minimum, including exactly this value)
+            double(25)              // % of yes to give fee back
         };
         configs.set(configs_struct, _self);
     } else {
-        configs_struct = configs.get();     
+        configs_struct = configs.get();
     }
 }
 
 ratifyamend::~ratifyamend() { }
 
 void ratifyamend::setenv(config new_environment) {
-	eosio_assert(new_environment.expiration_length > 0, "expiration_length must be a non-zero number");
-	eosio_assert(new_environment.start_delay > 0, "start_delay must be a non-zero number");
-	eosio_assert(new_environment.fee > 0, "fee must be a non-zero number");
-	eosio_assert(new_environment.threshold_pass_voters >= 0 && new_environment.threshold_pass_voters <= 100, "threshold pass_voters must be between 0 and 100");
-	eosio_assert(new_environment.threshold_pass_votes >= 0 && new_environment.threshold_pass_votes <= 100, "threshold pass_votes must be between 0 and 100");
-	eosio_assert(new_environment.threshold_fee_voters >= 0 && new_environment.threshold_fee_voters <= 100, "threshold fee_voters must be between 0 and 100");
-	eosio_assert(new_environment.threshold_fee_votes >= 0 && new_environment.threshold_fee_votes <= 100, "threshold fee_votes must be between 0 and 100");
+	check(new_environment.expiration_length > 0, "expiration_length must be a non-zero number");
+	check(new_environment.start_delay > 0, "start_delay must be a non-zero number");
+	check(new_environment.fee > 0, "fee must be a non-zero number");
+	check(new_environment.threshold_pass_voters >= 0 && new_environment.threshold_pass_voters <= 100, "threshold pass_voters must be between 0 and 100");
+	check(new_environment.threshold_pass_votes >= 0 && new_environment.threshold_pass_votes <= 100, "threshold pass_votes must be between 0 and 100");
+	check(new_environment.threshold_fee_voters >= 0 && new_environment.threshold_fee_voters <= 100, "threshold fee_voters must be between 0 and 100");
+	check(new_environment.threshold_fee_votes >= 0 && new_environment.threshold_fee_votes <= 100, "threshold fee_votes must be between 0 and 100");
 	require_auth(_self);
 	configs.set(new_environment, _self);
 }
@@ -37,10 +37,8 @@ void ratifyamend::setenv(config new_environment) {
 void ratifyamend::getdeposit(name owner) {
     require_auth(owner);
 	deposits_table deposits(_self, _self.value);
-	auto d_itr = deposits.find(owner.value);
-    eosio_assert(d_itr != deposits.end(), "Deposit not found");
 
-	auto d = *d_itr;
+	const auto& d = deposits.get(owner.value, "Deposit not found");
     require_auth(d.owner);
 
 	action(permission_level{_self, "active"_n}, "eosio.token"_n, "transfer"_n, make_tuple(
@@ -50,10 +48,10 @@ void ratifyamend::getdeposit(name owner) {
 		std::string("return unused deposit")
 	)).send();
 	
-	deposits.erase(d_itr);
+	deposits.erase(d);
 }
 
-void ratifyamend::transfer_handler(name from, name to, asset quantity) {
+void ratifyamend::transfer_handler(name from, name to, asset quantity, string memo) {
 	require_auth(from);
 
 	if(to != _self) {
@@ -100,33 +98,29 @@ void ratifyamend::makeproposal(string sub_title, uint64_t doc_id, uint8_t new_cl
     require_auth(proposer);
 
     documents_table documents(_self, _self.value);
-    auto d = documents.find(doc_id);
-    eosio_assert(d != documents.end(), "Document Not Found");
-    auto doc = *d;
+    const auto& doc = documents.get(doc_id, "Document Not Found");
 
-    eosio_assert(new_clause_num <= doc.clauses.size() && new_clause_num >= 0, "new clause num is not valid");
+    check(new_clause_num <= doc.clauses.size() && new_clause_num >= 0, "new clause num is not valid");
 	validate_ipfs_link(new_ipfs_url);
 
 	deposits_table deposits(_self, _self.value);
-	auto d_itr = deposits.find(proposer.value);
-	eosio_assert(d_itr != deposits.end(), "Deposit not found, please transfer your TLOS fee");
     
-	auto dep = *d_itr;
+	const auto& dep = deposits.get(proposer.value, "Deposit not found, please transfer your TLOS fee");
     asset fee = asset(configs_struct.fee, symbol("TLOS", 4));
-	eosio_assert(dep.escrow >= fee, "Deposit amount is less than fee, please transfer more TLOS");
+	check(dep.escrow >= fee, "Deposit amount is less than fee, please transfer more TLOS");
 
 	if(dep.escrow > fee) {
 	    asset outstanding = dep.escrow - fee;
-		deposits.modify(d_itr, same_payer, [&](auto& depo) {
+		deposits.modify(dep, same_payer, [&](auto& depo) {
 			depo.escrow = outstanding;
 		});
-	} else {
-		deposits.erase(d_itr);
+	} else  {
+		deposits.erase(dep);
 	}
 
 	ballots_table ballots("eosio.trail"_n, "eosio.trail"_n.value);
-	uint32_t begin_time = now() + configs_struct.start_delay;
-	uint32_t end_time = now() + configs_struct.start_delay + configs_struct.expiration_length;
+	uint32_t begin_time = current_time_point().sec_since_epoch() + configs_struct.start_delay;
+	uint32_t end_time = current_time_point().sec_since_epoch() + configs_struct.start_delay + configs_struct.expiration_length;
 	uint64_t next_ballot_id = ballots.available_primary_key();
 	action(permission_level{_self, "active"_n}, "eosio.trail"_n, "regballot"_n, make_tuple(
 		_self,
@@ -163,9 +157,7 @@ void ratifyamend::makeproposal(string sub_title, uint64_t doc_id, uint8_t new_cl
 
 void ratifyamend::addclause(uint64_t sub_id, uint8_t new_clause_num, string new_ipfs_url) {
     submissions_table submissions(_self, _self.value);
-    auto s = submissions.find(sub_id);
-    eosio_assert(s != submissions.end(), "proposal doesn't exist");
-    auto sub = *s;
+    const auto& sub = submissions.get(sub_id, "proposal doesn't exist");
 
     require_auth(sub.proposer);
 
@@ -175,25 +167,26 @@ void ratifyamend::addclause(uint64_t sub_id, uint8_t new_clause_num, string new_
 	proposals_table props_table("eosio.trail"_n, "eosio.trail"_n.value);
 	auto& prop = props_table.get(bal.reference_id, "Proposal Not Found");
 
-    eosio_assert(prop.cycle_count == uint16_t(0), "proposal is no longer in building stage");
+    check(prop.cycle_count == uint16_t(0), "proposal is no longer in building stage");
 
     documents_table documents(_self, _self.value);
-    auto d = documents.find(sub.document_id);
-    eosio_assert(d != documents.end(), "Document Not Found");
-    auto doc = *d;
+    const auto& doc = documents.get(sub.document_id, "Document Not Found");
 
 	validate_ipfs_link(new_ipfs_url);
-    eosio_assert(new_clause_num <= doc.clauses.size() && new_clause_num >= 0, "new clause num is not valid");
+    check(new_clause_num <= doc.clauses.size() && new_clause_num >= 0, "new clause num is not valid");
 
     bool does_clause_exist = find(sub.new_clause_nums.begin(), sub.new_clause_nums.end(), new_clause_num) != sub.new_clause_nums.end();
-    eosio_assert(!does_clause_exist, "Clause already exists in this submission");
-  
-    sub.new_clause_nums.push_back(new_clause_num);
-    sub.new_ipfs_urls.push_back(new_ipfs_url);
+    check(!does_clause_exist, "Clause already exists in this submission");
+    
+    vector<uint8_t> new_clause_nums = sub.new_clause_nums;
+    vector<string> new_ipfs_urls = sub.new_ipfs_urls;
 
-    submissions.modify(s, same_payer, [&]( auto& a ) {
-        a.new_clause_nums = sub.new_clause_nums;
-        a.new_ipfs_urls = sub.new_ipfs_urls;
+    new_clause_nums.push_back(new_clause_num);
+    new_ipfs_urls.push_back(new_ipfs_url);
+
+    submissions.modify(sub, same_payer, [&]( auto& a ) {
+        a.new_clause_nums = new_clause_nums;
+        a.new_ipfs_urls = new_ipfs_urls;
     });
 
     print("\nAdd Clause: SUCCESS");
@@ -212,14 +205,14 @@ void ratifyamend::removeclause(uint64_t sub_id, uint8_t clause_to_remove)
     proposals_table props_table("eosio.trail"_n, "eosio.trail"_n.value);
 	const auto& prop = props_table.get(bal.reference_id, "Proposal Not Found");
 
-    eosio_assert(prop.cycle_count == uint16_t(0), "proposal is no longer in building stage");
+    check(prop.cycle_count == uint16_t(0), "proposal is no longer in building stage");
 
     auto clauses = sub.new_clause_nums;
     auto links = sub.new_ipfs_urls;
 
     auto clause_it = find(clauses.begin(), clauses.end(), clause_to_remove);
 
-    eosio_assert(clause_it != clauses.end(), "Clause does not exist in submission");
+    check(clause_it != clauses.end(), "Clause does not exist in submission");
 
     auto clause_pos = distance(clauses.begin(), clause_it);
     auto link_it = links.begin() + clause_pos;
@@ -236,7 +229,7 @@ void ratifyamend::removeclause(uint64_t sub_id, uint8_t clause_to_remove)
 void ratifyamend::cancelsub(uint64_t sub_id) {
 	submissions_table submissions(_self, _self.value);
 	auto s_itr = submissions.find(sub_id);
-    eosio_assert(s_itr != submissions.end(), "Submission not found");
+    check(s_itr != submissions.end(), "Submission not found");
     auto s = *s_itr;
 
 	require_auth(s.proposer);
@@ -246,9 +239,9 @@ void ratifyamend::cancelsub(uint64_t sub_id) {
 	proposals_table proposals("eosio.trail"_n, "eosio.trail"_n.value);
 	auto p = proposals.get(b.reference_id, "Prosal not found on eosio.trail proposals_table");
 
-	eosio_assert(p.cycle_count == uint16_t(0), "proposal is no longer in building stage");
-    eosio_assert(p.status == uint8_t(0), "Proposal is already closed");
-	eosio_assert(now() < p.begin_time, "Proposal voting has already begun. Unable to cancel.");
+	check(p.cycle_count == uint16_t(0), "proposal is no longer in building stage");
+    check(p.status == uint8_t(0), "Proposal is already closed");
+	check(current_time_point().sec_since_epoch() < p.begin_time, "Proposal voting has already begun. Unable to cancel.");
 
 	action(permission_level{ _self, "active"_n }, "eosio.trail"_n, "unregballot"_n, make_tuple(
         _self,
@@ -270,12 +263,12 @@ void ratifyamend::openvoting(uint64_t sub_id) {
 	proposals_table props_table("eosio.trail"_n, "eosio.trail"_n.value);
 	auto& prop = props_table.get(bal.reference_id, "Proposal Not Found");
 
-    eosio_assert(prop.cycle_count == uint16_t(0), "proposal is no longer in building stage");
-    eosio_assert(prop.status == uint8_t(0), "Proposal is already closed");
-    eosio_assert(sub.new_clause_nums.size() > 0, "Submission must have at least one clause edit");
+    check(prop.cycle_count == uint16_t(0), "proposal is no longer in building stage");
+    check(prop.status == uint8_t(0), "Proposal is already closed");
+    check(sub.new_clause_nums.size() > 0, "Submission must have at least one clause edit");
 
-	uint32_t begin_time = now();
-	uint32_t end_time = now() + configs_struct.expiration_length;
+	uint32_t begin_time = current_time_point().sec_since_epoch();
+	uint32_t end_time = current_time_point().sec_since_epoch() + configs_struct.expiration_length;
     action(permission_level{ _self, "active"_n }, "eosio.trail"_n, "nextcycle"_n, make_tuple(
         _self,
         sub.ballot_id,
@@ -298,8 +291,8 @@ void ratifyamend::closeprop(uint64_t sub_id) {
 	proposals_table props_table("eosio.trail"_n, "eosio.trail"_n.value);
 	const auto& prop = props_table.get(bal.reference_id, "Proposal Not Found");
 
-    eosio_assert(prop.end_time < now(), "Proposal is still open");
-    eosio_assert(prop.status == uint8_t(0), "Proposal is already closed");
+    check(prop.end_time < current_time_point().sec_since_epoch(), "Proposal is still open");
+    check(prop.status == uint8_t(0), "Proposal is already closed");
 
     registries_table registries("eosio.trail"_n, "eosio.trail"_n.value);
     auto e = registries.find(symbol("VOTE", 4).code().raw());
@@ -359,41 +352,3 @@ void ratifyamend::update_doc(uint64_t document_id, vector<uint8_t> new_clause_nu
 }
 
 #pragma endregion Helper_Functions
-
-extern "C" {
-    void apply(uint64_t self, uint64_t code, uint64_t action) {
-
-        size_t size = action_data_size();
-        constexpr size_t max_stack_buffer_size = 512;
-        void* buffer = nullptr;
-        if( size > 0 ) {
-            buffer = max_stack_buffer_size < size ? malloc(size) : alloca(size);
-            read_action_data(buffer, size);
-        }
-        datastream<const char*> ds((char*)buffer, size);
-
-        if(code == self && action == name("insertdoc").value) {
-            execute_action(name(self), name(code), &ratifyamend::insertdoc);
-        } else if (code == self && action == name("getdeposit").value) {
-            execute_action(name(self), name(code), &ratifyamend::getdeposit);
-        } else if (code == self && action == name("makeproposal").value) {
-            execute_action(name(self), name(code), &ratifyamend::makeproposal);
-        } else if (code == self && action == name("cancelsub").value) {
-            execute_action(name(self), name(code), &ratifyamend::cancelsub);
-        } else if (code == self && action == name("addclause").value) {
-            execute_action(name(self), name(code), &ratifyamend::addclause);
-        } else if (code == self && action == name("removeclause").value) {
-            execute_action(name(self), name(code), &ratifyamend::removeclause);
-        } else if (code == self && action == name("openvoting").value) {
-            execute_action(name(self), name(code), &ratifyamend::openvoting);
-        } else if (code == self && action == name("closeprop").value) {
-            execute_action(name(self), name(code), &ratifyamend::closeprop);
-        } else if (code == self && action == name("setenv").value) {
-            execute_action(name(self), name(code), &ratifyamend::setenv);
-        } else if (code == name("eosio.token").value && action == name("transfer").value) {
-			ratifyamend ramend(name(self), name(code), ds);
-            auto args = unpack_action_data<transfer_args>();
-            ramend.transfer_handler(args.from, args.to, args.quantity);
-        }
-    } //end apply
-};

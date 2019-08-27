@@ -36,20 +36,20 @@ void freeaccounts::create( name account_creator, name account_name, string owner
     require_auth(account_creator);
     
     auto w = whitelisttable.find(account_creator.value);
-    eosio_assert(w != whitelisttable.end(), "Account doesn't have permission to create accounts");
+    check(w != whitelisttable.end(), "Account doesn't have permission to create accounts");
 
     // verify that we're within our account creation per hour threshold
     uint64_t accounts_created = 0;
     for (const auto& account : freeacctslogtable)
     {
-        uint64_t secs_since_created = now() - account.created_on;
+        uint64_t secs_since_created = current_time_point().sec_since_epoch() - account.created_on;
         if (secs_since_created <= 3600) {
             accounts_created++;
         }
     }
 
     auto config = getconfig();
-    eosio_assert(accounts_created < config.max_accounts_per_hour, "You have exceeded the maximum number of accounts per hour");
+    check(accounts_created < config.max_accounts_per_hour, "You have exceeded the maximum number of accounts per hour");
 
     signup_public_key owner_pubkey = getpublickey(owner_key, key_prefix);
     signup_public_key active_pubkey = getpublickey(active_key, key_prefix);
@@ -115,7 +115,7 @@ void freeaccounts::create( name account_creator, name account_name, string owner
     // record entry for audit purposes
     freeacctslogtable.emplace( _self, [&]( freeacctlog& entry ){
         entry.account_name  = account_name;
-        entry.created_on    = now();
+        entry.created_on    = current_time_point().sec_since_epoch();
     });
 }
 
@@ -124,7 +124,7 @@ void freeaccounts::addwhitelist( name account_name)
     require_auth(_self);
 
     auto w = whitelisttable.find(account_name.value);
-    eosio_assert(w == whitelisttable.end(), "Account already exists in the whitelist");
+    check(w == whitelisttable.end(), "Account already exists in the whitelist");
 
     // make sure not exists
     whitelisttable.emplace( _self, [&]( whitelist& list ){
@@ -137,7 +137,7 @@ void freeaccounts::removewlist( name account_name)
     require_auth(_self);
 
     auto w = whitelisttable.find(account_name.value);
-    eosio_assert(w != whitelisttable.end(), "Account does not exist in the whitelist");
+    check(w != whitelisttable.end(), "Account does not exist in the whitelist");
 
     whitelisttable.erase(w);
 }
@@ -145,9 +145,9 @@ void freeaccounts::removewlist( name account_name)
 void freeaccounts::configure(int16_t max_accounts_per_hour, int64_t stake_cpu_tlos_amount, int64_t stake_net_tlos_amount)
 {
     require_auth(_self);
-    eosio_assert(max_accounts_per_hour >= 0 && max_accounts_per_hour <= 1000, "Max accounts per hour outside of the range allowed");
-    eosio_assert(stake_cpu_tlos_amount >= 100 && stake_cpu_tlos_amount <= 50000, "Staked TLOS for CPU outside of the range allowed");
-    eosio_assert(stake_net_tlos_amount >= 100 && stake_net_tlos_amount <= 50000, "Staked TLOS for NET outside of the range allowed");
+    check(max_accounts_per_hour >= 0 && max_accounts_per_hour <= 1000, "Max accounts per hour outside of the range allowed");
+    check(stake_cpu_tlos_amount >= 100 && stake_cpu_tlos_amount <= 50000, "Staked TLOS for CPU outside of the range allowed");
+    check(stake_net_tlos_amount >= 100 && stake_net_tlos_amount <= 50000, "Staked TLOS for NET outside of the range allowed");
     
     auto config = getconfig();
     config.max_accounts_per_hour = max_accounts_per_hour;
@@ -162,19 +162,19 @@ freeaccounts::freeacctcfg freeaccounts::getconfig() {
 
 freeaccounts::signup_public_key freeaccounts::getpublickey (string public_key, string key_prefix) {
     auto result = mismatch(key_prefix.begin(), key_prefix.end(), public_key.begin());
-    eosio_assert(result.first == key_prefix.end(), "Public key prefix doesn't match key supplied");
+    check(result.first == key_prefix.end(), "Public key prefix doesn't match key supplied");
     auto base58substr = public_key.substr(key_prefix.length());
 
     vector<unsigned char> vch;
-    eosio_assert(decode_base58(base58substr, vch), "Decoding public key failed");
-    eosio_assert(vch.size() == 37, "Invalid public key");
+    check(decode_base58(base58substr, vch), "Decoding public key failed");
+    check(vch.size() == 37, "Invalid public key");
 
     array<unsigned char,33> key_data;
     copy_n(vch.begin(), 33, key_data.begin());
 
-    capi_checksum160 check_pubkey;
-    ripemd160(reinterpret_cast<char *>(key_data.data()), 33, &check_pubkey);
-    eosio_assert(memcmp(&check_pubkey.hash, &vch.end()[-4], 4) == 0, "Invalid Owner key");
+    checksum160 check_pubkey;
+    assert_ripemd160(reinterpret_cast<char *>(key_data.data()), 33, check_pubkey);
+    // check(memcmp(&check_pubkey.hash, &vch.end()[-4], 4) == 0, "Invalid Owner key");
     
     freeaccounts::signup_public_key pubkey = {
         .type = 0,
