@@ -1337,7 +1337,12 @@ vector<candidate> trail::set_candidate_statuses(vector<candidate> candidate_list
 
 #pragma region Reactions
 
-void trail::update_from_cb(name from, asset amount) {
+void trail::transfer_handler(const name &from, const name &to, const asset &quantity, const string &memo) {
+    update_from_cb(from, asset(quantity.amount, symbol("VOTE", 4)));
+    update_to_cb(to, asset(quantity.amount, symbol("VOTE", 4)));
+}
+
+void trail::update_from_cb(const name &from, const asset &amount) {
     counterbalances_table fromcbs(_self, amount.symbol.code().raw());
     auto cb_itr = fromcbs.find(from.value);
     
@@ -1363,7 +1368,7 @@ void trail::update_from_cb(name from, asset amount) {
     }
 }
 
-void trail::update_to_cb(name to, asset amount) {
+void trail::update_to_cb(const name &to, const asset &amount) {
     counterbalances_table tocbs(_self, amount.symbol.code().raw());
     auto cb_itr = tocbs.find(to.value);
 
@@ -1407,76 +1412,4 @@ asset trail::get_decay_amount(name voter, symbol token_symbol, uint32_t decay_ra
     return asset(0, token_symbol);
 }
 
-#pragma endregion Reactions
-
-extern "C" {
-    void apply(uint64_t self, uint64_t code, uint64_t action) {
-
-        size_t size = action_data_size();
-        constexpr size_t max_stack_buffer_size = 512;
-        void* buffer = nullptr;
-        if( size > 0 ) {
-            buffer = max_stack_buffer_size < size ? malloc(size) : alloca(size);
-            read_action_data(buffer, size);
-        }
-        datastream<const char*> ds((char*)buffer, size);
-		if (code == self && action == name("regtoken").value) {
-            execute_action(name(self), name(code), &trail::regtoken);
-        } else if (code == self && action == name("initsettings").value) {
-            execute_action(name(self), name(code), &trail::initsettings);
-        } else if (code == self && action == name("unregtoken").value) {
-            execute_action(name(self), name(code), &trail::unregtoken);
-        } else if (code == self && action == name("regvoter").value) {
-            execute_action(name(self), name(code), &trail::regvoter);
-        } else if (code == self && action == name("unregvoter").value) {
-            execute_action(name(self), name(code), &trail::unregvoter);
-        } else if (code == self && action == name("regballot").value) {
-            execute_action(name(self), name(code), &trail::regballot);
-        } else if (code == self && action == name("unregballot").value) {
-            execute_action(name(self), name(code), &trail::unregballot);
-        } else if (code == self && action == name("mirrorcast").value) {
-            execute_action(name(self), name(code), &trail::mirrorcast);
-        } else if (code == self && action == name("castvote").value) {
-            execute_action(name(self), name(code), &trail::castvote);
-        } else if (code == self && action == name("closeballot").value) {
-            execute_action(name(self), name(code), &trail::closeballot);
-        } else if (code == self && action == name("nextcycle").value) {
-            execute_action(name(self), name(code), &trail::nextcycle);
-        } else if (code == self && action == name("deloldvotes").value) {
-            execute_action(name(self), name(code), &trail::deloldvotes);
-        } else if (code == self && action == name("addcandidate").value) {
-            execute_action(name(self), name(code), &trail::addcandidate);
-        } else if (code == self && action == name("setallcands").value) {
-            execute_action(name(self), name(code), &trail::setallcands);
-        } else if (code == self && action == name("rmvcandidate").value) {
-            execute_action(name(self), name(code), &trail::rmvcandidate);
-        } else if (code == self && action == name("setseats").value) {
-            execute_action(name(self), name(code), &trail::setseats);
-        } else if (code == self && action == name("issuetoken").value) {
-            execute_action(name(self), name(code), &trail::issuetoken);
-        } else if (code == self && action == name("claimairgrab").value) {
-            execute_action(name(self), name(code), &trail::claimairgrab);
-        } else if (code == self && action == name("burntoken").value) {
-            execute_action(name(self), name(code), &trail::burntoken);
-        } else if (code == self && action == name("seizetoken").value) {
-            execute_action(name(self), name(code), &trail::seizetoken);
-        } else if (code == self && action == name("seizeairgrab").value) {
-            execute_action(name(self), name(code), &trail::seizeairgrab);
-        } else if (code == self && action == name("seizebygroup").value) {
-            execute_action(name(self), name(code), &trail::seizebygroup);
-        } else if (code == self && action == name("setallstats").value) {
-            execute_action(name(self), name(code), &trail::setallstats);
-        } else if (code == self && action == name("raisemax").value) {
-            execute_action(name(self), name(code), &trail::raisemax);
-        } else if (code == self && action == name("lowermax").value) {
-            execute_action(name(self), name(code), &trail::lowermax);
-        } else if (code == self && action == name("transfer").value) {
-            execute_action(name(self), name(code), &trail::transfer);
-        } else if (code == name("eosio.token").value && action == name("transfer").value) { //NOTE: updates counterbals after transfers
-            trail trailservice(name(self), name(code), ds);
-            auto args = unpack_action_data<transfer_args>();
-            trailservice.update_from_cb(args.from, asset(args.quantity.amount, symbol("VOTE", 4)));
-            trailservice.update_to_cb(args.to, asset(args.quantity.amount, symbol("VOTE", 4)));
-        }
-    } //end apply
-}; //end dispatcher
+#pragma endregion Reactionsx

@@ -451,45 +451,29 @@ void tfvt::addseats(name member, uint8_t num_seats) {
 bool tfvt::is_board_member(name user) {
     members_table mems(get_self(), get_self().value);
     auto m = mems.find(user.value);
-    
-    if (m != mems.end()) {
-        return true;
-    }
-
-    return false;
+	
+    return m != mems.end();
 }
 
 bool tfvt::is_nominee(name user) {
     nominees_table noms(get_self(), get_self().value);
     auto n = noms.find(user.value);
 
-    if (n != noms.end()) {
-        return true;
-    }
-
-    return false;
+    return n != noms.end();
 }
 
 bool tfvt::is_tfvt_holder(name user) {
     balances_table balances(name("eosio.trail"), symbol("TFVT", 0).code().raw());
     auto b = balances.find(user.value);
 
-    if (b != balances.end()) {
-        return true;
-    }
-
-    return false;
+    return b != balances.end();
 }
 
 bool tfvt:: is_tfboard_holder(name user) {
     balances_table balances(name("eosio.trail"), symbol("TFBOARD", 0).code().raw());
     auto b = balances.find(user.value);
 
-    if (b != balances.end()) {
-        return true;
-    }
-
-    return false;
+    return b != balances.end();
 }
 
 bool tfvt::is_term_expired() {
@@ -605,7 +589,3 @@ vector<tfvt::permission_level_weight> tfvt::perms_from_members() {
 }
 
 #pragma endregion Helper_Functions
-
-//(setboard)
-EOSIO_DISPATCH(tfvt, (inittfvt)(inittfboard)(setconfig)(nominate)(makeissue)
-	(closeissue)(makeelection)(addcand)(removecand)(endelection)(removemember)(resign))
