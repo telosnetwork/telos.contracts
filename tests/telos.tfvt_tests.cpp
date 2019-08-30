@@ -291,7 +291,7 @@ try
 	BOOST_REQUIRE_EXCEPTION(
 		addcand(candidate1, info_link),
 		eosio_assert_message_exception, 
-		eosio_assert_message_is( "ballot with given ballot_id doesn't exist" ) 
+		eosio_assert_message_is( "no active election for board members at this time" ) 
    	);
 
 	makeelection(nominator, info_link);

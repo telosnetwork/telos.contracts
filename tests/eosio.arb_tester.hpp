@@ -7,19 +7,64 @@ using namespace eosio::testing;
 using namespace fc;
 using namespace std;
 
-class eosio_arb_tester : public eosio_trail_tester
-{
-  public:
+class eosio_arb_tester : public eosio_trail_tester {
+public:
+
+	const name claimant = name("claimant");
+	const name respondant = name("respondant");
+	const name bad_actor = name("badactor");
+	const name assigner = name("assigner");
+	const name non_claimant = name("nonclaimant");
+
+    string ipfs_hash1  = "QmeRuDErR125TxzKMxUuxcpT7QWaS7PqZryhma7rBzd8AN";
+    string ipfs_hash2  = "QmQveDjVxp9RAMowU5m8JddfmfjPhZsc5skqmB3x9awPrU";
+    string ipfs_hash3  = "QmeRuDErR125TxzKMxUuxcpT7QWaS7PqZryhma7rBzd8AN";
+    string ipfs_hash4  = "Qma5JQmYpg26NkGr9X16PXvpHW19MwaY4MGy3v49cgQhag";
+    string ipfs_hash5  = "QmV1TgLtLs6ZeBs68r4vdbt1rHANdB1qorJ2rf372NJudM";
+    string ipfs_hash6  = "QmSoxPmfwBbyfxQoztK99E69Ni2aXc579vRnsKeTHURvbu";
+    string ipfs_hash7  = "QmPfapuzBNWQpdtksSA8AAossQPecfsaxqpuBjeg4wdSfw";
+    string ipfs_hash8  = "Qmdhwerg8BZMUdCREqz6xXjMFwgEM9BJ7drThjFFnkSkAG";
+    string ipfs_hash9  = "QmQQf5easdpL5aVjvm7AMu6nNZqCmdwRv8dv9a5qU5dba6";
+    string ipfs_hash10 = "QmSgd1yDGTMqiouThMUEWnaoN9mGMLPREXjqmaUL7U68yM";
+    string ipfs_hash11 = "QmcUNtZbkSNT7Gs5w3i9MX8bzkRqgvG7AckANBVcnAWLF2";
+    string ipfs_hash12 = "QmUBvK5BFEh5MtATZj2r3LFms558xUvWj9PWWc6BdgY2Gy";
+    string ipfs_hash13 = "QmdapxQhLQCN1LW4hgMLRG3jYVhKaADiSBb3PpL1vd2boY";
+    string ipfs_hash14 = "QmPQvJNWtXGx8FbSSuKdCsbJb1esDirAiRfXDJxhykwtkv";
+
+	const string claim_link1 = ipfs_hash1;
+	const string claim_link2 = ipfs_hash2;
+    const vector<string> claim_links = {
+        ipfs_hash3,
+        ipfs_hash4,
+        ipfs_hash5,
+        ipfs_hash6,
+    };
+
+
+    const string response_link1 = ipfs_hash7;
+	const string response_link2 = ipfs_hash8;
+    const vector<string> response_links ={
+            ipfs_hash9,
+            ipfs_hash10,
+    };
+
+    const vector<string> ruling_links = {
+            ipfs_hash11,
+            ipfs_hash12,
+            ipfs_hash13,
+            ipfs_hash14
+    };
+
+	const vector<uint8_t> lang_codes = {0, 1, 2};
+
     abi_serializer abi_ser;
 
-    eosio_arb_tester()
-    {
+    eosio_arb_tester() {
         deploy_contract();
         produce_blocks(1);
     }
 
-    void deploy_contract()
-    {
+    void deploy_contract() {
         create_accounts({N(eosio.arb)});
 
         set_code(N(eosio.arb), contracts::eosio_arb_wasm());
@@ -30,68 +75,160 @@ class eosio_arb_tester : public eosio_trail_tester
             BOOST_REQUIRE_EQUAL(abi_serializer::to_abi(accnt.abi, abi), true);
             abi_ser.set_abi(abi, abi_serializer_max_time);
         }
+
+		create_accounts({
+			claimant.value, 
+			respondant.value, 
+			non_claimant.value,
+			assigner.value,
+			bad_actor.value
+		});
+
+		updateauth(
+			name("eosio.arb"), 
+			name("assign"), 
+			name("active"), 
+			authority{
+				1,
+				vector<key_weight> {},
+				vector<permission_level_weight> {
+					permission_level_weight {
+						permission_level {
+							assigner.value,
+							N(active)
+						},
+						1
+					}
+				},
+				vector<wait_weight> {}
+			}
+		);
+
+		linkauth(name("eosio.arb"), name("eosio.arb"), name("assigntocase"), name("assign"));
+		produce_blocks();
     }
-    
-    fc::variant get_config()
-    {
+
+#pragma region get_tables
+
+    fc::variant get_config() {
         vector<char> data = get_row_by_account(N(eosio.arb), N(eosio.arb), N(config), N(config));
         return data.empty() ? fc::variant() : abi_ser.binary_to_variant("config", data, abi_serializer_max_time);
     }
 
-    fc::variant get_candidate(uint64_t candidate_id)
-    {
-        vector<char> data = get_row_by_account(N(eosio.arb), N(eosio.arb), N(pendingcands), candidate_id);
-        return data.empty() ? fc::variant() : abi_ser.binary_to_variant("pending_candidate", data, abi_serializer_max_time);
+    fc::variant get_nominee(uint64_t nominee_id) {
+        vector<char> data = get_row_by_account(N(eosio.arb), N(eosio.arb), N(nominees), nominee_id);
+        return data.empty() ? fc::variant() : abi_ser.binary_to_variant("nominee", data, abi_serializer_max_time);
     }
-    
-    fc::variant get_arbitrator(uint64_t arbitrator_id)
-    {
+
+    fc::variant get_arbitrator(uint64_t arbitrator_id) {
         vector<char> data = get_row_by_account(N(eosio.arb), N(eosio.arb), N(arbitrators), arbitrator_id);
         return data.empty() ? fc::variant() : abi_ser.binary_to_variant("arbitrator", data, abi_serializer_max_time);
     }
-    
-    // todo : make this work by getting case first then claim
-    fc::variant get_claim(uint64_t case_id, uint64_t claim_index)
-    {
-        return mvo();
-    }
-    
-    fc::variant get_casefile(uint64_t casefile_id)
-    {
+
+    fc::variant get_casefile(uint64_t casefile_id) {
         vector<char> data = get_row_by_account(N(eosio.arb), N(eosio.arb), N(casefiles), casefile_id);
         return data.empty() ? fc::variant() : abi_ser.binary_to_variant("casefile", data, abi_serializer_max_time);
     }
-    
-    fc::variant get_dismissed_casefile(uint64_t casefile_id)
-    {
-        vector<char> data = get_row_by_account(N(eosio.arb), N(eosio.arb), N(dismisscases), casefile_id);
-        return data.empty() ? fc::variant() : abi_ser.binary_to_variant("casefile", data, abi_serializer_max_time);
-    }
-    
-    fc::variant get_evidence(uint64_t evidence_id)
-    {
-        vector<char> data = get_row_by_account(N(eosio.arb), N(eosio.arb), N(evidence), evidence_id);
-        return data.empty() ? fc::variant() : abi_ser.binary_to_variant("evidence", data, abi_serializer_max_time);
-    }
-    
-    fc::variant get_dismissed_evidence(uint64_t evidence_id)
-    {
-        vector<char> data = get_row_by_account(N(eosio.arb), N(eosio.arb), N(dismissedev), evidence_id);
-        return data.empty() ? fc::variant() : abi_ser.binary_to_variant("evidence", data, abi_serializer_max_time);
+
+    fc::variant get_unread_claim(uint64_t casefile_id, uint8_t claim_id) {
+        auto cf = get_casefile(casefile_id);
+
+        BOOST_REQUIRE_EQUAL(false, cf.is_null());
+        auto unread_claims = cf["unread_claims"].as < vector < mvo > > ();
+        return unread_claims[claim_id];
+        //vector<char> data = get_row_by_accounts(N(eosio.arb),N(eosio.arb), N(unread_claims), casefile_id);
+        //return data.empty()? fc::variant() : abi_ser.binary_to_variant("unread_claim", data, abi_serializer_max_time);
     }
 
-    transaction_trace_ptr setconfig(uint16_t max_elected_arbs, uint32_t election_duration, uint32_t start_election, uint32_t arbitrator_term_length, vector<int64_t> fees)
-    {
+    fc::variant get_unread_claim(uint64_t casefile_id, string claim_link) {
+        auto cf = get_casefile(casefile_id);
+
+        BOOST_REQUIRE_EQUAL(false, cf.is_null());
+        auto unread_claims = cf["unread_claims"].as < vector < mvo > > ();
+
+        auto it = find_if(unread_claims.begin(), unread_claims.end(), [&](auto c) {
+            return claim_link == c["claim_summary"];
+        });
+        return it == unread_claims.end() ? fc::variant() : *it;
+    }
+
+    fc::variant get_claim(uint64_t claim_id) {
+        vector<char> data = get_row_by_account(N(eosio.arb), N(eosio.arb), N(claims), claim_id);
+        return data.empty() ? fc::variant() : abi_ser.binary_to_variant("claim", data, abi_serializer_max_time);
+    }
+
+    #pragma endregion get_tables
+
+	void elect_arbitrators(uint8_t num_arbitrators, uint8_t num_voters) {
+		const symbol vote_sym = symbol(4, "VOTE");
+		const symbol tlos_sym = symbol(4, "TLOS");
+		auto one_day = 86400;
+   		uint32_t start_election = 300, election_duration = 300, arbitrator_term_length = one_day * 10;
+		vector<int64_t> fees = { int64_t(1), int64_t(2), int64_t(3), int64_t(4) };
+		uint16_t max_elected_arbs = 20;
+
+		// setup config
+		setconfig ( max_elected_arbs, start_election, election_duration, arbitrator_term_length, fees);
+		produce_blocks(1);
+
+		init_election();
+		uint32_t expected_begin_time = uint32_t(now() + start_election);
+		uint32_t expected_end_time = expected_begin_time + election_duration;
+
+		auto config = get_config();
+		auto cbid = config["current_ballot_id"].as_uint64();   
+
+		auto ballot = get_ballot(cbid);
+		auto bid = ballot["reference_id"].as_uint64();
+
+		auto leaderboard = get_leaderboard(bid);
+		auto lid = leaderboard["board_id"].as_uint64();
+
+		BOOST_REQUIRE_EQUAL(expected_begin_time, leaderboard["begin_time"].as<uint32_t>());
+   		BOOST_REQUIRE_EQUAL(expected_end_time, leaderboard["end_time"].as<uint32_t>());
+
+		BOOST_REQUIRE_EQUAL(bid, lid);
+   		BOOST_REQUIRE_EQUAL(cbid, lid);
+
+		voter_map(0, num_arbitrators, [&](auto& account) {
+			regarb(account, claim_link1);
+			candaddlead(account, claim_link1);
+			produce_blocks();
+		});
+
+		produce_block(fc::seconds(300));
+		produce_blocks();
+
+		voter_map(num_arbitrators, num_arbitrators + num_voters, [&](auto& account) {
+			regvoter(account, vote_sym);
+			mirrorcast(account, tlos_sym);
+			for (uint8_t i = 0; i < num_arbitrators; i++) {
+				castvote(account, bid, i);
+			}
+			produce_blocks();
+		});
+
+		produce_block(fc::seconds(300));
+		produce_blocks();
+		
+		endelection(test_voters[0]);
+
+		voter_map(0, num_arbitrators, [&](auto& account) {
+			auto arb = get_arbitrator(account);
+			BOOST_REQUIRE_EQUAL(false, arb.is_null());
+		});
+	}
+
+    #pragma region actions
+
+    transaction_trace_ptr setconfig(uint16_t max_elected_arbs, uint32_t election_duration, uint32_t start_election, uint32_t arbitrator_term_length, vector<int64_t> fees) {
         signed_transaction trx;
-        trx.actions.emplace_back(get_action(
-            N(eosio.arb), N(setconfig), 
-            vector<permission_level>{{N(eosio), config::active_name}},
-            mvo()
-                ("max_elected_arbs", max_elected_arbs)
-                ("election_duration", election_duration)
-                ("start_election", start_election)
-                ("arbitrator_term_length", arbitrator_term_length)
-                ("fees", fees))
+        trx.actions.emplace_back(get_action(N(eosio.arb), N(setconfig), vector<permission_level>{{N(eosio), config::active_name}}, mvo()
+            ("max_elected_arbs", max_elected_arbs)
+            ("election_duration", election_duration)
+            ("start_election", start_election)
+            ("arbitrator_term_length", arbitrator_term_length)
+            ("fees", fees))
         );
 
         set_transaction_headers(trx);
@@ -99,251 +236,357 @@ class eosio_arb_tester : public eosio_trail_tester
         return push_transaction(trx);
     }
 
-     transaction_trace_ptr init_election()
-    {
+
+    transaction_trace_ptr init_election() {
         signed_transaction trx;
-        trx.actions.emplace_back(
-            get_action(
-            N(eosio.arb), N(initelection), vector<permission_level>{{N(eosio), config::active_name}},mvo()));
+        trx.actions.emplace_back(get_action(N(eosio.arb), N(initelection), vector<permission_level>{{N(eosio), config::active_name}}, mvo()));
         set_transaction_headers(trx);
         trx.sign(get_private_key(N(eosio), "active"), control->get_chain_id());
         return push_transaction(trx);
     }
 
-    transaction_trace_ptr candaddlead(name candidate, string creds_ipfs_url)
-    {
+    transaction_trace_ptr regarb(name nominee, string credentials_link) {
         signed_transaction trx;
-        trx.actions.emplace_back(get_action(N(eosio.arb), N(candaddlead), vector<permission_level>{{candidate, config::active_name}},
-                                            mvo()("candidate", candidate)("creds_ipfs_url", creds_ipfs_url)));
+        trx.actions.emplace_back(get_action(N(eosio.arb), N(regarb), vector<permission_level>{{nominee, config::active_name}}, mvo()
+            ("nominee", nominee)
+            ("credentials_link", credentials_link)));
         set_transaction_headers(trx);
-        trx.sign(get_private_key(candidate, "active"), control->get_chain_id());
+        trx.sign(get_private_key(nominee, "active"), control->get_chain_id());
         return push_transaction(trx);
     }
 
-    transaction_trace_ptr candrmvlead( name candidate )
-    {
+    transaction_trace_ptr unregnominee(name nominee) {
         signed_transaction trx;
-        trx.actions.emplace_back(get_action(N(eosio.arb), N(candrmvlead), vector<permission_level>{{candidate, config::active_name}},
-                                            mvo()("candidate", candidate)));
+        trx.actions.emplace_back(get_action(N(eosio.arb), N(unregnominee), vector<permission_level>{{nominee, config::active_name}}, mvo()
+            ("nominee", nominee)));
         set_transaction_headers(trx);
-        trx.sign(get_private_key(candidate, "active"), control->get_chain_id());
+        trx.sign(get_private_key(nominee, "active"), control->get_chain_id());
         return push_transaction(trx);
     }
 
-    transaction_trace_ptr regcand(name candidate, string creds_ipfs_url)
-    {
+    transaction_trace_ptr candaddlead(name nominee, string credentials_link) {
         signed_transaction trx;
-        trx.actions.emplace_back(get_action(N(eosio.arb), N(regcand), vector<permission_level>{{candidate, config::active_name}},
-                                            mvo()("candidate", candidate)("creds_ipfs_url", creds_ipfs_url)));
+        trx.actions.emplace_back(get_action(N(eosio.arb), N(candaddlead), vector<permission_level>{{nominee, config::active_name}}, mvo()
+            ("nominee", nominee)
+            ("credentials_link", credentials_link)));
         set_transaction_headers(trx);
-        trx.sign(get_private_key(candidate, "active"), control->get_chain_id());
+        trx.sign(get_private_key(nominee, "active"), control->get_chain_id());
         return push_transaction(trx);
     }
 
-    transaction_trace_ptr unregcand( name candidate )
-    {
+    transaction_trace_ptr candrmvlead(name nominee) {
         signed_transaction trx;
-        trx.actions.emplace_back(get_action(N(eosio.arb), N(unregcand), vector<permission_level>{{candidate, config::active_name}},
-                                            mvo()("candidate", candidate)));
+        trx.actions.emplace_back(get_action(N(eosio.arb), N(candrmvlead), vector<permission_level>{{nominee, config::active_name}}, mvo()
+            ("nominee", nominee)));
         set_transaction_headers(trx);
-        trx.sign(get_private_key(candidate, "active"), control->get_chain_id());
+        trx.sign(get_private_key(nominee, "active"), control->get_chain_id());
         return push_transaction(trx);
     }
 
-    transaction_trace_ptr endelection( name candidate)
-    {
+    transaction_trace_ptr endelection(name nominee) {
         signed_transaction trx;
-        trx.actions.emplace_back(get_action(N(eosio.arb), N(endelection), vector<permission_level>{{candidate, config::active_name}},
-                                    mvo()("candidate", candidate)));
+        trx.actions.emplace_back(get_action(N(eosio.arb), N(endelection), vector<permission_level>{{nominee, config::active_name}}, mvo()
+            ("nominee", nominee)));
         set_transaction_headers(trx);
-        trx.sign(get_private_key(candidate, "active"), control->get_chain_id());
+        trx.sign(get_private_key(nominee, "active"), control->get_chain_id());
         return push_transaction(trx);
     }
 
-    transaction_trace_ptr filecase(name claimant, uint16_t class_suggestion, string ev_ipfs_url)
-    {
+    //note: case setup
+
+    transaction_trace_ptr filecase(name claimant, string claim_link, vector <uint8_t> lang_codes, optional<name> respondant ) {
         signed_transaction trx;
-        trx.actions.emplace_back(get_action(N(eosio.arb), N(endelection), vector<permission_level>{{claimant, config::active_name}},
-                                            mvo()("claimant", claimant)("class_suggestion", class_suggestion)("ev_ipfs_url", ev_ipfs_url)));
+        trx.actions.emplace_back(get_action(N(eosio.arb), N(filecase), vector<permission_level>{{claimant, config::active_name}}, mvo()
+            ("claimant", claimant)
+            ("claim_link", claim_link)
+            ("lang_codes", lang_codes)
+            ("respondant", respondant)
+            ));
         set_transaction_headers(trx);
         trx.sign(get_private_key(claimant, "active"), control->get_chain_id());
         return push_transaction(trx);
     }
 
-    transaction_trace_ptr addclaim( uint64_t case_id, uint16_t class_suggestion, string ev_ipfs_url, name claimant)
+    transaction_trace_ptr addclaim(uint64_t case_id, string claim_link, name claimant) {
+        signed_transaction trx;
+        trx.actions.emplace_back(get_action(N(eosio.arb), N(addclaim), vector<permission_level>{{claimant, config::active_name}}, mvo()
+            ("case_id", case_id)
+            ("claim_link", claim_link)
+            ("claimant", claimant)));
+        set_transaction_headers(trx);
+        trx.sign(get_private_key(claimant, "active"), control->get_chain_id());
+        return push_transaction(trx);
+    }
+
+    transaction_trace_ptr removeclaim(uint64_t case_id, string claim_hash, name claimant) {
+        signed_transaction trx;
+        trx.actions.emplace_back(get_action(N(eosio.arb), N(removeclaim), vector<permission_level>{{claimant, config::active_name}}, mvo()
+            ("case_id", case_id)
+            ("claim_hash", claim_hash)
+            ("claimant", claimant)));
+        set_transaction_headers(trx);
+        trx.sign(get_private_key(claimant, "active"), control->get_chain_id());
+        return push_transaction(trx);
+    }
+
+    transaction_trace_ptr shredcase(uint64_t case_id, name claimant) {
+        signed_transaction trx;
+        trx.actions.emplace_back(get_action(N(eosio.arb), N(shredcase), vector<permission_level>{{claimant, config::active_name}}, mvo()
+            ("case_id", case_id)
+            ("claimant", claimant)));
+        set_transaction_headers(trx);
+        trx.sign(get_private_key(claimant, "active"), control->get_chain_id());
+        return push_transaction(trx);
+    }
+
+    transaction_trace_ptr readycase(uint64_t case_id, name claimant) {
+        signed_transaction trx;
+        trx.actions.emplace_back(get_action(N(eosio.arb), N(readycase), vector<permission_level>{{claimant, config::active_name}}, mvo()
+            ("case_id", case_id)
+            ("claimant", claimant)));
+        set_transaction_headers(trx);
+        trx.sign(get_private_key(claimant, "active"), control->get_chain_id());
+        return push_transaction(trx);
+    }
+
+    //note: case progression
+
+    transaction_trace_ptr assigntocase(uint64_t case_id, name arb_to_assign, name assigner) {
+        signed_transaction trx;
+        trx.actions.emplace_back(get_action(N(eosio.arb), N(assigntocase), vector<permission_level>{{N(eosio.arb), N(assign)}}, mvo()
+            ("case_id", case_id)
+            ("arb_to_assign", arb_to_assign)));
+        set_transaction_headers(trx);
+        trx.sign(get_private_key(assigner, "active"), control->get_chain_id());
+        return push_transaction(trx);
+    }
+
+	transaction_trace_ptr updateauth(name account, name permission, name parent, authority auth) {
+		signed_transaction trx;
+		trx.actions.emplace_back(get_action(N(eosio), N(updateauth), vector<permission_level>{{account, config::active_name}},
+			mvo()
+				("account", account)
+				("permission", permission)
+				("parent", parent)
+				("auth", auth)
+		));
+		set_transaction_headers(trx);
+		trx.sign(get_private_key(account, "active"), control->get_chain_id());
+		return push_transaction(trx);
+	}
+
+	transaction_trace_ptr withdraw(name owner) {
+		signed_transaction trx;
+		trx.actions.emplace_back(get_action(N(eosio.arb), N(withdraw), vector<permission_level>{{owner, config::active_name}},
+			mvo()
+				("owner", owner)
+		));
+		set_transaction_headers(trx);
+		trx.sign(get_private_key(owner, "active"), control->get_chain_id());
+		return push_transaction(trx);
+	}
+
+	transaction_trace_ptr linkauth(name account, name code, name type, name requirement) {
+		signed_transaction trx;
+		trx.actions.emplace_back(get_action(N(eosio), N(linkauth), vector<permission_level>{{account, config::active_name}},
+			mvo()
+				("account", account)
+				("code", code)
+				("type", type)
+				("requirement", requirement)
+		));
+		set_transaction_headers(trx);
+		trx.sign(get_private_key(account, "active"), control->get_chain_id());
+		return push_transaction(trx);
+	}
+
+    transaction_trace_ptr dismissclaim(uint64_t case_id, name assigned_arb, string claim_hash, string memo) {
+        signed_transaction trx;
+        trx.actions.emplace_back(get_action(N(eosio.arb), N(dismissclaim), vector<permission_level>{{assigned_arb, config::active_name}}, mvo()
+            ("case_id", case_id)
+            ("assigned_arb", assigned_arb)
+            ("claim_hash", claim_hash)
+            ("memo", memo)));
+        set_transaction_headers(trx);
+        trx.sign(get_private_key(assigned_arb, "active"), control->get_chain_id());
+        return push_transaction(trx);
+    }
+
+    transaction_trace_ptr acceptclaim(uint64_t case_id, name assigned_arb, string claim_hash, string decision_link, uint8_t decision_class) {
+        signed_transaction trx;
+        trx.actions.emplace_back(get_action(N(eosio.arb), N(acceptclaim), vector<permission_level>{{assigned_arb, config::active_name}}, mvo()
+            ("case_id", case_id)
+            ("assigned_arb", assigned_arb)
+            ("claim_hash", claim_hash)
+            ("decision_link", decision_link)
+            ("decision_class", decision_class)));
+        set_transaction_headers(trx);
+        trx.sign(get_private_key(assigned_arb, "active"), control->get_chain_id());
+        return push_transaction(trx);
+    }
+
+	transaction_trace_ptr respond(uint64_t case_id, string claim_hash, name respondant, string response_link) {
+		signed_transaction trx;
+        trx.actions.emplace_back(get_action(N(eosio.arb), N(respond), vector<permission_level>{{respondant, config::active_name}}, mvo()
+            ("case_id", case_id)
+            ("claim_hash", claim_hash)
+            ("respondant", respondant)
+            ("response_link", response_link)));
+        set_transaction_headers(trx);
+        trx.sign(get_private_key(respondant, "active"), control->get_chain_id());
+        return push_transaction(trx);
+	}
+
+    transaction_trace_ptr dismisscase(uint64_t case_id, name assigned_arb, string ruling_link) {
+        signed_transaction trx;
+        trx.actions.emplace_back(get_action(N(eosio.arb), N(dismisscase), vector<permission_level>{{assigned_arb, config::active_name}}, mvo()
+            ("case_id", case_id)
+            ("assigned_arb", assigned_arb)
+            ("ruling_link", ruling_link)));
+        set_transaction_headers(trx);
+        trx.sign(get_private_key(assigned_arb, "active"), control->get_chain_id());
+        return push_transaction(trx);
+    }
+
+    transaction_trace_ptr advancecase(uint64_t case_id, name assigned_arb) {
+        signed_transaction trx;
+        trx.actions.emplace_back(get_action(N(eosio.arb), N(advancecase), vector<permission_level>{{assigned_arb, config::active_name}}, mvo()
+            ("case_id", case_id)
+            ("assigned_arb", assigned_arb)));
+        set_transaction_headers(trx);
+        trx.sign(get_private_key(assigned_arb, "active"), control->get_chain_id());
+        return push_transaction(trx);
+    }
+
+    transaction_trace_ptr recuse(uint64_t case_id, string rationale, name assigned_arb) {
+        signed_transaction trx;
+        trx.actions.emplace_back(get_action(N(eosio.arb), N(recuse), vector<permission_level>{{assigned_arb, config::active_name}}, mvo()
+            ("case_id", case_id)
+            ("rationale", rationale)
+            ("assigned_arb", assigned_arb)));
+        set_transaction_headers(trx);
+        trx.sign(get_private_key(assigned_arb, "active"), control->get_chain_id());
+        return push_transaction(trx);
+    }
+
+	transaction_trace_ptr setruling(uint64_t case_id, name assigned_arb, string case_ruling) {
+        signed_transaction trx;
+        trx.actions.emplace_back(get_action(N(eosio.arb), N(setruling), vector<permission_level>{{assigned_arb, config::active_name}}, mvo()
+            ("case_id", case_id)
+            ("assigned_arb", assigned_arb)
+            ("case_ruling", case_ruling)
+		));
+        set_transaction_headers(trx);
+        trx.sign(get_private_key(assigned_arb, "active"), control->get_chain_id());
+        return push_transaction(trx);
+    }
+
+	transaction_trace_ptr newarbstatus(uint8_t new_status, name arbitrator)	{
+		signed_transaction trx;
+        trx.actions.emplace_back(get_action(N(eosio.arb), N(newarbstatus), vector<permission_level>{{arbitrator, config::active_name}}, mvo()
+            ("new_status", new_status)
+            ("arbitrator", arbitrator)
+		));
+        set_transaction_headers(trx);
+        trx.sign(get_private_key(arbitrator, "active"), control->get_chain_id());
+        return push_transaction(trx);
+	}
+
+	transaction_trace_ptr addarbs(uint64_t case_id, name assigned_arb, uint8_t num_arbs_to_assign) {
+		signed_transaction trx;
+        trx.actions.emplace_back(get_action(N(eosio.arb), N(addarbs), vector<permission_level>{{assigned_arb, config::active_name}}, mvo()
+            ("case_id", case_id)
+            ("assigned_arb", assigned_arb)
+			("num_arbs_to_assign", num_arbs_to_assign)
+		));
+        set_transaction_headers(trx);
+        trx.sign(get_private_key(assigned_arb, "active"), control->get_chain_id());
+        return push_transaction(trx);
+	}
+
+    transaction_trace_ptr dismissarb(name arb, bool remove_from_cases) {
+        signed_transaction trx;
+        trx.actions.emplace_back(get_action(N(eosio.arb), N(dismissarb), vector<permission_level>{{N(eosio), config::active_name}},
+                mvo()
+					("arb", arb)
+					("remove_from_cases", remove_from_cases)
+		));
+        set_transaction_headers(trx);
+        trx.sign(get_private_key(N(eosio), "active"), control->get_chain_id());
+        return push_transaction(trx);
+    }
+
+    #pragma endregion actions
+
+	#pragma region native_structs
+
+	#pragma endregion native_structs
+
+
+    #pragma region enums
+
+
+    enum case_state : uint8_t
     {
-        signed_transaction trx;
-        trx.actions.emplace_back(get_action(N(eosio.arb), N(endelection), vector<permission_level>{{claimant, config::active_name}},
-                                            mvo()("case_id", case_id)("class_suggestion", class_suggestion)("ev_ipfs_url", ev_ipfs_url)("claimant", claimant)));
-        set_transaction_headers(trx);
-        trx.sign(get_private_key(claimant, "active"), control->get_chain_id());
-        return push_transaction(trx);
-    }
-
-    transaction_trace_ptr removeclaim(uint64_t case_id, uint16_t claim_num, name claimant)
-    {   
-        signed_transaction trx;
-        trx.actions.emplace_back(get_action(N(eosio.arb), N(endelection), vector<permission_level>{{claimant, config::active_name}},
-                                            mvo()("case_id", case_id)("claim_num", claim_num)("claimant", claimant)));
-        set_transaction_headers(trx);
-        trx.sign(get_private_key(claimant, "active"), control->get_chain_id());
-        return push_transaction(trx);
-    }
-    
-    transaction_trace_ptr shredcase( uint64_t case_id, name claimant)
-    {   
-        signed_transaction trx;
-        trx.actions.emplace_back(get_action(N(eosio.arb), N(endelection), vector<permission_level>{{claimant, config::active_name}},
-                                            mvo()("case_id", case_id)("claimant", claimant)));
-        set_transaction_headers(trx);
-        trx.sign(get_private_key(claimant, "active"), control->get_chain_id());
-        return push_transaction(trx);
-    }
-
-    transaction_trace_ptr readycase(uint64_t case_id, name claimant)
-    {   
-        signed_transaction trx;
-        trx.actions.emplace_back(get_action(N(eosio.arb), N(readycase), vector<permission_level>{{claimant, config::active_name}},
-                                            mvo()("case_id", case_id)("claimant", claimant)));
-        set_transaction_headers(trx);
-        trx.sign(get_private_key(claimant, "active"), control->get_chain_id());
-        return push_transaction(trx);
-    }
-
-    transaction_trace_ptr dismisscase(uint64_t case_id, name arb, string ipfs_url)
-    {   
-        signed_transaction trx;
-        trx.actions.emplace_back(get_action(N(eosio.arb), N(dismisscase), vector<permission_level>{{arb, config::active_name}},
-                                            mvo()("case_id", case_id)("arb", arb)("ipfs_url", ipfs_url) ));
-        set_transaction_headers(trx);
-        trx.sign(get_private_key(arb, "active"), control->get_chain_id());
-        return push_transaction(trx);
-    }
-
-    transaction_trace_ptr closecase(uint64_t case_id, name arb, string ipfs_url)
-    {   
-        signed_transaction trx;
-        trx.actions.emplace_back(get_action(N(eosio.arb), N(closecase), vector<permission_level>{{arb, config::active_name}},
-                                            mvo()("case_id", case_id)("arb", arb)("ipfs_url", ipfs_url) ));
-        set_transaction_headers(trx);
-        trx.sign(get_private_key(arb, "active"), control->get_chain_id());
-        return push_transaction(trx);
-    }
-
-    transaction_trace_ptr dismissev(uint64_t case_id, uint16_t claim_index, uint16_t ev_index, name arb, string ipfs_url)
-    {   
-        signed_transaction trx;
-        trx.actions.emplace_back(get_action(N(eosio.arb), N(dismissev), vector<permission_level>{{arb, config::active_name}},
-                                            mvo()("case_id", case_id)("claim_index", claim_index)("ev_index", ev_index)("arb", arb)("ipfs_url", ipfs_url) ));
-        set_transaction_headers(trx);
-        trx.sign(get_private_key(arb, "active"), control->get_chain_id());
-        return push_transaction(trx);
-    }
-
-    transaction_trace_ptr acceptev(uint64_t case_id, uint16_t claim_index, uint16_t ev_index, name arb, string ipfs_url)
-    {   
-        signed_transaction trx;
-        trx.actions.emplace_back(get_action(N(eosio.arb), N(acceptev), vector<permission_level>{{arb, config::active_name}},
-                                            mvo()("case_id", case_id)("claim_index", claim_index)("ev_index", ev_index)("arb", arb)("ipfs_url", ipfs_url) ));
-        set_transaction_headers(trx);
-        trx.sign(get_private_key(arb, "active"), control->get_chain_id());
-        return push_transaction(trx);
-    }
-
-    transaction_trace_ptr arbstatus(uint16_t new_status, name arb)
-    {   
-        signed_transaction trx;
-        trx.actions.emplace_back(get_action(N(eosio.arb), N(arbstatus), vector<permission_level>{{arb, config::active_name}},
-                                            mvo()("new_status", new_status)("arb", arb) ));
-        set_transaction_headers(trx);
-        trx.sign(get_private_key(arb, "active"), control->get_chain_id());
-        return push_transaction(trx);
-    }
-
-    transaction_trace_ptr casestatus(uint64_t case_id, uint16_t new_status, name arb)
-    {   
-        signed_transaction trx;
-        trx.actions.emplace_back(get_action(N(eosio.arb), N(casestatus), vector<permission_level>{{arb, config::active_name}},
-                                            mvo()("case_id", case_id)("new_status", new_status)("arb", arb) ));
-        set_transaction_headers(trx);
-        trx.sign(get_private_key(arb, "active"), control->get_chain_id());
-        return push_transaction(trx);
-    }
-
-    transaction_trace_ptr changeclass(uint64_t case_id, uint16_t claim_index, uint16_t new_class, name arb)
-    {   
-        signed_transaction trx;
-        trx.actions.emplace_back(get_action(N(eosio.arb), N(changeclass), vector<permission_level>{{arb, config::active_name}},
-                                            mvo()("case_id", case_id)("claim_index", claim_index)("new_class", new_class)("arb", arb) ));
-        set_transaction_headers(trx);
-        trx.sign(get_private_key(arb, "active"), control->get_chain_id());
-        return push_transaction(trx);
-    }
-
-    transaction_trace_ptr recuse(uint64_t case_id, string rationale, name arb)
-    {   
-        signed_transaction trx;
-        trx.actions.emplace_back(get_action(N(eosio.arb), N(recuse), vector<permission_level>{{arb, config::active_name}},
-                                            mvo()("case_id", case_id)("rationale", rationale)("arb", arb) ));
-        set_transaction_headers(trx);
-        trx.sign(get_private_key(arb, "active"), control->get_chain_id());
-        return push_transaction(trx);
-    }
-
-    // ! double check permissions on this ! 
-    transaction_trace_ptr dismissarb(name arb)
-    {   
-        signed_transaction trx;
-        trx.actions.emplace_back(get_action(N(eosio.arb), N(dismissarb), vector<permission_level>{{arb, config::active_name}},
-                                            mvo()("arb", arb) ));
-        set_transaction_headers(trx);
-        trx.sign(get_private_key(arb, "active"), control->get_chain_id());
-        return push_transaction(trx);
-    }
-
-    enum case_state {
-        CASE_SETUP,         // 0
-        AWAITING_ARBS,      // 1
+        CASE_SETUP,			// 0
+        AWAITING_ARBS,		// 1
         CASE_INVESTIGATION, // 2
-        DISMISSED,          // 3
-        HEARING,            // 4
-        DELIBERATION,       // 5
-        DECISION,           // 6 NOTE: No more joinders allowed
-        ENFORCEMENT,        // 7
-        COMPLETE            // 8
+        HEARING,			// 3
+        DELIBERATION,		// 4
+        DECISION,			// 5 NOTE: No more joinders allowed
+        ENFORCEMENT,		// 6
+        RESOLVED,			// 7
+        DISMISSED			// 8 NOTE: Dismissed cases advance and stop here
     };
 
-    enum claim_class {
-        UNDECIDED,           // 0
-        LOST_KEY_RECOVERY,   // 1
-        TRX_REVERSAL,        // 2
-        EMERGENCY_INTER,     // 3
-        CONTESTED_OWNER,     // 4
-        UNEXECUTED_RELIEF,   // 5
-        CONTRACT_BREACH,     // 6
-        MISUSED_CR_IP,       // 7
-        A_TORT,              // 8
-        BP_PENALTY_REVERSAL, // 9
-        WRONGFUL_ARB_ACT,    // 10
-        ACT_EXEC_RELIEF,     // 11
-        WP_PROJ_FAILURE,     // 12
-        TBNOA_BREACH,        // 13
-        MISC                 // 14
+    enum claim_class : uint8_t
+    {
+        UNDECIDED			= 1,
+        LOST_KEY_RECOVERY	= 2,
+        TRX_REVERSAL		= 3,
+        EMERGENCY_INTER		= 4,
+        CONTESTED_OWNER		= 5,
+        UNEXECUTED_RELIEF	= 6,
+        CONTRACT_BREACH		= 7,
+        MISUSED_CR_IP		= 8,
+        A_TORT				= 9,
+        BP_PENALTY_REVERSAL	= 10,
+        WRONGFUL_ARB_ACT 	= 11,
+        ACT_EXEC_RELIEF		= 12,
+        WP_PROJ_FAILURE		= 13,
+        TBNOA_BREACH		= 14,
+        MISC				= 15
     };
 
-    // CLARIFY: can arbs determine classes of cases they take? YES
-    enum arb_status {
-        AVAILABLE,   // 0
-        UNAVAILABLE, // 1
-        INACTIVE     // 2
+    enum arb_status : uint8_t
+    {
+        AVAILABLE,    // 0
+        UNAVAILABLE,  // 1
+        REMOVED,	  // 2
+        SEAT_EXPIRED  // 3
     };
 
-    enum election_status {
+    enum election_status : uint8_t
+    {
         OPEN,   // 0
         PASSED, // 1
         FAILED, // 2
-        CLOSED  // 3 
+        CLOSED  // 3
     };
 
-    // TODO: Evidence states
+    enum lang_code : uint8_t
+    {
+        ENGL, //0 English
+        FRCH, //1 French
+        GRMN, //2 German
+        KREA, //3 Korean
+        JAPN, //4 Japanese
+        CHNA, //5 Chinese
+        SPAN, //6 Spanish
+        PGSE, //7 Portuguese
+        SWED  //8 Swedish
+    };
+
+    #pragma endregion enums
+
 };
