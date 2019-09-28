@@ -701,7 +701,7 @@ try
 	{
 		perm.emplace_back(permission_level{m, N(active)});
 	}
-	variant pretty_trx = fc::mutable_variant_object()
+	fc::variant pretty_trx = fc::mutable_variant_object()
 		("expiration", "2021-01-01T00:30:00")
 		("ref_block_num", 2)
 		("ref_block_prefix", 3)

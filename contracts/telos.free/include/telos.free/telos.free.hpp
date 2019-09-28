@@ -7,13 +7,13 @@
 
 #pragma once
 
-#include <eosiolib/action.hpp>
-#include <eosiolib/asset.hpp>
-#include <eosiolib/crypto.h>
-#include <eosiolib/eosio.hpp>
-#include <eosiolib/permission.hpp>
-#include <eosiolib/singleton.hpp>
-#include <eosiolib/transaction.hpp>
+#include <eosio/crypto.hpp>
+#include <eosio/action.hpp>
+#include <eosio/asset.hpp>
+#include <eosio/eosio.hpp>
+#include <eosio/permission.hpp>
+#include <eosio/singleton.hpp>
+#include <eosio/transaction.hpp>
 #include "exchange_state.hpp"
 
 #include <string>
