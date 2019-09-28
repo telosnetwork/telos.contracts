@@ -30,8 +30,8 @@ registry::~registry() {
 
 void registry::mint(name recipient, asset tokens) {
     require_auth(config.publisher);
-    eosio_assert(is_account(recipient), "recipient account does not exist");
-    eosio_assert(config.supply + tokens <= config.max_supply, "minting would exceed allowed maximum supply");
+    check(is_account(recipient), "recipient account does not exist");
+    check(config.supply + tokens <= config.max_supply, "minting would exceed allowed maximum supply");
 
     add_balance(recipient, tokens, config.publisher);
 
@@ -40,10 +40,10 @@ void registry::mint(name recipient, asset tokens) {
 
 void registry::transfer(name sender, name recipient, asset tokens) {
     require_auth(sender);
-    eosio_assert(is_account(recipient), "recipient account does not exist");
-    eosio_assert(sender != recipient, "cannot transfer to self");
-    eosio_assert(tokens.is_valid(), "invalid token");
-    eosio_assert(tokens.amount > 0, "must transfer positive quantity");
+    check(is_account(recipient), "recipient account does not exist");
+    check(sender != recipient, "cannot transfer to self");
+    check(tokens.is_valid(), "invalid token");
+    check(tokens.amount > 0, "must transfer positive quantity");
     
     add_balance(recipient, tokens, sender);
     sub_balance(sender, tokens);
@@ -51,10 +51,10 @@ void registry::transfer(name sender, name recipient, asset tokens) {
 
 void registry::allot(name sender, name recipient, asset tokens) {
     require_auth(sender);
-    eosio_assert(is_account(recipient), "recipient account does not exist");
-    eosio_assert(sender != recipient, "cannot allot tokens to self");
-    eosio_assert(tokens.is_valid(), "invalid token");
-    eosio_assert(tokens.amount > 0, "must allot positive quantity");
+    check(is_account(recipient), "recipient account does not exist");
+    check(sender != recipient, "cannot allot tokens to self");
+    check(tokens.is_valid(), "invalid token");
+    check(tokens.amount > 0, "must allot positive quantity");
 
     sub_balance(sender, tokens);
     add_allot(sender, recipient, tokens, sender);
@@ -62,8 +62,8 @@ void registry::allot(name sender, name recipient, asset tokens) {
 
 void registry::unallot(name sender, name recipient, asset tokens) {
     require_auth(sender);
-    eosio_assert(tokens.is_valid(), "invalid token");
-    eosio_assert(tokens.amount > 0, "must allot positive quantity");
+    check(tokens.is_valid(), "invalid token");
+    check(tokens.amount > 0, "must allot positive quantity");
 
     sub_allot(sender, recipient, tokens);
     add_balance(sender, tokens, sender);
@@ -71,9 +71,9 @@ void registry::unallot(name sender, name recipient, asset tokens) {
 
 void registry::claimallot(name sender, name recipient, asset tokens) {
     require_auth(recipient);
-    eosio_assert(is_account(sender), "sender account does not exist");
-    eosio_assert(tokens.is_valid(), "invalid token");
-    eosio_assert(tokens.amount > 0, "must transfer positive quantity");
+    check(is_account(sender), "sender account does not exist");
+    check(tokens.is_valid(), "invalid token");
+    check(tokens.amount > 0, "must transfer positive quantity");
     
     sub_allot(sender, recipient, tokens);
     add_balance(recipient, tokens, recipient);
@@ -85,7 +85,7 @@ void registry::createwallet(name recipient) {
     balances_table balances(config.publisher, recipient.value);
     auto itr = balances.find(recipient.value);
 
-    eosio_assert(itr == balances.end(), "Wallet already exists for given account");
+    check(itr == balances.end(), "Wallet already exists for given account");
 
     balances.emplace(recipient, [&]( auto& a ){
         a.owner = recipient;
@@ -97,36 +97,27 @@ void registry::deletewallet(name owner) {
     require_auth(owner);
 
     balances_table balances(config.publisher, owner.value);
-    auto itr = balances.find(owner.value);
+    const auto& b = balances.get(owner.value, "Given account does not have a wallet");
 
-    eosio_assert(itr != balances.end(), "Given account does not have a wallet");
+    check(b.tokens.amount == 0, "Cannot delete wallet unless balance is zero");
 
-    auto b = *itr;
-
-    eosio_assert(b.tokens.amount == 0, "Cannot delete wallet unless balance is zero");
-
-    balances.erase(itr);
+    balances.erase(b);
 }
 
 void registry::add_balance(name recipient, asset tokens, name payer) {
     balances_table balances(config.publisher, recipient.value);
-    auto itr = balances.find(recipient.value);
+    const auto& b = balances.get(recipient.value, "No wallet found for recipient");
 
-    eosio_assert(itr != balances.end(), "No wallet found for recipient");
-
-    balances.modify(itr, same_payer, [&]( auto& a ) {
+    balances.modify(b, same_payer, [&]( auto& a ) {
         a.tokens += tokens;
     });
 }
 
 void registry::sub_balance(name owner, asset tokens) {
     balances_table balances(config.publisher, owner.value);
-    auto itr = balances.find(owner.value);
-    auto b = *itr;
+    const auto& b = balances.get(owner.value, "transaction would overdraw balance");
 
-    eosio_assert(b.tokens.amount >= tokens.amount, "transaction would overdraw balance");
-
-    balances.modify(itr, same_payer, [&]( auto& a ) {
+    balances.modify(b, same_payer, [&]( auto& a ) {
         a.tokens -= tokens;
     });
 }
@@ -152,9 +143,7 @@ void registry::add_allot(name sender, name recipient, asset tokens, name payer) 
 void registry::sub_allot(name owner, name recipient, asset tokens) {
     allotments_table allotments(config.publisher, owner.value);
     auto itr = allotments.find(recipient.value);
-    auto al = *itr;
-
-    eosio_assert(al.tokens.amount >= tokens.amount, "transaction would overdraw balance");
+    const auto& al = allotments.get(recipient.value, "transaction would overdraw balance");
 
     if(al.tokens.amount == tokens.amount ) {
         allotments.erase(itr);
@@ -164,5 +153,3 @@ void registry::sub_allot(name owner, name recipient, asset tokens) {
         });
     }
 }
-
-EOSIO_DISPATCH(registry, (mint)(transfer)(allot)(unallot)(claimallot)(createwallet)(deletewallet))

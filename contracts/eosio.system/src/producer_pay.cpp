@@ -4,16 +4,16 @@
 
 namespace eosiosystem {
 
-   const int64_t  min_pervote_daily_pay = 100'0000;
-   const int64_t  min_activated_stake   = 150'000'000'0000;
-   const double   perblock_rate         = 0.0025;           // 0.25%
-   const double   standby_rate          = 0.0075;           // 0.75%
-   const uint32_t blocks_per_year       = 52*7*24*2*3600;   // half seconds per year
-   const uint32_t seconds_per_year      = 52*7*24*3600;
-   const uint32_t blocks_per_day        = 2 * 24 * 3600;
-   const uint32_t blocks_per_hour       = 2 * 3600;
-   const int64_t  useconds_per_day      = 24 * 3600 * int64_t(1000000);
-   const int64_t  useconds_per_year     = seconds_per_year*1000000ll;
+//    const int64_t  min_pervote_daily_pay = 100'0000;
+//    const int64_t  min_activated_stake   = 150'000'000'0000;
+//    const double   perblock_rate         = 0.0025;           // 0.25%
+//    const double   standby_rate          = 0.0075;           // 0.75%
+//    const uint32_t blocks_per_year       = 52*7*24*2*3600;   // half seconds per year
+//    const uint32_t seconds_per_year      = 52*7*24*3600;
+//    const uint32_t blocks_per_day        = 2 * 24 * 3600;
+//    const uint32_t blocks_per_hour       = 2 * 3600;
+//    const int64_t  useconds_per_day      = 24 * 3600 * int64_t(1000000);
+//    const int64_t  useconds_per_year     = seconds_per_year*1000000ll;
 
    void system_contract::onblock( ignore<block_header> ) {
         using namespace eosio;
@@ -87,7 +87,7 @@ namespace eosiosystem {
    }
 
    using namespace eosio;
-   void system_contract::claimrewards( const name owner ) {
+   void system_contract::claimrewards( const name& owner ) {
         require_auth(owner);
         check(_gstate.thresh_activated_stake_time > time_point(), "cannot claim rewards until the chain is activated (1,000,000 blocks produced)");
 
@@ -95,14 +95,15 @@ namespace eosiosystem {
         check( prod.active(), "producer does not have an active key" );
 
         auto p = _payments.find(owner.value);
-        eosio_assert(p != _payments.end(), "No payment exists for account");
+        check(p != _payments.end(), "No payment exists for account");
         auto prod_payment = *p;
         auto pay_amount = prod_payment.pay;
 
         //NOTE: consider resetting producer's last claim time to 0 here, instead of during snapshot.
-
-        INLINE_ACTION_SENDER(eosio::token, transfer)
-        ("eosio.token"_n, {"eosio.bpay"_n, "active"_n}, {"eosio.bpay"_n, owner, pay_amount, std::string("Producer/Standby Payment")});
+        {
+            token::transfer_action transfer_act{ token_account, { bpay_account, active_permission } };
+            transfer_act.send( bpay_account, owner, pay_amount, "Producer/Standby Payment" );
+        }
 
         _payments.erase(p);
    }
@@ -110,7 +111,7 @@ namespace eosiosystem {
    void system_contract::claimrewards_snapshot() {
         require_auth("eosio"_n);
 
-        eosio_assert(_gstate.thresh_activated_stake_time > time_point(), "cannot take snapshot until chain is activated");
+        check(_gstate.thresh_activated_stake_time > time_point(), "cannot take snapshot until chain is activated");
 
         //skips action, since there are no rewards to claim
         if (_gstate.total_unpaid_blocks <= 0) { 
@@ -121,8 +122,7 @@ namespace eosiosystem {
 
         const asset token_supply = eosio::token::get_supply(token_account, core_symbol().code() );
         const auto usecs_since_last_fill = (ct - _gstate.last_pervote_bucket_fill).count();
-        const name tedp_account = "exrsrv.tf"_n;
-    
+        
         if (usecs_since_last_fill > 0 && _gstate.last_pervote_bucket_fill > time_point())
         {
             double bpay_rate = double(_gpayrate.bpay_rate) / double(100000); //NOTE: both bpay_rate and divisor were int64s which evaluated to 0. The divisor must be a double to get percentage.
@@ -145,25 +145,25 @@ namespace eosiosystem {
             } else {
                 issue_tokens = new_tokens;
             }
-
+            
             if (transfer_tokens > 0) {
-                INLINE_ACTION_SENDER(eosio::token, transfer)
-                ("eosio.token"_n, {tedp_account, "active"_n}, { tedp_account, "eosio"_n, asset(transfer_tokens, core_symbol()), std::string("TEDP: Inflation offset")});
-            }     
+                token::transfer_action transfer_act{ token_account, { tedp_account, active_permission } };
+                transfer_act.send( tedp_account, get_self(), asset(transfer_tokens, core_symbol()), "TEDP: Inflation offset" );
+            }
+
+            token::transfer_action transfer_act{ token_account, { get_self(), active_permission } };  
 
             if (issue_tokens > 0) {
-                INLINE_ACTION_SENDER(eosio::token, issue)
-                ("eosio.token"_n, {{"eosio"_n, "active"_n}}, {"eosio"_n, asset(issue_tokens, core_symbol()), std::string("Issue new TLOS tokens")});
+                token::issue_action issue_action{ token_account, { get_self(), active_permission }};
+                issue_action.send(get_self(), asset(issue_tokens, core_symbol()), "Issue new TLOS tokens");
             }
             
             if(to_workers > 0) {
-                INLINE_ACTION_SENDER(eosio::token, transfer)
-                ("eosio.token"_n, {"eosio"_n, "active"_n}, {"eosio"_n, "eosio.saving"_n, asset(to_workers, core_symbol()), std::string("Transfer worker proposal share to eosio.saving account")});
+                transfer_act.send(get_self(), saving_account, asset(to_workers, core_symbol()), "Transfer worker proposal share to eosio.saving account");
             }
             
             if(to_producers > 0) {
-                INLINE_ACTION_SENDER(eosio::token, transfer)
-                ("eosio.token"_n, {"eosio"_n, "active"_n}, {"eosio"_n, "eosio.bpay"_n, asset(to_producers, core_symbol()), std::string("Transfer producer share to per-block bucket")});
+                transfer_act.send(get_self(), bpay_account, asset(to_producers, core_symbol()), "Transfer producer share to per-block bucket");
             }
             
             _gstate.perblock_bucket += to_producers;

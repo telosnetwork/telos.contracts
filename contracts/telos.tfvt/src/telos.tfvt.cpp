@@ -1,5 +1,5 @@
 #include <telos.tfvt.hpp>
-#include <eosiolib/symbol.hpp>
+#include <eosio/symbol.hpp>
 //#include <eosiolib/print.hpp>
 
 tfvt::tfvt(name self, name code, datastream<const char*> ds)
@@ -82,13 +82,13 @@ void tfvt::inittfboard(string initial_info_link) {
 void tfvt::setconfig(name member, config new_config) { 
     require_auth("tf"_n);
 	configs.remove();
-    eosio_assert(new_config.max_board_seats >= new_config.open_seats, "can't have more open seats than max seats");
-	eosio_assert(new_config.holder_quorum_divisor > 0, "holder_quorum_divisor must be a non-zero number");
-	eosio_assert(new_config.board_quorum_divisor > 0, "board_quorum_divisor must be a non-zero number");
-	eosio_assert(new_config.issue_duration > 0, "issue_duration must be a non-zero number");
-	eosio_assert(new_config.start_delay > 0, "start_delay must be a non-zero number");
-	eosio_assert(new_config.leaderboard_duration > 0, "leaderboard_duration must be a non-zero number");
-	eosio_assert(new_config.election_frequency > 0, "election_frequency must be a non-zero number");
+    check(new_config.max_board_seats >= new_config.open_seats, "can't have more open seats than max seats");
+	check(new_config.holder_quorum_divisor > 0, "holder_quorum_divisor must be a non-zero number");
+	check(new_config.board_quorum_divisor > 0, "board_quorum_divisor must be a non-zero number");
+	check(new_config.issue_duration > 0, "issue_duration must be a non-zero number");
+	check(new_config.start_delay > 0, "start_delay must be a non-zero number");
+	check(new_config.leaderboard_duration > 0, "leaderboard_duration must be a non-zero number");
+	check(new_config.election_frequency > 0, "election_frequency must be a non-zero number");
 
 	// NOTE : this will break an ongoing election check for makeelection 
 	if(new_config.max_board_seats >= _config.max_board_seats){
@@ -133,11 +133,11 @@ void tfvt::makeissue(ignore<name> holder,
 
     require_auth(_holder);
 
-	eosio_assert(is_tfvt_holder(_holder) || is_tfboard_holder(_holder), "caller must be a TFVT or TFBOARD holder");
+	check(is_tfvt_holder(_holder) || is_tfboard_holder(_holder), "caller must be a TFVT or TFBOARD holder");
 
 	ballots_table ballots("eosio.trail"_n, "eosio.trail"_n.value);
 	uint64_t next_ballot_id = ballots.available_primary_key();
-	uint32_t begin_time = now() + _config.start_delay;
+	uint32_t begin_time = current_time_point().sec_since_epoch() + _config.start_delay;
 	uint32_t end_time = begin_time + _config.issue_duration;
 
     action(permission_level{get_self(), "active"_n}, "eosio.trail"_n, "regballot"_n, make_tuple(
@@ -160,11 +160,11 @@ void tfvt::makeissue(ignore<name> holder,
 
 void tfvt::closeissue(name holder, name proposer) {
     require_auth(holder);
-	eosio_assert(is_tfvt_holder(holder) || is_tfboard_holder(holder), "caller must be a TFVT or TFBOARD holder");
+	check(is_tfvt_holder(holder) || is_tfboard_holder(holder), "caller must be a TFVT or TFBOARD holder");
 
 	issues_table issues(get_self(), get_self().value);
 	auto i_iter = issues.find(proposer.value);
-	eosio_assert(i_iter != issues.end(), "issue not found");
+	check(i_iter != issues.end(), "issue not found");
 	auto issue = *i_iter;
 
 	ballots_table ballots("eosio.trail"_n, "eosio.trail"_n.value);
@@ -219,7 +219,7 @@ void tfvt::closeissue(name holder, name proposer) {
 
 	if(state == TIE) {
 		uint64_t next_ballot_id = ballots.available_primary_key();
-		uint32_t begin_time = now() + _config.start_delay;
+		uint32_t begin_time = current_time_point().sec_since_epoch() + _config.start_delay;
 		uint32_t end_time = begin_time + _config.issue_duration;
 		action(permission_level{get_self(), "active"_n}, "eosio.trail"_n, "regballot"_n, make_tuple(
 			get_self(),					//proposer name
@@ -244,13 +244,13 @@ void tfvt::closeissue(name holder, name proposer) {
 
 void tfvt::nominate(name nominee, name nominator) {
     require_auth(nominator);
-	eosio_assert(is_account(nominee), "nominee account must exist");
-	eosio_assert(is_tfvt_holder(nominator), "caller must be a TFVT holder");
-	eosio_assert(!is_board_member(nominee) || is_term_expired(), "nominee is a board member, nominee's term must be expired");
+	check(is_account(nominee), "nominee account must exist");
+	check(is_tfvt_holder(nominator), "caller must be a TFVT holder");
+	check(!is_board_member(nominee) || is_term_expired(), "nominee is a board member, nominee's term must be expired");
 
     nominees_table noms(get_self(), get_self().value);
     auto n = noms.find(nominee.value);
-    eosio_assert(n == noms.end(), "nominee has already been nominated");
+    check(n == noms.end(), "nominee has already been nominated");
 
     noms.emplace(get_self(), [&](auto& m) {
         m.nominee = nominee;
@@ -259,14 +259,14 @@ void tfvt::nominate(name nominee, name nominator) {
 
 void tfvt::makeelection(name holder, string info_url) {
     require_auth(holder);
-	eosio_assert(!_config.is_active_election, "there is already an election is progress");
-    eosio_assert(is_tfvt_holder(holder) || is_tfboard_holder(holder), "caller must be a TFVT or TFBOARD holder");
-	eosio_assert(_config.open_seats > 0 || is_term_expired(), "it isn't time for the next election");
+	check(!_config.is_active_election, "there is already an election is progress");
+    check(is_tfvt_holder(holder) || is_tfboard_holder(holder), "caller must be a TFVT or TFBOARD holder");
+	check(_config.open_seats > 0 || is_term_expired(), "it isn't time for the next election");
 
 	ballots_table ballots("eosio.trail"_n, "eosio.trail"_n.value);
 	_config.open_election_id = ballots.available_primary_key(); 
 
-	uint32_t begin_time = now() + _config.start_delay;
+	uint32_t begin_time = current_time_point().sec_since_epoch() + _config.start_delay;
 	uint32_t end_time = begin_time + _config.leaderboard_duration;
 
     action(permission_level{get_self(), name("active")}, name("eosio.trail"), name("regballot"), make_tuple(
@@ -297,9 +297,9 @@ void tfvt::makeelection(name holder, string info_url) {
 
 void tfvt::addcand(name nominee, string info_link) {
 	require_auth(nominee);
-	eosio_assert(is_nominee(nominee), "only nominees can be added to the election");
-	eosio_assert(_config.is_active_election, "no active election for board members at this time");
-	eosio_assert(!is_board_member(nominee) || is_term_expired(), "nominee can't already be a board member, or their term must be expired.");
+	check(is_nominee(nominee), "only nominees can be added to the election");
+	check(_config.is_active_election, "no active election for board members at this time");
+	check(!is_board_member(nominee) || is_term_expired(), "nominee can't already be a board member, or their term must be expired.");
 
     action(permission_level{get_self(), name("active")}, name("eosio.trail"), name("addcandidate"), make_tuple(
 		get_self(), 				//publisher
@@ -311,7 +311,7 @@ void tfvt::addcand(name nominee, string info_link) {
 
 void tfvt::removecand(name candidate) {
 	require_auth(candidate);
-	eosio_assert(is_nominee(candidate), "candidate is not a nominee");
+	check(is_nominee(candidate), "candidate is not a nominee");
 
     action(permission_level{get_self(), name("active")}, name("eosio.trail"), name("rmvcandidate"), make_tuple(
 		get_self(), 				//publisher
@@ -322,8 +322,8 @@ void tfvt::removecand(name candidate) {
 
 void tfvt::endelection(name holder) {
     require_auth(holder);
-    eosio_assert(is_tfvt_holder(holder) || is_tfboard_holder(holder), "caller must be a TFVT or TFBOARD holder");
-	eosio_assert(_config.is_active_election, "there is no active election to end");
+    check(is_tfvt_holder(holder) || is_tfboard_holder(holder), "caller must be a TFVT or TFBOARD holder");
+	check(_config.is_active_election, "there is no active election to end");
 	uint8_t status = 1;
 
     ballots_table ballots(name("eosio.trail"), name("eosio.trail").value);
@@ -352,7 +352,7 @@ void tfvt::endelection(name holder) {
 
 	if(board_candidates.size() > 0 && is_term_expired()) {
 		remove_and_seize_all();
-		_config.last_board_election_time = now();
+		_config.last_board_election_time = current_time_point().sec_since_epoch();
 	}
 
     for (int n = 0; n < board_candidates.size(); n++) {
@@ -405,11 +405,11 @@ void tfvt::resign(name member) {
 void tfvt::add_to_tfboard(name nominee) {
     nominees_table noms(get_self(), get_self().value);
     auto n = noms.find(nominee.value);
-    eosio_assert(n != noms.end(), "nominee doesn't exist in table");
+    check(n != noms.end(), "nominee doesn't exist in table");
 
     members_table mems(get_self(), get_self().value);
     auto m = mems.find(nominee.value);
-    eosio_assert(m == mems.end(), "nominee is already a board member"); //NOTE: change if error occurs in live environment
+    check(m == mems.end(), "nominee is already a board member"); //NOTE: change if error occurs in live environment
 
     noms.erase(n); //NOTE remove from nominee table
 
@@ -431,7 +431,7 @@ void tfvt::add_to_tfboard(name nominee) {
 void tfvt::rmv_from_tfboard(name member) {
     members_table mems(get_self(), get_self().value);
     auto m = mems.find(member.value);
-    eosio_assert(m != mems.end(), "member is not on the board");
+    check(m != mems.end(), "member is not on the board");
 
     mems.erase(m);
 }
@@ -451,49 +451,33 @@ void tfvt::addseats(name member, uint8_t num_seats) {
 bool tfvt::is_board_member(name user) {
     members_table mems(get_self(), get_self().value);
     auto m = mems.find(user.value);
-    
-    if (m != mems.end()) {
-        return true;
-    }
-
-    return false;
+	
+    return m != mems.end();
 }
 
 bool tfvt::is_nominee(name user) {
     nominees_table noms(get_self(), get_self().value);
     auto n = noms.find(user.value);
 
-    if (n != noms.end()) {
-        return true;
-    }
-
-    return false;
+    return n != noms.end();
 }
 
 bool tfvt::is_tfvt_holder(name user) {
     balances_table balances(name("eosio.trail"), symbol("TFVT", 0).code().raw());
     auto b = balances.find(user.value);
 
-    if (b != balances.end()) {
-        return true;
-    }
-
-    return false;
+    return b != balances.end();
 }
 
 bool tfvt:: is_tfboard_holder(name user) {
     balances_table balances(name("eosio.trail"), symbol("TFBOARD", 0).code().raw());
     auto b = balances.find(user.value);
 
-    if (b != balances.end()) {
-        return true;
-    }
-
-    return false;
+    return b != balances.end();
 }
 
 bool tfvt::is_term_expired() {
-	return now() - _config.last_board_election_time > _config.election_frequency;
+	return current_time_point().sec_since_epoch() - _config.last_board_election_time > _config.election_frequency;
 }
 
 void tfvt::remove_and_seize_all() {
@@ -605,7 +589,3 @@ vector<tfvt::permission_level_weight> tfvt::perms_from_members() {
 }
 
 #pragma endregion Helper_Functions
-
-//(setboard)
-EOSIO_DISPATCH(tfvt, (inittfvt)(inittfboard)(setconfig)(nominate)(makeissue)
-	(closeissue)(makeelection)(addcand)(removecand)(endelection)(removemember)(resign))

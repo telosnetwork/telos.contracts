@@ -1,6 +1,6 @@
-#include <eosiolib/eosio.hpp>
-#include <eosiolib/system.hpp>
-#include <eosiolib/asset.hpp>
+#include <eosio/eosio.hpp>
+#include <eosio/system.hpp>
+#include <eosio/asset.hpp>
 
 using namespace std;
 using namespace eosio;

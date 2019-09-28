@@ -11,10 +11,10 @@
 #include "trail.system.hpp"
 #include "trail.tokens.hpp"
 
-#include <eosiolib/asset.hpp>
-#include <eosiolib/eosio.hpp>
-#include <eosiolib/singleton.hpp>
-#include <eosiolib/dispatcher.hpp>
+#include <eosio/asset.hpp>
+#include <eosio/eosio.hpp>
+#include <eosio/singleton.hpp>
+#include <eosio/dispatcher.hpp>
 #include <string>
 
 using namespace eosio;
@@ -185,9 +185,12 @@ public:
 
     //Reactions are regular functions called only as a trigger from the dispatcher.
 
-    void update_from_cb(name from, asset amount);
+    [[eosio::on_notify("eosio.token::transfer")]]
+    void transfer_handler(const name &from, const name &to, const asset &quantity, const string &memo);
 
-    void update_to_cb(name to, asset amount);
+    void update_from_cb(const name &from, const asset &amount);
+
+    void update_to_cb(const name &to, const asset &amount);
 
     asset get_decay_amount(name voter, symbol token_symbol, uint32_t decay_rate);
 

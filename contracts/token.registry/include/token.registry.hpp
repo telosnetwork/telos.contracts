@@ -6,9 +6,9 @@
  * @author Craig Branscom
  */
 
-#include <eosiolib/eosio.hpp>
-#include <eosiolib/asset.hpp>
-#include <eosiolib/singleton.hpp>
+#include <eosio/eosio.hpp>
+#include <eosio/asset.hpp>
+#include <eosio/singleton.hpp>
 
 using namespace eosio;
 using namespace std;

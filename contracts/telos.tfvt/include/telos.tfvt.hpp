@@ -8,12 +8,12 @@
 #include <trail.voting.hpp>
 #include <trail.tokens.hpp>
 
-#include <eosiolib/eosio.hpp>
-#include <eosiolib/permission.hpp>
-#include <eosiolib/asset.hpp>
-#include <eosiolib/action.hpp>
-#include <eosiolib/singleton.hpp>
-#include <eosiolib/transaction.hpp>
+#include <eosio/eosio.hpp>
+#include <eosio/permission.hpp>
+#include <eosio/asset.hpp>
+#include <eosio/action.hpp>
+#include <eosio/singleton.hpp>
+#include <eosio/transaction.hpp>
 
 using namespace std;
 using namespace eosio;

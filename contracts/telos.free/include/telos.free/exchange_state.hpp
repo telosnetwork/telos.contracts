@@ -1,6 +1,6 @@
 #pragma once
 
-#include <eosiolib/asset.hpp>
+#include <eosio/asset.hpp>
 
 #include <cmath> 
 
@@ -56,7 +56,7 @@ asset exchange_state::convert_to_exchange( connector& c, asset in ) {
 }
 
 asset exchange_state::convert_from_exchange( connector& c, asset in ) {
-    eosio_assert( in.symbol== supply.symbol, "unexpected asset symbol input" );
+    check( in.symbol== supply.symbol, "unexpected asset symbol input" );
 
     real_type R(supply.amount - in.amount);
     real_type C(c.balance.amount);
@@ -86,26 +86,21 @@ asset exchange_state::convert( asset from, const symbol& to ) {
     auto base_symbol  = base.balance.symbol;
     auto quote_symbol = quote.balance.symbol;
 
-    //print( "From: ", from, " TO ", asset( 0,to), "\n" );
-    //print( "base: ", base_symbol, "\n" );
-    //print( "quote: ", quote_symbol, "\n" );
-    //print( "ex: ", supply.symbol, "\n" );
-
     if( sell_symbol != ex_symbol ) {
         if( sell_symbol == base_symbol ) {
-        from = convert_to_exchange( base, from );
+            from = convert_to_exchange( base, from );
         } else if( sell_symbol == quote_symbol ) {
-        from = convert_to_exchange( quote, from );
+            from = convert_to_exchange( quote, from );
         } else { 
-        eosio_assert( false, "invalid sell" );
+            check( false, "invalid sell" );
         }
     } else {
         if( to == base_symbol ) {
-        from = convert_from_exchange( base, from ); 
+            from = convert_from_exchange( base, from ); 
         } else if( to == quote_symbol ) {
-        from = convert_from_exchange( quote, from ); 
+            from = convert_from_exchange( quote, from ); 
         } else {
-        eosio_assert( false, "invalid conversion" );
+            check( false, "invalid conversion" );
         }
     }
 
