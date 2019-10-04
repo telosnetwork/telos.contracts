@@ -9,7 +9,6 @@ namespace eosiosystem {
   bool system_contract::crossed_missed_blocks_threshold(uint32_t amountBlocksMissed, uint32_t schedule_size) {
     if (schedule_size <= 1) return false;
 
-    // 6hrs
     auto timeframe = (_grotation.next_rotation_time.to_time_point() - _grotation.last_rotation_time.to_time_point()).to_seconds();
     // Total blocks that can be produced in a cycle
     auto maxBlocksPerCycle = (schedule_size - 1) * MAX_BLOCK_PER_CYCLE;
