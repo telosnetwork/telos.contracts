@@ -60,7 +60,7 @@ namespace eosiosystem {
     * the number that is set on the main net is 1,000,000.
 	* This value should be changed by ABPs before launching.
     */
-   const uint32_t block_num_network_activation = 25;
+   const uint32_t block_num_network_activation = 1000;
 
    const uint64_t max_bpay_rate = 6000;
    const uint64_t max_worker_monthly_amount = 1'000'000'0000;
