@@ -633,6 +633,12 @@ namespace eosiosystem {
                                                                  pool->total_unlent.amount,
                                                                  payment.amount );
       check( payment.amount < rented_tokens, "loan price does not favor renting" );
+
+      auto rexp_itr = _rexpool.begin();
+      const int64_t total_rex = rexp_itr->total_rex.amount;
+      const int64_t max_rex_limit = total_rex / 300;
+      check ( rented_tokens < max_rex_limit, "loan greater than maximum rental limit" );
+
       add_loan_to_rex_pool( payment, rented_tokens, true );
 
       table.emplace( from, [&]( auto& c ) {
