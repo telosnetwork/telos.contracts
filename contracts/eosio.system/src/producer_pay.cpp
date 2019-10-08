@@ -18,7 +18,7 @@ namespace eosiosystem {
    void system_contract::onblock( ignore<block_header> ) {
         using namespace eosio;
 
-        require_auth(_self);
+        require_auth(get_self());
 
         block_timestamp timestamp;
         name producer;
@@ -34,7 +34,6 @@ namespace eosiosystem {
         }
      
         if (_gstate.last_pervote_bucket_fill == time_point()) _gstate.last_pervote_bucket_fill = current_time_point();
-
 
         if(check_missed_blocks(timestamp, producer)) {
             update_missed_blocks_per_rotation();
@@ -109,8 +108,6 @@ namespace eosiosystem {
    }
 
    void system_contract::claimrewards_snapshot() {
-        require_auth("eosio"_n);
-
         check(_gstate.thresh_activated_stake_time > time_point(), "cannot take snapshot until chain is activated");
 
         //skips action, since there are no rewards to claim
@@ -131,7 +128,7 @@ namespace eosiosystem {
             auto new_tokens = to_workers + to_producers;
 
             //NOTE: This line can cause failure if eosio.tedp doesn't have a balance emplacement
-            asset tedp_balance = eosio::token::get_balance("eosio.token"_n, tedp_account, symbol_code("TLOS"));
+            asset tedp_balance = eosio::token::get_balance(token_account, tedp_account, core_symbol().code());
             
             int64_t transfer_tokens = 0;
             int64_t issue_tokens = 0;
