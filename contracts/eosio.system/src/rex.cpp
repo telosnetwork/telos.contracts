@@ -634,9 +634,16 @@ namespace eosiosystem {
                                                                  payment.amount );
       check( payment.amount < rented_tokens, "loan price does not favor renting" );
 
+      const uint64_t configured_rex_limit = 1000;  /// Set default fractional divisor for REX limit to 1000 (0.1%).
+      rex_config_table rex_config_local( _self, _self.value);
+      auto rexc_itr = rex_config_local.find( 1 );
+      if ( rexc_itr != rex_config_local.end() ) {
+	 const uint64_t configured_rex_limit = rexc_itr->cvalue;
+      }
+
       auto rexp_itr = _rexpool.begin();
       const int64_t total_rex = rexp_itr->total_rex.amount;
-      const int64_t max_rex_limit = total_rex / 300;
+      const int64_t max_rex_limit = total_rex / configured_rex_limit;
       check ( rented_tokens < max_rex_limit, "loan greater than maximum rental limit" );
 
       add_loan_to_rex_pool( payment, rented_tokens, true );

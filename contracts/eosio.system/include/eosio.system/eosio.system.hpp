@@ -396,6 +396,30 @@ namespace eosiosystem {
    typedef eosio::multi_index< "refunds"_n, refund_request >      refunds_table;
 
    /**
+    * `rex_config` structure within the rex configuration table.
+    * 
+    * @details A rex configuration table entry is defined by:
+    * - `cid` - configuration id key
+    * - `citem_name` - configuration item name
+    * - `cvalue` - configuration value (uint8_t)
+    */
+    struct [[eosio::table,eosio::contract("eosio.system")]] rex_config {
+	uint8_t   	cid = 0;
+	name		citem_name;
+	uint64_t	cvalue = 0;
+
+	uint8_t primary_key()const { return cid; }
+    };
+
+   /**
+    * Rex configuration table
+    *
+    * @details The rex configuration table is storing only one instance of rex_config which stores
+    * configuration items for the REX system.
+    */
+   typedef eosio::multi_index<"rexconfig"_n, rex_config> rex_config_table;
+
+   /**
     * `rex_pool` structure underlying the rex pool table.
     *
     * @details A rex pool table entry is defined by:
