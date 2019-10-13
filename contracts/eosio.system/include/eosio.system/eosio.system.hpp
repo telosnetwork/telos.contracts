@@ -401,7 +401,7 @@ namespace eosiosystem {
     * @details A rex configuration table entry is defined by:
     * - `cid` - configuration id key
     * - `citem_name` - configuration item name
-    * - `cvalue` - configuration value (uint8_t)
+    * - `cvalue` - configuration value (uint64_t)
     */
     struct [[eosio::table,eosio::contract("eosio.system")]] rex_config {
 	uint8_t   	cid = 0;
