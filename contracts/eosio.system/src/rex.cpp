@@ -641,6 +641,15 @@ namespace eosiosystem {
 	 const uint64_t configured_rex_limit = rexc_itr->cvalue;
       }
 
+      rex_whitelist_table rex_whitelist_local( _self, _self.value);
+      if ( rex_whitelist_local.begin() != rex_whitelist_local.end() ) {
+	 for ( auto rexwl_itr = rex_whitelist_local.begin(); rexwl_itr != rex_whitelist_local.end(); rexwl_itr++) {
+	    if ( rexwl_itr->waccount_name == from ) {
+	       const uint64_t configured_rex_limit = 1; /// If from account matches a whitelisted name then allow unlimited REX loans.
+	    }
+	 }
+      }
+
       auto rexp_itr = _rexpool.begin();
       const int64_t total_rex = rexp_itr->total_rex.amount;
       const int64_t max_rex_limit = total_rex / configured_rex_limit;

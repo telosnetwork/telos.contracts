@@ -420,6 +420,28 @@ namespace eosiosystem {
    typedef eosio::multi_index<"rexconfig"_n, rex_config> rex_config_table;
 
    /**
+    * `rex_whitelist` structure within the rex whitelisting table.
+    * 
+    * @details A rex whitelist table entry is defined by:
+    * - `wid` - whitelist id key
+    * - `waccount_name` - configuration item name
+    */
+    struct [[eosio::table,eosio::contract("eosio.system")]] rex_whitelist {
+	uint64_t   	wid = 0;
+	name		waccount_name;
+
+	uint64_t primary_key()const { return wid; }
+    };
+
+   /**
+    * Rex whitelist table
+    *
+    * @details The rex whitelist table is storing only one instance of rex_whitelist which stores
+    * account names whitelisted from REX resource loan limiting.
+    */
+   typedef eosio::multi_index<"rexwhitelist"_n, rex_whitelist> rex_whitelist_table;
+
+   /**
     * `rex_pool` structure underlying the rex pool table.
     *
     * @details A rex pool table entry is defined by:
