@@ -634,18 +634,18 @@ namespace eosiosystem {
                                                                  payment.amount );
       check( payment.amount < rented_tokens, "loan price does not favor renting" );
 
-      const uint64_t configured_rex_limit = 1000;  /// Set default fractional divisor for REX limit to 1000 (0.1%).
+      uint64_t configured_rex_limit = 1000;  /// Set default fractional divisor for REX limit to 1000 (0.1%).
       rex_config_table rex_config_local( _self, _self.value);
       auto rexc_itr = rex_config_local.find( 1 );
       if ( rexc_itr != rex_config_local.end() ) {
-	 const uint64_t configured_rex_limit = rexc_itr->cvalue;
+	 configured_rex_limit = rexc_itr->config_item_value;
       }
 
       rex_whitelist_table rex_whitelist_local( _self, _self.value);
       if ( rex_whitelist_local.begin() != rex_whitelist_local.end() ) {
 	 for ( auto rexwl_itr = rex_whitelist_local.begin(); rexwl_itr != rex_whitelist_local.end(); rexwl_itr++) {
-	    if ( rexwl_itr->waccount_name == from ) {
-	       const uint64_t configured_rex_limit = 1; /// If from account matches a whitelisted name then allow unlimited REX loans.
+	    if ( rexwl_itr->whitelist_account_name == from ) {
+	       configured_rex_limit = 1; /// If from account matches a whitelisted name then allow unlimited REX loans.
 	    }
 	 }
       }

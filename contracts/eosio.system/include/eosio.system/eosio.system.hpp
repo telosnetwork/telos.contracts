@@ -399,16 +399,16 @@ namespace eosiosystem {
     * `rex_config` structure within the rex configuration table.
     * 
     * @details A rex configuration table entry is defined by:
-    * - `cid` - configuration id key
-    * - `citem_name` - configuration item name
-    * - `cvalue` - configuration value (uint64_t)
+    * - `config_id` - configuration id key
+    * - `config_item_name` - configuration item name
+    * - `config_item_value` - configuration value (uint64_t)
     */
     struct [[eosio::table,eosio::contract("eosio.system")]] rex_config {
-	uint8_t   	cid = 0;
-	name		citem_name;
-	uint64_t	cvalue = 0;
+	uint8_t   	config_id = 0;
+	name		config_item_name;
+	uint64_t	config_item_value = 0;
 
-	uint8_t primary_key()const { return cid; }
+	uint8_t primary_key()const { return config_id; }
     };
 
    /**
@@ -423,14 +423,14 @@ namespace eosiosystem {
     * `rex_whitelist` structure within the rex whitelisting table.
     * 
     * @details A rex whitelist table entry is defined by:
-    * - `wid` - whitelist id key
-    * - `waccount_name` - configuration item name
+    * - `whitelist_id` - whitelist id key
+    * - `whitelist_account_name` - configuration item name
     */
     struct [[eosio::table,eosio::contract("eosio.system")]] rex_whitelist {
-	uint64_t   	wid = 0;
-	name		waccount_name;
+	uint64_t   	whitelist_id = 0;
+	name		whitelist_account_name;
 
-	uint64_t primary_key()const { return wid; }
+	uint64_t primary_key()const { return whitelist_id; }
     };
 
    /**
