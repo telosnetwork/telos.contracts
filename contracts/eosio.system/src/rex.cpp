@@ -616,6 +616,66 @@ namespace eosiosystem {
 
    }
 
+   /**
+    * @brief Allows configuration of the REX resource borrowing limit via limit_percentage.
+    *
+    * @param limit_percentage - The borrowing limit as a floating point value.
+    */
+   void system_contract::rexlimit( double limit_percentage ) {
+      
+      require_auth(get_self());
+      check( limit_percentage > 0 && limit_percentage <= 100, "percentage value needs to be between 0 and 100" );   
+      uint64_t calculated_value = 0;
+      std::string config_name_local = "REX Borrowing Limit";
+      calculated_value = limit_percentage / 100;
+
+      rex_config_table rex_config_local( _self, _self.value);
+
+      rex_config_local.emplace( _self, [&]( auto& r ) {
+         r.config_id    	= 1;
+         r.config_item_name     = config_name_local;
+         r.config_item_value	= calculated_value;
+      });
+   }
+
+   /**
+    * @brief Adds an account name to the REX limit whitelisting table.
+    *
+    * @param name - The name of the account to be added to the whitelist.
+    */
+   void system_contract::addrexwlist( const name& allowed ) {
+
+      require_auth(get_self());
+      rex_whitelist_table rex_whitelist_local( _self, _self.value);
+      if ( rex_whitelist_local.begin() != rex_whitelist_local.end() ) {
+         for ( auto rexwl_itr = rex_whitelist_local.begin(); rexwl_itr != rex_whitelist_local.end(); rexwl_itr++) {
+            check( rexwl_itr->whitelist_account_name == allowed, "whitelist entry for that account already exists" );
+         }
+      }
+      rex_whitelist_local.emplace( _self, [&]( auto& r ) {
+         r.whitelist_id = rex_whitelist_local.available_primary_key();
+         r.whitelist_account_name = allowed;
+      });
+   }
+
+   /**
+    * @brief Removes an account name from the REX limit whitelisting table.
+    *
+    * @param name - The name of the account to be removed from the whitelist.
+    */
+   void system_contract::remrexwlist( const name& allowed ) {
+
+      require_auth(get_self());
+      rex_whitelist_table rex_whitelist_local( _self, _self.value);
+      if ( rex_whitelist_local.begin() != rex_whitelist_local.end() ) {
+         for ( auto rexwl_itr = rex_whitelist_local.begin(); rexwl_itr != rex_whitelist_local.end(); rexwl_itr++) {
+            if ( rexwl_itr->whitelist_account_name == allowed ) {
+               rex_whitelist_local.erase( rexwl_itr );
+            }
+         }
+      }
+   }
+
    template <typename T>
    int64_t system_contract::rent_rex( T& table, const name& from, const name& receiver, const asset& payment, const asset& fund )
    {

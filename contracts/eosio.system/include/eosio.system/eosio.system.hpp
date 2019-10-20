@@ -405,7 +405,7 @@ namespace eosiosystem {
     */
     struct [[eosio::table,eosio::contract("eosio.system")]] rex_config {
 	uint8_t   	config_id = 0;
-	name		config_item_name;
+	std::string	config_item_name;
 	uint64_t	config_item_value = 0;
 
 	uint8_t primary_key()const { return config_id; }
@@ -777,6 +777,36 @@ namespace eosiosystem {
          [[eosio::action]]
          void delegatebw( const name& from, const name& receiver,
                           const asset& stake_net_quantity, const asset& stake_cpu_quantity, bool transfer );
+
+	  /**
+          * Configure REX borrowing limit.
+          *
+          * @details Allows configuration of the REX resource borrowing limit via limit_percentage.
+          *
+          * @param limit_percentage - The borrowing limit as a floating point value.
+          */
+         [[eosio::action]]
+         void rexlimit( double limit_percentage );
+
+	  /**
+          * Add a REX limit whitelist entry.
+          *
+          * @details Adds an account name to the REX limit whitelisting table.
+          *
+          * @param name - The name of the account to be added to the whitelist.
+          */
+         [[eosio::action]]
+         void addrexwlist( const name& allowed );
+
+	  /**
+          * Remove a REX limit whitelist entry.
+          *
+          * @details Removes an account name from the REX limit whitelisting table.
+          *
+          * @param name - The name of the account to be removed from the whitelist.
+          */
+         [[eosio::action]]
+         void remrexwlist( const name& allowed );
 
          /**
           * Setrex action.
