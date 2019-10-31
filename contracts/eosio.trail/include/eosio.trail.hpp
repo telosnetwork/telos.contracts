@@ -19,6 +19,8 @@
 
 using namespace eosio;
 
+#warning "eosio.trail will be deprecated soon."
+
 class [[eosio::contract("eosio.trail")]] trail : public contract {
     
 public:
