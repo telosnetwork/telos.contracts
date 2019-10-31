@@ -1,0 +1,4 @@
+[submodule "trail-service"]
+	path = trail-service
+	url = https://github.com/Telos-Foundation/trail-service
+	branch = developer
