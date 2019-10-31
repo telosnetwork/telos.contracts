@@ -46,18 +46,6 @@ else()
 endif()
 
 ExternalProject_Add(
-   trail_service
-   SOURCE_DIR ${CMAKE_SOURCE_DIR}/trail-service
-   BINARY_DIR ${CMAKE_BINARY_DIR}/trail-service
-   CMAKE_ARGS -DCMAKE_TOOLCHAIN_FILE=${EOSIO_CDT_ROOT}/lib/cmake/eosio.cdt/EosioWasmToolchain.cmake
-   UPDATE_COMMAND ""
-   PATCH_COMMAND ""
-   TEST_COMMAND ""
-   INSTALL_COMMAND ""
-   BUILD_ALWAYS 1
-)
-
-ExternalProject_Add(
    contracts_project
    SOURCE_DIR ${CMAKE_SOURCE_DIR}/contracts
    BINARY_DIR ${CMAKE_BINARY_DIR}/contracts
