@@ -627,7 +627,7 @@ namespace eosiosystem {
       check( limit > 0 && limit <= 100, "percentage value needs to be between 0 and 100" );   
       uint64_t calculated_value = 0;
       std::string config_name_local = "REX Borrowing Limit";
-      calculated_value = (uint64_t) ((1 / limit) * 1000000);
+      calculated_value = ((1 / limit) * 100);
 
       rex_config_table rex_config_local( _self, _self.value);
 
@@ -712,25 +712,26 @@ namespace eosiosystem {
                                                                  payment.amount );
       check( payment.amount < rented_tokens, "loan price does not favor renting" );
 
-      uint64_t configured_rex_limit = 10000000;  /// Set default fractional divisor for REX limit to 0.1% in uint64 with 4 digits of precision.
+      uint64_t configured_rex_limit = 1000;  /// Set default fractional divisor for REX limit to 0.1% in uint64.
       rex_config_table rex_config_local( _self, _self.value);
       auto rexc_itr = rex_config_local.find( 1 );
       if ( rexc_itr != rex_config_local.end() ) {
 	 configured_rex_limit = rexc_itr->config_item_value;
+	 
       }
 
       rex_whitelist_table rex_whitelist_local( _self, _self.value);
       if ( rex_whitelist_local.begin() != rex_whitelist_local.end() ) {
 	 for ( auto rexwl_itr = rex_whitelist_local.begin(); rexwl_itr != rex_whitelist_local.end(); rexwl_itr++) {
 	    if ( rexwl_itr->whitelist_account_name == from ) {
-	       configured_rex_limit = 10000; /// If from account matches a whitelisted name then allow unlimited REX loans.
+	       configured_rex_limit = 1; /// If from account matches a whitelisted name then allow unlimited REX loans.
 	    }
 	 }
       }
 
       auto rexp_itr = _rexpool.begin();
-      const int64_t total_rex = rexp_itr->total_rex.amount;
-      const int64_t max_rex_limit = ( ( total_rex * 10000 ) / configured_rex_limit );
+      const int64_t total_rex = rexp_itr->total_lendable.amount;
+      const int64_t max_rex_limit = total_rex / configured_rex_limit;
       check ( rented_tokens < max_rex_limit, "loan greater than maximum rental limit" );
 
       add_loan_to_rex_pool( payment, rented_tokens, true );
