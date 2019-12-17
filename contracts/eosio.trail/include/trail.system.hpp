@@ -42,6 +42,19 @@ struct user_resources {
     EOSLIB_SERIALIZE( user_resources, (owner)(net_weight)(cpu_weight)(ram_bytes) )
 };
 
+struct delegated_bandwidth {
+    name          from;
+    name          to;
+    asset         net_weight;
+    asset         cpu_weight;
+
+    bool is_empty()const { return net_weight.amount == 0 && cpu_weight.amount == 0; }
+    uint64_t  primary_key()const { return to.value; }
+
+    // explicit serialization macro is not necessary, used here only to improve compilation time
+    EOSLIB_SERIALIZE( delegated_bandwidth, (from)(to)(net_weight)(cpu_weight) )
+};
+
 struct delegatebw_args {
     name from;
     name receiver;
@@ -73,6 +86,8 @@ typedef eosio::multi_index<name("accounts"), account> accounts;
 typedef eosio::multi_index<name("stat"), currency_stats> stats;
 
 typedef eosio::multi_index<name("userres"), user_resources> user_resources_table;
+
+typedef eosio::multi_index<name("delband"), delegated_bandwidth> delband_table;
 
 #pragma endregion Tables
 
@@ -114,12 +129,12 @@ asset get_liquid_tlos(name owner) {
 }
 
 asset get_staked_tlos(name owner) {
-    user_resources_table userres(name("eosio"), owner.value);
-    auto r = userres.find(owner.value);
+    delband_table delband(name("eosio"), owner.value);
+    auto r = delband.find(owner.value);
 
     int64_t amount = 0;
 
-    if (r != userres.end()) {
+    if (r != delband.end()) {
         auto res = *r;
         amount = (res.cpu_weight.amount + res.net_weight.amount);
     }
