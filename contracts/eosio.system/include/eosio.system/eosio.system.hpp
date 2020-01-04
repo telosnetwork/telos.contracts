@@ -404,11 +404,14 @@ namespace eosiosystem {
     * - `config_item_value` - configuration value (uint64_t)
     */
     struct [[eosio::table,eosio::contract("eosio.system")]] rex_config {
-	uint8_t   	config_id = 0;
+	uint64_t   	config_id = 0;
 	std::string	config_item_name;
 	uint64_t	config_item_value = 0;
 
-	uint8_t primary_key()const { return config_id; }
+	uint64_t primary_key()const { return config_id; }
+
+	// explicit serialization macro is not necessary, used here only to improve compilation time
+	EOSLIB_SERIALIZE( rex_config, (config_id)(config_item_name)(config_item_value) )
     };
 
    /**
@@ -431,6 +434,9 @@ namespace eosiosystem {
 	name		whitelist_account_name;
 
 	uint64_t primary_key()const { return whitelist_id; }
+
+	// explicit serialization macro is not necessary, used here only to improve compilation time
+	EOSLIB_SERIALIZE( rex_whitelist, (whitelist_id)(whitelist_account_name) )
     };
 
    /**

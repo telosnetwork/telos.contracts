@@ -717,7 +717,6 @@ namespace eosiosystem {
       auto rexc_itr = rex_config_local.find( 1 );
       if ( rexc_itr != rex_config_local.end() ) {
 	 configured_rex_limit = rexc_itr->config_item_value;
-	 
       }
 
       rex_whitelist_table rex_whitelist_local( _self, _self.value);
