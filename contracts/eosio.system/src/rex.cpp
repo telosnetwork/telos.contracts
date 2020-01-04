@@ -616,6 +616,84 @@ namespace eosiosystem {
 
    }
 
+   /**
+    * @brief Allows configuration of the REX resource borrowing limit via limit_percentage.
+    *
+    * @param limit - The borrowing limit as a floating point value.
+    */
+   void system_contract::rexlimit( double limit ) {
+      
+      require_auth(get_self());
+      check( limit > 0 && limit <= 100, "percentage value needs to be between 0 and 100" );   
+      uint64_t calculated_value = 0;
+      std::string config_name_local = "REX Borrowing Limit";
+      calculated_value = ((1 / limit) * 100);
+
+      rex_config_table rex_config_local( _self, _self.value);
+
+      if ( rex_config_local.begin() == rex_config_local.end() ) {
+         rex_config_local.emplace( _self, [&]( auto& r ) {
+            r.config_id    	   = 1;
+            r.config_item_name     = config_name_local;
+            r.config_item_value	   = calculated_value;
+         });
+         return;
+      }
+
+      rex_config_local.modify( rex_config_local.find(1), _self, [&]( auto& r ) {
+         r.config_item_value	= calculated_value;
+      });
+   }
+
+   /**
+    * @brief Adds an account name to the REX limit whitelisting table.
+    *
+    * @param name - The name of the account to be added to the whitelist.
+    */
+   void system_contract::addrexwlist( const name& allowed ) {
+
+      require_auth(get_self());
+      rex_whitelist_table rex_whitelist_local( _self, _self.value);
+      if ( rex_whitelist_local.begin() != rex_whitelist_local.end() ) {
+         for ( auto rexwl_itr = rex_whitelist_local.begin(); rexwl_itr != rex_whitelist_local.end(); rexwl_itr++) {
+            check( rexwl_itr->whitelist_account_name != allowed, "whitelist entry for that account already exists" );
+         }
+      }
+      rex_whitelist_local.emplace( _self, [&]( auto& r ) {
+         r.whitelist_id = rex_whitelist_local.available_primary_key();
+         r.whitelist_account_name = allowed;
+      });
+   }
+
+   /**
+    * @brief Removes an account name from the REX limit whitelisting table.
+    *
+    * @param name - The name of the account to be removed from the whitelist.
+    */
+   void system_contract::remrexwlist( const name& allowed ) {
+
+      require_auth(get_self());
+      rex_whitelist_table rex_whitelist_local( _self, _self.value);
+      check ( rex_whitelist_local.begin() != rex_whitelist_local.end(), "whitelist table is empty" );
+      bool check_flag = 0;
+      for ( auto rexwl_itr = rex_whitelist_local.begin(); rexwl_itr != rex_whitelist_local.end(); rexwl_itr++) {
+         if ( rexwl_itr->whitelist_account_name == allowed ) {
+	    check_flag = 1;
+	 }
+      }
+      check( check_flag == 1, "whitelist entry for that account does not exist" );
+
+      auto rexwl_itr = rex_whitelist_local.begin();
+      while ( rexwl_itr != rex_whitelist_local.end() ) {
+	 if ( rexwl_itr->whitelist_account_name != allowed ) {
+	    rexwl_itr++;
+	 }
+	 if ( rexwl_itr->whitelist_account_name == allowed ) {
+            rexwl_itr = rex_whitelist_local.erase( rexwl_itr );
+         }
+      }
+   }
+
    template <typename T>
    int64_t system_contract::rent_rex( T& table, const name& from, const name& receiver, const asset& payment, const asset& fund )
    {
@@ -633,6 +711,29 @@ namespace eosiosystem {
                                                                  pool->total_unlent.amount,
                                                                  payment.amount );
       check( payment.amount < rented_tokens, "loan price does not favor renting" );
+
+      uint64_t configured_rex_limit = 1000;  /// Set default fractional divisor for REX limit to 0.1% in uint64.
+      rex_config_table rex_config_local( _self, _self.value);
+      auto rexc_itr = rex_config_local.find( 1 );
+      if ( rexc_itr != rex_config_local.end() ) {
+	 configured_rex_limit = rexc_itr->config_item_value;
+	 
+      }
+
+      rex_whitelist_table rex_whitelist_local( _self, _self.value);
+      if ( rex_whitelist_local.begin() != rex_whitelist_local.end() ) {
+	 for ( auto rexwl_itr = rex_whitelist_local.begin(); rexwl_itr != rex_whitelist_local.end(); rexwl_itr++) {
+	    if ( rexwl_itr->whitelist_account_name == from ) {
+	       configured_rex_limit = 1; /// If from account matches a whitelisted name then allow unlimited REX loans.
+	    }
+	 }
+      }
+
+      auto rexp_itr = _rexpool.begin();
+      const int64_t total_rex = rexp_itr->total_lendable.amount;
+      const int64_t max_rex_limit = total_rex / configured_rex_limit;
+      check ( rented_tokens < max_rex_limit, "loan greater than maximum rental limit" );
+
       add_loan_to_rex_pool( payment, rented_tokens, true );
 
       table.emplace( from, [&]( auto& c ) {
