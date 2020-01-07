@@ -728,10 +728,29 @@ namespace eosiosystem {
 	 }
       }
 
+      uint64_t receiver_loans_total = 0;  /// Set variable to track receiving account's total accumulated REX loans so far.
+      rex_cpu_loan_table cpuloan_local( _self, _self.value);
+      rex_net_loan_table netloan_local( _self, _self.value);
+
+      if ( cpuloan_local.begin() != cpuloan_local.end() && configured_rex_limit != 1 ) {
+         for ( auto cpuloan_itr = cpuloan_local.begin(); cpuloan_itr != cpuloan_local.end(); cpuloan_itr++) {
+            if ( cpuloan_itr->receiver == from ) {
+               receiver_loans_total += cpuloan_itr->total_staked.amount;
+            }
+         }
+      }
+      if ( netloan_local.begin() != netloan_local.end() && configured_rex_limit != 1 ) {
+         for ( auto netloan_itr = netloan_local.begin(); netloan_itr != netloan_local.end(); netloan_itr++) {
+            if ( netloan_itr->receiver == from ) {
+               receiver_loans_total += netloan_itr->total_staked.amount;
+            }
+         }
+      }
+
       auto rexp_itr = _rexpool.begin();
       const int64_t total_rex = rexp_itr->total_lendable.amount;
       const int64_t max_rex_limit = total_rex / configured_rex_limit;
-      check ( rented_tokens < max_rex_limit, "loan greater than maximum rental limit" );
+      check ( ( rented_tokens + receiver_loans_total ) < max_rex_limit, "loan greater than maximum rental limit" );
 
       add_loan_to_rex_pool( payment, rented_tokens, true );
 
