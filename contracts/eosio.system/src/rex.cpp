@@ -624,7 +624,7 @@ namespace eosiosystem {
    void system_contract::rexlimit( double limit ) {
       
       require_auth(get_self());
-      check( limit > 0 && limit <= 100, "percentage value needs to be between 0 and 100" );   
+      check( limit >= 0 && limit <= 100, "percentage value needs to be between 0 and 100. Use 0 to clear the configuration table." );   
       uint64_t calculated_value = 0;
       std::string config_name_local = "REX Borrowing Limit";
       calculated_value = ((1 / limit) * 100);
@@ -632,6 +632,7 @@ namespace eosiosystem {
       rex_config_table rex_config_local( _self, _self.value);
 
       if ( rex_config_local.begin() == rex_config_local.end() ) {
+         check( limit != 0, "configuration table is already empty!" );
          rex_config_local.emplace( _self, [&]( auto& r ) {
             r.config_id    	   = 1;
             r.config_item_name     = config_name_local;
@@ -639,7 +640,10 @@ namespace eosiosystem {
          });
          return;
       }
-
+      if ( limit == 0 ) {
+         rex_config_local.erase( rex_config_local.begin() );
+	 return;
+      }
       rex_config_local.modify( rex_config_local.find(1), _self, [&]( auto& r ) {
          r.config_item_value	= calculated_value;
       });
@@ -732,17 +736,21 @@ namespace eosiosystem {
       rex_cpu_loan_table cpuloan_local( _self, _self.value);
       rex_net_loan_table netloan_local( _self, _self.value);
 
-      if ( cpuloan_local.begin() != cpuloan_local.end() && configured_rex_limit != 1 ) {
-         for ( auto cpuloan_itr = cpuloan_local.begin(); cpuloan_itr != cpuloan_local.end(); cpuloan_itr++) {
-            if ( cpuloan_itr->receiver == from ) {
-               receiver_loans_total += cpuloan_itr->total_staked.amount;
+      if ( configured_rex_limit != 1 ) {
+         if ( cpuloan_local.begin() != cpuloan_local.end() ) {
+            for ( auto cpuloan_itr = cpuloan_local.begin(); cpuloan_itr != cpuloan_local.end(); cpuloan_itr++) {
+               if ( cpuloan_itr->receiver == from ) {
+                  receiver_loans_total += cpuloan_itr->total_staked.amount;
+               }
             }
          }
       }
-      if ( netloan_local.begin() != netloan_local.end() && configured_rex_limit != 1 ) {
-         for ( auto netloan_itr = netloan_local.begin(); netloan_itr != netloan_local.end(); netloan_itr++) {
-            if ( netloan_itr->receiver == from ) {
-               receiver_loans_total += netloan_itr->total_staked.amount;
+      if ( configured_rex_limit != 1 ) {
+         if ( netloan_local.begin() != netloan_local.end() ) {
+            for ( auto netloan_itr = netloan_local.begin(); netloan_itr != netloan_local.end(); netloan_itr++) {
+               if ( netloan_itr->receiver == from ) {
+                   receiver_loans_total += netloan_itr->total_staked.amount;
+               }
             }
          }
       }
