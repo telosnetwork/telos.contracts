@@ -594,6 +594,7 @@ namespace eosiosystem {
          static constexpr eosio::name vpay_account{"eosio.vpay"_n};
          static constexpr eosio::name names_account{"eosio.names"_n};
          static constexpr eosio::name saving_account{"eosio.saving"_n};
+         static constexpr eosio::name works_account{"telos.works"_n};
          static constexpr eosio::name rex_account{"eosio.rex"_n};
          static constexpr eosio::name null_account{"eosio.null"_n};
          static constexpr symbol ramcore_symbol = symbol(symbol_code("RAMCORE"), 4);
