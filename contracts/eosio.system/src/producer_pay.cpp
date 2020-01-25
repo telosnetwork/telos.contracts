@@ -156,7 +156,7 @@ namespace eosiosystem {
             }
             
             if(to_workers > 0) {
-                transfer_act.send(get_self(), saving_account, asset(to_workers, core_symbol()), "Transfer worker proposal share to eosio.saving account");
+                transfer_act.send(get_self(), decide_account, asset(to_workers, core_symbol()), "Transfer worker proposal share to telos.decide account");
             }
             
             if(to_producers > 0) {
