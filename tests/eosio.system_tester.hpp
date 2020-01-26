@@ -37,7 +37,7 @@ public:
       produce_blocks( 2 );
 
       create_accounts({ N(eosio.token), N(eosio.ram), N(eosio.ramfee), N(eosio.stake),
-               N(eosio.bpay), N(eosio.vpay), N(eosio.saving), N(eosio.names), N(eosio.trail), N(eosio.rex), N(exrsrv.tf), N(trailservice) });
+               N(eosio.bpay), N(eosio.vpay), N(eosio.saving), N(eosio.names), N(eosio.trail), N(eosio.rex), N(exrsrv.tf), N(telos.decide) });
 
       produce_blocks( 100 );
       set_code( N(eosio.token), contracts::token_wasm());
