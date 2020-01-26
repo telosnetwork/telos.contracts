@@ -385,6 +385,15 @@ namespace eosiosystem {
       check( !transfer || from != receiver, "cannot use transfer flag if delegating to self" );
 
       changebw( from, receiver, stake_net_quantity, stake_cpu_quantity, transfer);
+<<<<<<< HEAD
+=======
+
+      //notify telos decide of stake change
+      if (from == receiver) {
+         require_recipient("telos.decide"_n);
+      }
+
+>>>>>>> feature/telos-decide-update
    } // delegatebw
 
    void system_contract::undelegatebw( const name& from, const name& receiver,
@@ -398,6 +407,15 @@ namespace eosiosystem {
                     "cannot undelegate bandwidth until the chain is activated (1,000,000 blocks produced)" );
 
       changebw( from, receiver, -unstake_net_quantity, -unstake_cpu_quantity, false);
+<<<<<<< HEAD
+=======
+
+      //notify telos decide of stake change
+      if (from == receiver) {
+         require_recipient("telos.decide"_n);
+      }
+
+>>>>>>> feature/telos-decide-update
    } // undelegatebw
 
 
