@@ -403,16 +403,15 @@ namespace eosiosystem {
     * - `config_item_name` - configuration item name
     * - `config_item_value` - configuration value (uint64_t)
     */
-    struct [[eosio::table,eosio::contract("eosio.system")]] rex_config {
-	uint64_t   	config_id = 0;
-	std::string	config_item_name;
-	uint64_t	config_item_value = 0;
+   struct [[eosio::table,eosio::contract("eosio.system")]] rex_config {
+	   uint64_t config_id = 0;
+	   std::string config_item_name;
+	   uint64_t config_item_value = 0;
 
-	uint64_t primary_key()const { return config_id; }
+	   uint64_t primary_key()const { return config_id; }
 
-	// explicit serialization macro is not necessary, used here only to improve compilation time
-	EOSLIB_SERIALIZE( rex_config, (config_id)(config_item_name)(config_item_value) )
-    };
+      EOSLIB_SERIALIZE(rex_config, (config_id)(config_item_name)(config_item_value))
+   };
 
    /**
     * Rex configuration table
@@ -426,18 +425,15 @@ namespace eosiosystem {
     * `rex_whitelist` structure within the rex whitelisting table.
     * 
     * @details A rex whitelist table entry is defined by:
-    * - `whitelist_id` - whitelist id key
-    * - `whitelist_account_name` - configuration item name
+    * - `whitelisted_account` - whitelisted account name
     */
-    struct [[eosio::table,eosio::contract("eosio.system")]] rex_whitelist {
-	uint64_t   	whitelist_id = 0;
-	name		whitelist_account_name;
+   struct [[eosio::table,eosio::contract("eosio.system")]] rex_whitelist {
+	   name whitelisted_account;
 
-	uint64_t primary_key()const { return whitelist_id; }
-
-	// explicit serialization macro is not necessary, used here only to improve compilation time
-	EOSLIB_SERIALIZE( rex_whitelist, (whitelist_id)(whitelist_account_name) )
-    };
+	   uint64_t primary_key() const { return whitelisted_account.value; }
+   
+	   EOSLIB_SERIALIZE(rex_whitelist, (whitelisted_account))
+   };
 
    /**
     * Rex whitelist table

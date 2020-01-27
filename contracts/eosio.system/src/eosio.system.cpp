@@ -19,7 +19,7 @@ namespace eosiosystem {
     _rotation(_self, _self.value),
     _payrate(_self, _self.value),
     _payments(_self, _self.value),
-	_rexpool(_self, _self.value),
+	 _rexpool(_self, _self.value),
     _rexfunds(_self, _self.value),
     _rexbalance(_self, _self.value),
     _rexorders(_self, _self.value)
