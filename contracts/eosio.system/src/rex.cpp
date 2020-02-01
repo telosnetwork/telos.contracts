@@ -681,17 +681,20 @@ namespace eosiosystem {
       //authenticate
       require_auth(get_self());
 
-      //open rex whitelist table
-      rex_whitelist_table rex_whitelist_local(get_self(), get_self().value);
-      auto wlist_itr = rex_whitelist_local.find(allowed.value);
+      //open rex totals table
+      rex_totals_table rex_totals(get_self(), get_self().value);
+      auto tot_itr = rex_totals.find(allowed.value);
 
       //validate
-      check(wlist_itr == rex_whitelist_local.end(), "whitelist entry for that account already exists" );
       check(is_account(allowed), "allowed account doesn't exist");
 
-      //emplace new whitelist account
-      rex_whitelist_local.emplace(get_self(), [&](auto& col) {
-         col.whitelisted_account = allowed;
+      if (tot_itr != rex_totals.end()) {
+         
+      }
+
+      //emplace new rex total
+      rex_totals.emplace(get_self(), [&](auto& col) {
+         col.whitelisted = true;
       });
 
    }
@@ -733,81 +736,52 @@ namespace eosiosystem {
                                                                  payment.amount );
       check( payment.amount < rented_tokens, "loan price does not favor renting" );
 
-      //initialize
-      uint64_t configured_rex_limit = 1000;  /// Set default fractional divisor for REX limit to 0.1% in uint64.
-      
-      //open rex config table, find rex config
-      rex_config_table rex_config_local(get_self(), get_self().value);
-      auto rexc_itr = rex_config_local.find( 1 );
-      
 
-      if ( rexc_itr != rex_config_local.end() ) {
-	      configured_rex_limit = rexc_itr->config_item_value;
-      }
 
-      //open rex whitelist table, search for account
-      rex_whitelist_table rex_whitelist_local(get_self(), get_self().value);
-      auto wlist_itr = rex_whitelist_local.find(from.value);
 
-      //if from account matches a whitelisted name then allow unlimited REX loans.
-      if (wlist_itr != rex_whitelist_local.end()) {
-
-         configured_rex_limit = 1;
-
-      }
 
       //initialize
+      uint64_t configured_rex_limit = 1000; //set default fractional divisor for REX limit to 0.1% in uint64.
       uint64_t receiver_loans_total = 0; //tracks receiving account's total accumulated REX loans so far.
+      bool is_whitelisted = false;
       
-      //open rex cpu and net loan tables
-      rex_cpu_loan_table cpuloan_local(get_self(), get_self().value);
-      rex_net_loan_table netloan_local(get_self(), get_self().value);
+      //open rex config table, find rex config 1
+      rex_config_table rex_configs(get_self(), get_self().value);
+      auto rex_conf_itr = rex_configs.find( 1 );
 
-      if ( configured_rex_limit != 1 ) {
+      if (rex_conf_itr != rex_configs.end()) {
+	      configured_rex_limit = rex_conf_itr->config_item_value;
+      }
 
-         //if cpu loans exist
-         if ( cpuloan_local.begin() != cpuloan_local.end() ) {
+      //open rex totals table, search for account
+      rex_totals_table rex_totals(get_self(), get_self().value);
+      auto tot_itr = rex_totals.find(receiver.value);
 
-            //loop over each loan
-            for ( auto cpuloan_itr = cpuloan_local.begin(); cpuloan_itr != cpuloan_local.end(); cpuloan_itr++) {
-               
-               //if loan receiver is from param
-               if ( cpuloan_itr->receiver == from ) {
-                  
-                  receiver_loans_total += cpuloan_itr->total_staked.amount;
+      if (tot_itr != rex_totals.end()) {
 
-               }
-
-            }
-
-         }
-
-         //if net loans exist
-         if ( netloan_local.begin() != netloan_local.end() ) {
-
-            //loop over each loan
-            for (auto netloan_itr = netloan_local.begin(); netloan_itr != netloan_local.end(); netloan_itr++) {
-               
-               //if loan receiver is from param
-               if ( netloan_itr->receiver == from ) {
-                  
-                  receiver_loans_total += netloan_itr->total_staked.amount;
-
-               }
-
-            }
-
-         }
+         is_whitelisted = tot_itr->whitelisted;
+         receiver_loans_total += tot_itr->total_cpu_loaned;
+         receiver_loans_total += tot_itr->total_net_loaned;
 
       }
 
       //initialize
-      auto rexp_itr = _rexpool.begin();
-      const int64_t total_rex = rexp_itr->total_lendable.amount;
+      auto rex_pool_itr = _rexpool.begin();
+      const int64_t total_rex = rex_pool_itr->total_lendable.amount;
       const int64_t max_rex_limit = total_rex / configured_rex_limit;
 
       //validate
-      check( (rented_tokens + receiver_loans_total) < max_rex_limit, "loan greater than maximum rental limit" );
+      if (!is_whitelisted) {
+         check((rented_tokens + receiver_loans_total) < max_rex_limit, "loan greater than maximum rental limit");
+      }
+
+      //update rex totals
+      rex_totals.modify(*tot_itr, same_payer, [&](auto& col) {
+         col.last_claim_time = ct;
+         col.unpaid_blocks = 0;
+      });
+
+
 
       add_loan_to_rex_pool( payment, rented_tokens, true );
 
