@@ -395,57 +395,23 @@ namespace eosiosystem {
    typedef eosio::multi_index< "delband"_n, delegated_bandwidth > del_bandwidth_table;
    typedef eosio::multi_index< "refunds"_n, refund_request >      refunds_table;
 
-   /**
-    * `rex_config` structure within the rex configuration table.
-    * 
-    * @details A rex configuration table entry is defined by:
-    * - `config_id` - configuration id key
-    * - `config_item_name` - configuration item name
-    * - `config_item_value` - configuration value (uint64_t)
-    */
-    struct [[eosio::table,eosio::contract("eosio.system")]] rex_config {
-	uint64_t   	config_id = 0;
-	std::string	config_item_name;
-	uint64_t	config_item_value = 0;
+   
+   // struct [[eosio::table,eosio::contract("eosio.system")]] rex_config {
+   //    uint64_t config_id = 0;
+   //    std::string	config_item_name;
+   //    uint64_t	config_item_value = 0;
+   //    uint64_t primary_key() const { return config_id; }
+   //    EOSLIB_SERIALIZE( rex_config, (config_id)(config_item_name)(config_item_value) )
+   // };
+   // typedef eosio::multi_index<"rexconfig"_n, rex_config> rex_config_table;
 
-	uint64_t primary_key()const { return config_id; }
-
-	// explicit serialization macro is not necessary, used here only to improve compilation time
-	EOSLIB_SERIALIZE( rex_config, (config_id)(config_item_name)(config_item_value) )
-    };
-
-   /**
-    * Rex configuration table
-    *
-    * @details The rex configuration table is storing only one instance of rex_config which stores
-    * configuration items for the REX system.
-    */
-   typedef eosio::multi_index<"rexconfig"_n, rex_config> rex_config_table;
-
-   /**
-    * `rex_whitelist` structure within the rex whitelisting table.
-    * 
-    * @details A rex whitelist table entry is defined by:
-    * - `whitelist_id` - whitelist id key
-    * - `whitelist_account_name` - configuration item name
-    */
-    struct [[eosio::table,eosio::contract("eosio.system")]] rex_whitelist {
-	uint64_t   	whitelist_id = 0;
-	name		whitelist_account_name;
-
-	uint64_t primary_key()const { return whitelist_id; }
-
-	// explicit serialization macro is not necessary, used here only to improve compilation time
-	EOSLIB_SERIALIZE( rex_whitelist, (whitelist_id)(whitelist_account_name) )
-    };
-
-   /**
-    * Rex whitelist table
-    *
-    * @details The rex whitelist table is storing only one instance of rex_whitelist which stores
-    * account names whitelisted from REX resource loan limiting.
-    */
-   typedef eosio::multi_index<"rexwhitelist"_n, rex_whitelist> rex_whitelist_table;
+   // struct [[eosio::table,eosio::contract("eosio.system")]] rex_whitelist {
+   //    uint64_t whitelist_id = 0;
+   //    name whitelist_account_name;
+   //    uint64_t primary_key()const { return whitelist_id; }
+   //    EOSLIB_SERIALIZE( rex_whitelist, (whitelist_id)(whitelist_account_name) )
+   // };
+   // typedef eosio::multi_index<"rexwhitelist"_n, rex_whitelist> rex_whitelist_table;
 
    /**
     * `rex_pool` structure underlying the rex pool table.
@@ -790,35 +756,18 @@ namespace eosiosystem {
          void delegatebw( const name& from, const name& receiver,
                           const asset& stake_net_quantity, const asset& stake_cpu_quantity, bool transfer );
 
-	  /**
-          * Configure REX borrowing limit.
-          *
-          * @details Allows configuration of the REX resource borrowing limit via limit_percentage.
-          *
-          * @param limit_percentage - The borrowing limit as a floating point value.
-          */
-         [[eosio::action]]
-         void rexlimit( double limit_percentage );
 
-	  /**
-          * Add a REX limit whitelist entry.
-          *
-          * @details Adds an account name to the REX limit whitelisting table.
-          *
-          * @param name - The name of the account to be added to the whitelist.
-          */
-         [[eosio::action]]
-         void addrexwlist( const name& allowed );
+      // [[eosio::action]]
+      // void rexlimit( double limit_percentage );
 
-	  /**
-          * Remove a REX limit whitelist entry.
-          *
-          * @details Removes an account name from the REX limit whitelisting table.
-          *
-          * @param name - The name of the account to be removed from the whitelist.
-          */
-         [[eosio::action]]
-         void remrexwlist( const name& allowed );
+      // [[eosio::action]]
+      // void addrexwlist( const name& allowed );
+
+      // [[eosio::action]]
+      // void remrexwlist( const name& allowed );
+
+      // [[eosio::action]]
+      // void clearconf();
 
          /**
           * Setrex action.
