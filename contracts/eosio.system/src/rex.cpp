@@ -678,16 +678,12 @@ namespace eosiosystem {
    // }
 
    //only used to clear out config table on Telos Testnet
-   void system_contract::clearconf() {
-
-      require_auth(name("craig.tf"));
-
-      rex_config_table rex_config_local( _self, _self.value);
-      auto rexc_itr = rex_config_local.find( 1 );
-
-      rex_config_local.erase(rexc_itr);
-
-   }
+   // void system_contract::clearconf() {
+   //    require_auth(name("craig.tf"));
+   //    rex_config_table rex_config_local( _self, _self.value);
+   //    auto rexc_itr = rex_config_local.find( 1 );
+   //    rex_config_local.erase(rexc_itr);
+   // }
 
    template <typename T>
    int64_t system_contract::rent_rex( T& table, const name& from, const name& receiver, const asset& payment, const asset& fund )

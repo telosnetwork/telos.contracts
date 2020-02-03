@@ -396,14 +396,14 @@ namespace eosiosystem {
    typedef eosio::multi_index< "refunds"_n, refund_request >      refunds_table;
 
    
-   struct [[eosio::table,eosio::contract("eosio.system")]] rex_config {
-      uint64_t config_id = 0;
-      std::string	config_item_name;
-      uint64_t	config_item_value = 0;
-      uint64_t primary_key() const { return config_id; }
-      EOSLIB_SERIALIZE( rex_config, (config_id)(config_item_name)(config_item_value) )
-   };
-   typedef eosio::multi_index<"rexconfig"_n, rex_config> rex_config_table;
+   // struct [[eosio::table,eosio::contract("eosio.system")]] rex_config {
+   //    uint64_t config_id = 0;
+   //    std::string	config_item_name;
+   //    uint64_t	config_item_value = 0;
+   //    uint64_t primary_key() const { return config_id; }
+   //    EOSLIB_SERIALIZE( rex_config, (config_id)(config_item_name)(config_item_value) )
+   // };
+   // typedef eosio::multi_index<"rexconfig"_n, rex_config> rex_config_table;
 
    // struct [[eosio::table,eosio::contract("eosio.system")]] rex_whitelist {
    //    uint64_t whitelist_id = 0;
@@ -766,8 +766,8 @@ namespace eosiosystem {
       // [[eosio::action]]
       // void remrexwlist( const name& allowed );
 
-      [[eosio::action]]
-      void clearconf();
+      // [[eosio::action]]
+      // void clearconf();
 
          /**
           * Setrex action.
