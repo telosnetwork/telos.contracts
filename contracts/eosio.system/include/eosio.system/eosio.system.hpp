@@ -395,58 +395,45 @@ namespace eosiosystem {
    typedef eosio::multi_index< "delband"_n, delegated_bandwidth > del_bandwidth_table;
    typedef eosio::multi_index< "refunds"_n, refund_request >      refunds_table;
 
-   /**
-    * `rex_config` structure within the rex configuration table.
-    * 
-    * @details A rex configuration table entry is defined by:
-    * - `config_id` - configuration id key
-    * - `config_item_name` - configuration item name
-    * - `config_item_value` - configuration value (uint64_t)
-    */
-    struct [[eosio::table,eosio::contract("eosio.system")]] rex_config {
-	uint64_t   	config_id = 0;
-	std::string	config_item_name;
-	uint64_t	config_item_value = 0;
 
-	uint64_t primary_key()const { return config_id; }
+   //rex config table
+   //scope: get_self()
+   struct [[eosio::table,eosio::contract("eosio.system")]] rex_config {
+	   uint64_t config_id = 0;
+	   std::string config_item_name;
+	   uint64_t config_item_value = 0;
 
-	// explicit serialization macro is not necessary, used here only to improve compilation time
-	EOSLIB_SERIALIZE( rex_config, (config_id)(config_item_name)(config_item_value) )
-    };
+	   uint64_t primary_key()const { return config_id; }
 
-   /**
-    * Rex configuration table
-    *
-    * @details The rex configuration table is storing only one instance of rex_config which stores
-    * configuration items for the REX system.
-    */
+      EOSLIB_SERIALIZE(rex_config, (config_id)(config_item_name)(config_item_value))
+   };
    typedef eosio::multi_index<"rexconfig"_n, rex_config> rex_config_table;
 
-   /**
-    * `rex_whitelist` structure within the rex whitelisting table.
-    * 
-    * @details A rex whitelist table entry is defined by:
-    * - `whitelist_id` - whitelist id key
-    * - `whitelist_account_name` - configuration item name
-    */
-    struct [[eosio::table,eosio::contract("eosio.system")]] rex_whitelist {
-	uint64_t   	whitelist_id = 0;
-	name		whitelist_account_name;
+   //rex whitelist table
+   //scope: get_self()
+   // struct [[eosio::table,eosio::contract("eosio.system")]] rex_whitelist {
+	//    name whitelisted_account;
+	//    uint64_t primary_key() const { return whitelisted_account.value; }
+	//    EOSLIB_SERIALIZE(rex_whitelist, (whitelisted_account))
+   // };
+   // typedef eosio::multi_index<"rexwhitelist"_n, rex_whitelist> rex_whitelist_table;
 
-	uint64_t primary_key()const { return whitelist_id; }
+   //rex limit table
+   //scope: get_self()
+   struct [[eosio::table, eosio::contract("eosio.system")]] rex_total {
+      name loan_receiver;
+      asset total_cpu_loaned;
+      asset total_net_loaned;
+      bool whitelisted;
+      time_point_sec last_update;
 
-	// explicit serialization macro is not necessary, used here only to improve compilation time
-	EOSLIB_SERIALIZE( rex_whitelist, (whitelist_id)(whitelist_account_name) )
-    };
+      uint64_t primary_key() const { return loan_receiver.value; }
 
-   /**
-    * Rex whitelist table
-    *
-    * @details The rex whitelist table is storing only one instance of rex_whitelist which stores
-    * account names whitelisted from REX resource loan limiting.
-    */
-   typedef eosio::multi_index<"rexwhitelist"_n, rex_whitelist> rex_whitelist_table;
+      EOSLIB_SERIALIZE(rex_total, (loan_receiver)(total_cpu_loaned)(total_net_loaned)(whitelisted)(last_update))
+   };
+   typedef multi_index<name("rextotals"), rex_total> rex_totals_table;
 
+   
    /**
     * `rex_pool` structure underlying the rex pool table.
     *

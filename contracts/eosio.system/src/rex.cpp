@@ -623,30 +623,52 @@ namespace eosiosystem {
     */
    void system_contract::rexlimit( double limit ) {
       
+      //authenticate
       require_auth(get_self());
+
+      //validate
       check( limit >= 0 && limit <= 100, "percentage value needs to be between 0 and 100. Use 0 to clear the configuration table." );   
+      
+      //initialize
       uint64_t calculated_value = 0;
       std::string config_name_local = "REX Borrowing Limit";
+
+      //calculate
       calculated_value = ((1 / limit) * 100);
 
-      rex_config_table rex_config_local( _self, _self.value);
+      //open rexconfig table
+      rex_config_table rex_config_local(get_self(), get_self().value);
 
       if ( rex_config_local.begin() == rex_config_local.end() ) {
+
+         //validate
          check( limit != 0, "configuration table is already empty!" );
-         rex_config_local.emplace( _self, [&]( auto& r ) {
-            r.config_id    	   = 1;
-            r.config_item_name     = config_name_local;
-            r.config_item_value	   = calculated_value;
+
+         //emplace new config
+         rex_config_local.emplace( _self, [&](auto& col) {
+            col.config_id = 1;
+            col.config_item_name = config_name_local;
+            col.config_item_value = calculated_value;
          });
+
          return;
+
       }
+
+      //clear limit
       if ( limit == 0 ) {
+
          rex_config_local.erase( rex_config_local.begin() );
-	 return;
+
+	      return;
+
       }
-      rex_config_local.modify( rex_config_local.find(1), _self, [&]( auto& r ) {
-         r.config_item_value	= calculated_value;
+
+      //modify value
+      rex_config_local.modify( rex_config_local.find(1), _self, [&](auto& col) {
+         col.config_item_value = calculated_value;
       });
+
    }
 
    /**
@@ -656,17 +678,25 @@ namespace eosiosystem {
     */
    void system_contract::addrexwlist( const name& allowed ) {
 
+      //authenticate
       require_auth(get_self());
-      rex_whitelist_table rex_whitelist_local( _self, _self.value);
-      if ( rex_whitelist_local.begin() != rex_whitelist_local.end() ) {
-         for ( auto rexwl_itr = rex_whitelist_local.begin(); rexwl_itr != rex_whitelist_local.end(); rexwl_itr++) {
-            check( rexwl_itr->whitelist_account_name != allowed, "whitelist entry for that account already exists" );
-         }
+
+      //open rex totals table
+      rex_totals_table rex_totals(get_self(), get_self().value);
+      auto tot_itr = rex_totals.find(allowed.value);
+
+      //validate
+      check(is_account(allowed), "allowed account doesn't exist");
+
+      if (tot_itr != rex_totals.end()) {
+         
       }
-      rex_whitelist_local.emplace( _self, [&]( auto& r ) {
-         r.whitelist_id = rex_whitelist_local.available_primary_key();
-         r.whitelist_account_name = allowed;
+
+      //emplace new rex total
+      rex_totals.emplace(get_self(), [&](auto& col) {
+         col.whitelisted = true;
       });
+
    }
 
    /**
@@ -676,26 +706,16 @@ namespace eosiosystem {
     */
    void system_contract::remrexwlist( const name& allowed ) {
 
+      //authenticate
       require_auth(get_self());
-      rex_whitelist_table rex_whitelist_local( _self, _self.value);
-      check ( rex_whitelist_local.begin() != rex_whitelist_local.end(), "whitelist table is empty" );
-      bool check_flag = 0;
-      for ( auto rexwl_itr = rex_whitelist_local.begin(); rexwl_itr != rex_whitelist_local.end(); rexwl_itr++) {
-         if ( rexwl_itr->whitelist_account_name == allowed ) {
-	    check_flag = 1;
-	 }
-      }
-      check( check_flag == 1, "whitelist entry for that account does not exist" );
 
-      auto rexwl_itr = rex_whitelist_local.begin();
-      while ( rexwl_itr != rex_whitelist_local.end() ) {
-	 if ( rexwl_itr->whitelist_account_name != allowed ) {
-	    rexwl_itr++;
-	 }
-	 if ( rexwl_itr->whitelist_account_name == allowed ) {
-            rexwl_itr = rex_whitelist_local.erase( rexwl_itr );
-         }
-      }
+      //open rex whitelist table
+      rex_whitelist_table rex_whitelist_local(get_self(), get_self().value);
+      auto& wlist_acct = rex_whitelist_local.get(allowed.value, "whitelisted account not found");
+
+      //erase whitelisted account
+      rex_whitelist_local.erase(wlist_acct);
+
    }
 
    template <typename T>
@@ -716,49 +736,52 @@ namespace eosiosystem {
                                                                  payment.amount );
       check( payment.amount < rented_tokens, "loan price does not favor renting" );
 
-      uint64_t configured_rex_limit = 1000;  /// Set default fractional divisor for REX limit to 0.1% in uint64.
-      rex_config_table rex_config_local( _self, _self.value);
-      auto rexc_itr = rex_config_local.find( 1 );
-      if ( rexc_itr != rex_config_local.end() ) {
-	 configured_rex_limit = rexc_itr->config_item_value;
+
+
+
+
+      //initialize
+      uint64_t configured_rex_limit = 1000; //set default fractional divisor for REX limit to 0.1% in uint64.
+      uint64_t receiver_loans_total = 0; //tracks receiving account's total accumulated REX loans so far.
+      bool is_whitelisted = false;
+      
+      //open rex config table, find rex config 1
+      rex_config_table rex_configs(get_self(), get_self().value);
+      auto rex_conf_itr = rex_configs.find( 1 );
+
+      if (rex_conf_itr != rex_configs.end()) {
+	      configured_rex_limit = rex_conf_itr->config_item_value;
       }
 
-      rex_whitelist_table rex_whitelist_local( _self, _self.value);
-      if ( rex_whitelist_local.begin() != rex_whitelist_local.end() ) {
-	 for ( auto rexwl_itr = rex_whitelist_local.begin(); rexwl_itr != rex_whitelist_local.end(); rexwl_itr++) {
-	    if ( rexwl_itr->whitelist_account_name == from ) {
-	       configured_rex_limit = 1; /// If from account matches a whitelisted name then allow unlimited REX loans.
-	    }
-	 }
+      //open rex totals table, search for account
+      rex_totals_table rex_totals(get_self(), get_self().value);
+      auto tot_itr = rex_totals.find(receiver.value);
+
+      if (tot_itr != rex_totals.end()) {
+
+         is_whitelisted = tot_itr->whitelisted;
+         receiver_loans_total += tot_itr->total_cpu_loaned;
+         receiver_loans_total += tot_itr->total_net_loaned;
+
       }
 
-      uint64_t receiver_loans_total = 0;  /// Set variable to track receiving account's total accumulated REX loans so far.
-      rex_cpu_loan_table cpuloan_local( _self, _self.value);
-      rex_net_loan_table netloan_local( _self, _self.value);
-
-      if ( configured_rex_limit != 1 ) {
-         if ( cpuloan_local.begin() != cpuloan_local.end() ) {
-            for ( auto cpuloan_itr = cpuloan_local.begin(); cpuloan_itr != cpuloan_local.end(); cpuloan_itr++) {
-               if ( cpuloan_itr->receiver == from ) {
-                  receiver_loans_total += cpuloan_itr->total_staked.amount;
-               }
-            }
-         }
-      }
-      if ( configured_rex_limit != 1 ) {
-         if ( netloan_local.begin() != netloan_local.end() ) {
-            for ( auto netloan_itr = netloan_local.begin(); netloan_itr != netloan_local.end(); netloan_itr++) {
-               if ( netloan_itr->receiver == from ) {
-                   receiver_loans_total += netloan_itr->total_staked.amount;
-               }
-            }
-         }
-      }
-
-      auto rexp_itr = _rexpool.begin();
-      const int64_t total_rex = rexp_itr->total_lendable.amount;
+      //initialize
+      auto rex_pool_itr = _rexpool.begin();
+      const int64_t total_rex = rex_pool_itr->total_lendable.amount;
       const int64_t max_rex_limit = total_rex / configured_rex_limit;
-      check ( ( rented_tokens + receiver_loans_total ) < max_rex_limit, "loan greater than maximum rental limit" );
+
+      //validate
+      if (!is_whitelisted) {
+         check((rented_tokens + receiver_loans_total) < max_rex_limit, "loan greater than maximum rental limit");
+      }
+
+      //update rex totals
+      rex_totals.modify(*tot_itr, same_payer, [&](auto& col) {
+         col.last_claim_time = ct;
+         col.unpaid_blocks = 0;
+      });
+
+
 
       add_loan_to_rex_pool( payment, rented_tokens, true );
 
@@ -775,6 +798,7 @@ namespace eosiosystem {
       rex_results::rentresult_action rentresult_act{ rex_account, std::vector<eosio::permission_level>{ } };
       rentresult_act.send( asset{ rented_tokens, core_symbol() } );
       return rented_tokens;
+
    }
 
    /**
