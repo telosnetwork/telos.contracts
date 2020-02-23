@@ -399,38 +399,30 @@ namespace eosiosystem {
    //rex config table
    //scope: get_self()
    struct [[eosio::table,eosio::contract("eosio.system")]] rex_config {
-	   uint64_t config_id = 0;
 	   std::string config_item_name;
 	   uint64_t config_item_value = 0;
 
-	   uint64_t primary_key()const { return config_id; }
+	   uint64_t primary_key() const { return primary_key; }
 
       EOSLIB_SERIALIZE(rex_config, (config_id)(config_item_name)(config_item_value))
    };
+
    typedef eosio::multi_index<"rexconfig"_n, rex_config> rex_config_table;
 
-   //rex whitelist table
-   //scope: get_self()
-   // struct [[eosio::table,eosio::contract("eosio.system")]] rex_whitelist {
-	//    name whitelisted_account;
-	//    uint64_t primary_key() const { return whitelisted_account.value; }
-	//    EOSLIB_SERIALIZE(rex_whitelist, (whitelisted_account))
-   // };
-   // typedef eosio::multi_index<"rexwhitelist"_n, rex_whitelist> rex_whitelist_table;
 
    //rex limit table
    //scope: get_self()
    struct [[eosio::table, eosio::contract("eosio.system")]] rex_total {
       name loan_receiver;
-      asset total_cpu_loaned;
-      asset total_net_loaned;
+      asset total_loaned;
       bool whitelisted;
       time_point_sec last_update;
 
       uint64_t primary_key() const { return loan_receiver.value; }
 
-      EOSLIB_SERIALIZE(rex_total, (loan_receiver)(total_cpu_loaned)(total_net_loaned)(whitelisted)(last_update))
+      EOSLIB_SERIALIZE(rex_total, (loan_receiver)(total_loaned)(whitelisted)(last_update))
    };
+
    typedef multi_index<name("rextotals"), rex_total> rex_totals_table;
 
    

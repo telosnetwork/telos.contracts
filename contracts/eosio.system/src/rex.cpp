@@ -556,6 +556,11 @@ namespace eosiosystem {
       /// process cpu loans
       {
          rex_cpu_loan_table cpu_loans( get_self(), get_self().value );
+
+
+
+
+
          auto cpu_idx = cpu_loans.get_index<"byexpr"_n>();
          for ( uint16_t i = 0; i < max; ++i ) {
             auto itr = cpu_idx.begin();
@@ -646,13 +651,11 @@ namespace eosiosystem {
 
          //emplace new config
          rex_config_local.emplace( _self, [&](auto& col) {
-            col.config_id = 1;
             col.config_item_name = config_name_local;
             col.config_item_value = calculated_value;
          });
 
          return;
-
       }
 
       //clear limit
@@ -660,15 +663,13 @@ namespace eosiosystem {
 
          rex_config_local.erase( rex_config_local.begin() );
 
-	      return;
-
+	 return;
       }
 
       //modify value
       rex_config_local.modify( rex_config_local.find(1), _self, [&](auto& col) {
          col.config_item_value = calculated_value;
       });
-
    }
 
    /**
@@ -688,15 +689,21 @@ namespace eosiosystem {
       //validate
       check(is_account(allowed), "allowed account doesn't exist");
 
+      //modify value
       if (tot_itr != rex_totals.end()) {
-         
+	 rex_totals.modify(tot_itr, get_self(), [&](auto& col) {
+	    col.whitelisted = true;
+	 });
+	
+         return;
       }
 
-      //emplace new rex total
+      //or emplace new rex total
       rex_totals.emplace(get_self(), [&](auto& col) {
+	 col.loan_receiver = allowed;
          col.whitelisted = true;
+	 col.last_update = ct;
       });
-
    }
 
    /**
@@ -709,13 +716,15 @@ namespace eosiosystem {
       //authenticate
       require_auth(get_self());
 
-      //open rex whitelist table
-      rex_whitelist_table rex_whitelist_local(get_self(), get_self().value);
-      auto& wlist_acct = rex_whitelist_local.get(allowed.value, "whitelisted account not found");
+      //open rex totals table
+      rex_totals_table rex_totals(get_self(), get_self().value);
+      auto& wlist_acct = rex_totals.get(allowed.value, "whitelisted account not found");
 
-      //erase whitelisted account
-      rex_whitelist_local.erase(wlist_acct);
-
+      //remove whitelist flag from account
+      rex_totals.modify( rex_totals.find(allowed.value), get_self(), [&](auto& col) {
+         col.whitelisted = false;
+         col.last_claim_time = ct;
+      });
    }
 
    template <typename T>
@@ -735,9 +744,6 @@ namespace eosiosystem {
                                                                  pool->total_unlent.amount,
                                                                  payment.amount );
       check( payment.amount < rented_tokens, "loan price does not favor renting" );
-
-
-
 
 
       //initialize
@@ -760,9 +766,7 @@ namespace eosiosystem {
       if (tot_itr != rex_totals.end()) {
 
          is_whitelisted = tot_itr->whitelisted;
-         receiver_loans_total += tot_itr->total_cpu_loaned;
-         receiver_loans_total += tot_itr->total_net_loaned;
-
+         receiver_loans_total = tot_itr->total_loaned;
       }
 
       //initialize
@@ -773,15 +777,26 @@ namespace eosiosystem {
       //validate
       if (!is_whitelisted) {
          check((rented_tokens + receiver_loans_total) < max_rex_limit, "loan greater than maximum rental limit");
+
+	 // if no previous entry, emplace new total
+	 if (tot_itr == rex_totals.end()) {
+	    rex_totals.emplace( get_self(), [&](auto& col) {
+	       col.loan_receiver = receiver;
+	       col.total_loaned = asset ( rented_tokens, payment.symbol );
+	       col.whitelisted = false;
+	       col.last_update = ct;
+	    });
+	 }
       }
 
-      //update rex totals
-      rex_totals.modify(*tot_itr, same_payer, [&](auto& col) {
-         col.last_claim_time = ct;
-         col.unpaid_blocks = 0;
-      });
-
-
+      if ( tot_itr != rex_totals.end() ) {
+	 
+	 // update existing total
+         rex_totals.modify(*tot_itr, same_payer, [&](auto& col) {
+	    col.total_loaned.value += rented_tokens;
+            col.last_claim_time = ct;
+         });
+      }
 
       add_loan_to_rex_pool( payment, rented_tokens, true );
 
