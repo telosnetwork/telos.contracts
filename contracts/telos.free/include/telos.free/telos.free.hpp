@@ -67,7 +67,7 @@ public:
       void removewlist(name account_name);
 
       [[eosio::action]]
-      void erasewlist();
+      void erasewlist(name account);
 
       struct [[eosio::table("config")]] freeacctcfg {
             name publisher;
