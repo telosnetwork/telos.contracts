@@ -34,7 +34,7 @@ freeaccounts::freeaccounts(name self, name code, datastream<const char *> ds) : 
 
 freeaccounts::~freeaccounts() {}
 
-void freeaccounts::create(name account_creator, name account_name, string owner_key, string active_key, string key_prefix)
+void freeaccounts::create(name account_creator, name account_name, public_key owner_pubkey, public_key active_pubkey, string key_prefix)
 {
     require_auth(account_creator);
     auto config = getconfig();
@@ -67,9 +67,9 @@ void freeaccounts::create(name account_creator, name account_name, string owner_
         check(accounts_created < config.max_accounts_per_hour, "You have exceeded the maximum number of accounts per hour");
     }
 
-    name create_authority = account_creator.suffix() ? account_creator : get_self();
-    signup_public_key owner_pubkey = getpublickey(owner_key, key_prefix);
-    signup_public_key active_pubkey = getpublickey(active_key, key_prefix);
+    // if the suffix is the account name, then it's not namespaced name, we need to use the authority 
+    // of the creator to pass the suffix check in eosio::newaccount
+    name newaccount_creator = account_name.suffix() == account_name ? get_self() : account_creator;
 
     key_weight owner_pubkey_weight = {
         .key = owner_pubkey,
@@ -90,7 +90,7 @@ void freeaccounts::create(name account_creator, name account_name, string owner_
         .accounts = {},
         .waits = {}};
     newaccount new_account = newaccount{
-        .creator = _self,
+        .creator = newaccount_creator,
         .name = account_name,
         .owner = owner,
         .active = active};
@@ -107,7 +107,7 @@ void freeaccounts::create(name account_creator, name account_name, string owner_
 
     action(
         permission_level{
-            create_authority,
+            newaccount_creator,
             "active"_n,
         },
         "eosio"_n,
@@ -185,29 +185,4 @@ void freeaccounts::configure(int16_t max_accounts_per_hour, int64_t stake_cpu_tl
 freeaccounts::freeacctcfg freeaccounts::getconfig()
 {
     return configuration.get_or_create(_self, freeacctcfg{});
-}
-
-freeaccounts::signup_public_key freeaccounts::getpublickey(string public_key, string key_prefix)
-{
-    auto result = mismatch(key_prefix.begin(), key_prefix.end(), public_key.begin());
-    check(result.first == key_prefix.end(), "Public key prefix doesn't match key supplied");
-    auto base58substr = public_key.substr(key_prefix.length());
-
-    vector<unsigned char> vch;
-    check(decode_base58(base58substr, vch), "Decoding public key failed");
-    check(vch.size() == 37, "Invalid public key");
-
-    array<unsigned char, 33> key_data;
-    copy_n(vch.begin(), 33, key_data.begin());
-
-    checksum160 check_pubkey;
-    assert_ripemd160(reinterpret_cast<char *>(key_data.data()), 33, check_pubkey);
-    // check(memcmp(&check_pubkey.hash, &vch.end()[-4], 4) == 0, "Invalid Owner key");
-
-    freeaccounts::signup_public_key pubkey = {
-        .type = 0,
-        .data = key_data,
-    };
-
-    return pubkey;
 }
