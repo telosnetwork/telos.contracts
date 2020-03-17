@@ -57,6 +57,8 @@ public:
 
       [[eosio::action]] void create(name account_creator, name account_name, public_key owner_key, public_key active_key, string key_prefix);
 
+      [[eosio::action]] void createby(name account_creator, name account_name, public_key owner_key, public_key active_key);
+
       [[eosio::action]] void configure(int16_t max_accounts_per_hour, int64_t stake_cpu_tlos_amount, int64_t stake_net_tlos_amount);
 
       [[eosio::action]] void addwhitelist(name account_name, uint32_t total_accounts, uint32_t max_accounts);
@@ -132,4 +134,6 @@ protected:
       static constexpr symbol TLOS_symbol = symbol(symbol_code("TLOS"), 4);
 
       freeacctcfg getconfig();
+
+      void createpriv(name account_creator, name account_name, public_key owner_pubkey, public_key active_pubkey, bool auth_creator);
 };

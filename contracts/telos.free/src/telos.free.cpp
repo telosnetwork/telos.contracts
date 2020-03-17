@@ -34,7 +34,19 @@ freeaccounts::freeaccounts(name self, name code, datastream<const char *> ds) : 
 
 freeaccounts::~freeaccounts() {}
 
+void freeaccounts::createby(name account_creator, name account_name, public_key owner_pubkey, public_key active_pubkey)
+{
+    createpriv(account_creator, account_name, owner_pubkey, active_pubkey, true);
+}
+
 void freeaccounts::create(name account_creator, name account_name, public_key owner_pubkey, public_key active_pubkey, string key_prefix)
+{
+    // if the suffix is the account name, then it's not a namespaced name, we need to use the authority
+    // of the creator to pass the suffix check in eosio::newaccount
+    createpriv(account_creator, account_name, owner_pubkey, active_pubkey, account_name.suffix() == account_name);
+}
+
+void freeaccounts::createpriv(name account_creator, name account_name, public_key owner_pubkey, public_key active_pubkey, bool auth_creator)
 {
     require_auth(account_creator);
     auto config = getconfig();
@@ -67,9 +79,7 @@ void freeaccounts::create(name account_creator, name account_name, public_key ow
         check(accounts_created < config.max_accounts_per_hour, "You have exceeded the maximum number of accounts per hour");
     }
 
-    // if the suffix is the account name, then it's not namespaced name, we need to use the authority 
-    // of the creator to pass the suffix check in eosio::newaccount
-    name newaccount_creator = account_name.suffix() == account_name ? get_self() : account_creator;
+    name newaccount_creator = auth_creator ? account_creator : get_self();
 
     key_weight owner_pubkey_weight = {
         .key = owner_pubkey,
