@@ -172,6 +172,8 @@ void freeaccounts::removewlist(name account_name)
 
 void freeaccounts::erasewlist(name account)
 {
+    require_auth(_self);
+
     auto w = whitelisttable.find(account.value);
     check(w != whitelisttable.end(), "Account does not exist in the old whitelist");
 
