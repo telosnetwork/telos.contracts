@@ -41,11 +41,13 @@ void freeaccounts::createby(name account_creator, name account_name, public_key 
 
 void freeaccounts::create(name account_creator, name account_name, public_key owner_pubkey, public_key active_pubkey, string key_prefix)
 {
-    // if the suffix is the account name, then it's not a namespaced name, we need to use the authority
-    // of the creator to pass the suffix check in eosio::newaccount
-    createpriv(account_creator, account_name, owner_pubkey, active_pubkey, account_name.suffix() == account_name);
+    createpriv(account_creator, account_name, owner_pubkey, active_pubkey, false);
 }
 
+// auth_creator tells us if we should use the authority of account_creator or if we should use get_self()...
+// if true, then account_creator must have given get_self()@eosio.code permission to call eosio::newaccount and
+// this is required for premium/short names to use this contract to create namespaced accounts.  It also allows explorers to 
+// show account_creator as the creator as opposed to the historical pattern of all accounts showing as created by get_self()
 void freeaccounts::createpriv(name account_creator, name account_name, public_key owner_pubkey, public_key active_pubkey, bool auth_creator)
 {
     require_auth(account_creator);
