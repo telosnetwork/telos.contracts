@@ -7,6 +7,7 @@ There are four actions allowed in this contract:
 * `addwhitelist( name account_name )`
 * `removewlist( name account_name )`
 * `create( name account_creator, name account_name, string owner_key, string active_key, string key_prefix )`
+* `createby( name account_creator, name account_name, string owner_key, string active_key )`
 
 ## Configuring Account Creation Limits
 To minimize the creation of spam accounts on the Telos Network, the `configure` action accepts a `max_accounts_per_hour` value to limit the number of free accounts that can be created every 60 minutes. This defaults to 50 accounts. It also allows you to specified the amount of TLOS to delegate to new accounts for CPU and NET via `stake_cpu_tlos_amount` and `stake_net_tlos_amount`, respectively. These default to `0.90 TLOS` for CPU and `0.10 TLOS` for NET. Please note that these values must be in the correct format (e.g. 10000 = 1.000 TLOS, 1000 = 0.1000 TLOS, 100 = 0.0100 TLOS, etc)
@@ -29,6 +30,8 @@ The `create` action requires four (4) parameters before an account can be succes
 `active_key` - this is the active public key used to associate with the account
 
 `key_prefix` - this is the prefix for the owner and active public keys. Set to 'EOS' for chains using EOS public key prefixes
+
+The `createby` action is the same as the `create` action only does not require the `key_prefix` parameter and it will record the new account as created by the `account_creator`.  This requires the `account_creator@active` permission (or a permission linked to `eosio::newaccount`) to be granted to `free.tf@eosio.code`.
 
 ## How It Works
 Once the smart contract has been configured with `max_accounts_per_hour`, `stake_cpu_tlos_amount`, and `stake_net_tlos_amount` values, calls to the `create` action performs the following steps:
