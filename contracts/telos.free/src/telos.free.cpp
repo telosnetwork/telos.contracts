@@ -167,7 +167,7 @@ void freeaccounts::makeacct(name account_creator, name account_name, bool auth_c
             permission_level{_self, "active"_n},
             "eosio"_n,
             "delegatebw"_n,
-            make_tuple(_self, account_name, stake_net, stake_cpu, false))
+            make_tuple(_self, account_name, net, cpu, false))
             .send();
     }
 
@@ -233,6 +233,9 @@ void freeaccounts::setconflist(name account_name, uint32_t total_accounts, uint3
             list.account_name = account_name;
             list.total_accounts = total_accounts;
             list.max_accounts = max_accounts;
+            list.stake_cpu_tlos_amount = stake_cpu_tlos_amount;
+            list.stake_net_tlos_amount = stake_net_tlos_amount;
+            list.ram_bytes = ram_bytes;
         });
     }
 }
