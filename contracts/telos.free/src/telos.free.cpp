@@ -167,7 +167,7 @@ void freeaccounts::makeacct(name account_creator, name account_name, bool auth_c
             permission_level{_self, "active"_n},
             "eosio"_n,
             "delegatebw"_n,
-            make_tuple(_self, account_name, net, cpu, false))
+            make_tuple(_self, account_name, stake_net, stake_cpu, false))
             .send();
     }
 
