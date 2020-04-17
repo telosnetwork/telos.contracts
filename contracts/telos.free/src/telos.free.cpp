@@ -13,8 +13,7 @@ freeaccounts::freeaccounts(name self, name code, datastream<const char *> ds) : 
                                                                                 configuration(self, self.value),
                                                                                 freeacctslogtable(self, self.value),
                                                                                 whitelistedtable(self, self.value),
-                                                                                conflistedtable(self, self.value),
-                                                                                rammarkettable(system_account, system_account.value)
+                                                                                conflistedtable(self, self.value)
 {
     if (!configuration.exists())
     {
@@ -135,12 +134,6 @@ void freeaccounts::makeacct(name account_creator, name account_name, bool auth_c
         .owner = owner,
         .active = active};
 
-    // dynamically discover ram pricing
-    auto itr = rammarkettable.find(RAMCORE_symbol.raw());
-    auto tmp = *itr;
-    asset ram_price = tmp.convert(asset(ram_bytes, RAM_symbol), TLOS_symbol);
-    ram_price.amount = (ram_price.amount * 200 + 199) / 199; // add ram fee
-
     asset stake_net(net, TLOS_symbol);
     asset stake_cpu(cpu, TLOS_symbol);
 
@@ -157,8 +150,8 @@ void freeaccounts::makeacct(name account_creator, name account_name, bool auth_c
     action(
         permission_level{_self, "active"_n},
         "eosio"_n,
-        "buyram"_n,
-        make_tuple(_self, account_name, ram_price))
+        "buyrambytes"_n,
+        make_tuple(_self, account_name, ram_bytes))
         .send();
 
     if (net > 0 || cpu > 0)

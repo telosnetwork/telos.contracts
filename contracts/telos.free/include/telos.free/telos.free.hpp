@@ -14,7 +14,6 @@
 #include <eosio/permission.hpp>
 #include <eosio/singleton.hpp>
 #include <eosio/transaction.hpp>
-#include "exchange_state.hpp"
 
 #include <string>
 
@@ -136,10 +135,6 @@ protected:
       t_whitelisted whitelistedtable;
       t_conflisted conflistedtable;
 
-      rammarket rammarkettable;
-      static constexpr eosio::name system_account{"eosio"_n};
-      static constexpr symbol RAMCORE_symbol = symbol(symbol_code("RAMCORE"), 4);
-      static constexpr symbol RAM_symbol = symbol(symbol_code("RAM"), 0);
       static constexpr symbol TLOS_symbol = symbol(symbol_code("TLOS"), 4);
 
       freeacctcfg getconfig();
