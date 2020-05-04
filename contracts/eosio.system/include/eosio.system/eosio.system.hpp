@@ -395,6 +395,24 @@ namespace eosiosystem {
    typedef eosio::multi_index< "delband"_n, delegated_bandwidth > del_bandwidth_table;
    typedef eosio::multi_index< "refunds"_n, refund_request >      refunds_table;
 
+   
+   // struct [[eosio::table,eosio::contract("eosio.system")]] rex_config {
+   //    uint64_t config_id = 0;
+   //    std::string	config_item_name;
+   //    uint64_t	config_item_value = 0;
+   //    uint64_t primary_key() const { return config_id; }
+   //    EOSLIB_SERIALIZE( rex_config, (config_id)(config_item_name)(config_item_value) )
+   // };
+   // typedef eosio::multi_index<"rexconfig"_n, rex_config> rex_config_table;
+
+   // struct [[eosio::table,eosio::contract("eosio.system")]] rex_whitelist {
+   //    uint64_t whitelist_id = 0;
+   //    name whitelist_account_name;
+   //    uint64_t primary_key()const { return whitelist_id; }
+   //    EOSLIB_SERIALIZE( rex_whitelist, (whitelist_id)(whitelist_account_name) )
+   // };
+   // typedef eosio::multi_index<"rexwhitelist"_n, rex_whitelist> rex_whitelist_table;
+
    /**
     * `rex_pool` structure underlying the rex pool table.
     *
@@ -596,6 +614,12 @@ namespace eosiosystem {
          static constexpr eosio::name saving_account{"eosio.saving"_n};
          static constexpr eosio::name rex_account{"eosio.rex"_n};
          static constexpr eosio::name null_account{"eosio.null"_n};
+
+         //telos accounts
+         static constexpr eosio::name decide_account{"telos.decide"_n};
+         static constexpr eosio::name works_account{"works.decide"_n};
+         static constexpr eosio::name amend_account{"amend.decide"_n};
+
          static constexpr symbol ramcore_symbol = symbol(symbol_code("RAMCORE"), 4);
          static constexpr symbol ram_symbol     = symbol(symbol_code("RAM"), 0);
          static constexpr symbol rex_symbol     = symbol(symbol_code("REX"), 4);
@@ -731,6 +755,19 @@ namespace eosiosystem {
          [[eosio::action]]
          void delegatebw( const name& from, const name& receiver,
                           const asset& stake_net_quantity, const asset& stake_cpu_quantity, bool transfer );
+
+
+      // [[eosio::action]]
+      // void rexlimit( double limit_percentage );
+
+      // [[eosio::action]]
+      // void addrexwlist( const name& allowed );
+
+      // [[eosio::action]]
+      // void remrexwlist( const name& allowed );
+
+      // [[eosio::action]]
+      // void clearconf();
 
          /**
           * Setrex action.

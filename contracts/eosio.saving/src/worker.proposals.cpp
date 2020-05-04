@@ -61,7 +61,10 @@ void workerproposal::getdeposit(name owner) {
 }
 
 void workerproposal::submit(name proposer, std::string title, uint16_t cycles, std::string ipfs_location, asset amount, name receiver) {
-    require_auth(proposer);
+    
+	check(false, "Trail has been deprecated. Please submit proposals to Telos Works instead.");
+	
+	require_auth(proposer);
 	
 	print("\nCalculating fee");
 	uint64_t fee_amount = uint64_t(amount.amount) * uint64_t( wp_env_struct.fee_percentage ) / uint64_t(100);
