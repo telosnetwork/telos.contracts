@@ -180,7 +180,6 @@ void freeaccounts::setwhitelist(name account_name, uint32_t total_accounts, uint
     if (w != whitelistedtable.end())
     {
         whitelistedtable.modify(w, same_payer, [&](auto &list) {
-            list.total_accounts = total_accounts;
             list.max_accounts = max_accounts;
         });
     }
@@ -213,7 +212,6 @@ void freeaccounts::setconflist(name account_name, uint32_t total_accounts, uint3
     if (w != conflistedtable.end())
     {
         conflistedtable.modify(w, same_payer, [&](auto &list) {
-            list.total_accounts = total_accounts;
             list.max_accounts = max_accounts;
             list.stake_cpu_tlos_amount = stake_cpu_tlos_amount;
             list.stake_net_tlos_amount = stake_net_tlos_amount;
