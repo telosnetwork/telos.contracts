@@ -12,9 +12,8 @@ using eosio::print;
 freeaccounts::freeaccounts(name self, name code, datastream<const char *> ds) : contract(self, code, ds),
                                                                                 configuration(self, self.value),
                                                                                 freeacctslogtable(self, self.value),
-                                                                                whitelisttable(self, self.value),
                                                                                 whitelistedtable(self, self.value),
-                                                                                rammarkettable(system_account, system_account.value)
+                                                                                conflistedtable(self, self.value)
 {
     if (!configuration.exists())
     {
@@ -46,12 +45,15 @@ void freeaccounts::create(name account_creator, name account_name, public_key ow
 
 // auth_creator tells us if we should use the authority of account_creator or if we should use get_self()...
 // if true, then account_creator must have given get_self()@eosio.code permission to call eosio::newaccount and
-// this is required for premium/short names to use this contract to create namespaced accounts.  It also allows explorers to 
+// this is required for premium/short names to use this contract to create namespaced accounts.  It also allows explorers to
 // show account_creator as the creator as opposed to the historical pattern of all accounts showing as created by get_self()
 void freeaccounts::createpriv(name account_creator, name account_name, public_key owner_pubkey, public_key active_pubkey, bool auth_creator)
 {
     require_auth(account_creator);
     auto config = getconfig();
+    uint64_t net = config.stake_net_tlos_amount;
+    uint64_t cpu = config.stake_cpu_tlos_amount;
+    uint32_t ram_bytes = 4096;
 
     auto w = whitelistedtable.find(account_creator.value);
     check(w != whitelistedtable.end(), "Account doesn't have permission to create accounts");
@@ -81,6 +83,31 @@ void freeaccounts::createpriv(name account_creator, name account_name, public_ke
         check(accounts_created < config.max_accounts_per_hour, "You have exceeded the maximum number of accounts per hour");
     }
 
+    makeacct(account_creator, account_name, auth_creator, owner_pubkey, active_pubkey, net, cpu, ram_bytes);
+}
+
+void freeaccounts::createconf(name account_creator, name account_name, bool auth_creator, public_key owner_key, public_key active_key)
+{
+    require_auth(account_creator);
+    auto config = getconfig();
+
+    auto c = conflistedtable.find(account_creator.value);
+    check(c != conflistedtable.end(), "Account doesn't have permission to create accounts");
+
+    // verify that account creator is within its per-account threshold
+    uint32_t total_accounts = c->total_accounts + 1;
+    check(total_accounts <= c->max_accounts, "You have exceeded the maximum number of accounts allowed for your account");
+
+    conflistedtable.modify(c, same_payer, [&](auto &a) {
+        a.total_accounts = total_accounts;
+    });
+
+    makeacct(account_creator, account_name, auth_creator, owner_key, active_key, c->stake_net_tlos_amount, c->stake_cpu_tlos_amount, c->ram_bytes);
+}
+
+void freeaccounts::makeacct(name account_creator, name account_name, bool auth_creator, public_key owner_pubkey, public_key active_pubkey, uint64_t net, uint64_t cpu, uint32_t ram_bytes)
+{
+
     name newaccount_creator = auth_creator ? account_creator : get_self();
 
     key_weight owner_pubkey_weight = {
@@ -107,15 +134,8 @@ void freeaccounts::createpriv(name account_creator, name account_name, public_ke
         .owner = owner,
         .active = active};
 
-    // dynamically discover ram pricing
-    uint32_t four_kb = 4096;
-    auto itr = rammarkettable.find(RAMCORE_symbol.raw());
-    auto tmp = *itr;
-    asset ram_price = tmp.convert(asset(four_kb, RAM_symbol), TLOS_symbol);
-    ram_price.amount = (ram_price.amount * 200 + 199) / 199; // add ram fee
-
-    asset stake_net(config.stake_net_tlos_amount, TLOS_symbol);
-    asset stake_cpu(config.stake_cpu_tlos_amount, TLOS_symbol);
+    asset stake_net(net, TLOS_symbol);
+    asset stake_cpu(cpu, TLOS_symbol);
 
     action(
         permission_level{
@@ -130,16 +150,19 @@ void freeaccounts::createpriv(name account_creator, name account_name, public_ke
     action(
         permission_level{_self, "active"_n},
         "eosio"_n,
-        "buyram"_n,
-        make_tuple(_self, account_name, ram_price))
+        "buyrambytes"_n,
+        make_tuple(_self, account_name, ram_bytes))
         .send();
 
-    action(
-        permission_level{_self, "active"_n},
-        "eosio"_n,
-        "delegatebw"_n,
-        make_tuple(_self, account_name, stake_net, stake_cpu, false))
-        .send();
+    if (net > 0 || cpu > 0)
+    {
+        action(
+            permission_level{_self, "active"_n},
+            "eosio"_n,
+            "delegatebw"_n,
+            make_tuple(_self, account_name, stake_net, stake_cpu, false))
+            .send();
+    }
 
     // record entry for audit purposes
     freeacctslogtable.emplace(_self, [&](freeacctlog &entry) {
@@ -148,18 +171,26 @@ void freeaccounts::createpriv(name account_creator, name account_name, public_ke
     });
 }
 
-void freeaccounts::addwhitelist(name account_name, uint32_t total_accounts, uint32_t max_accounts)
+void freeaccounts::setwhitelist(name account_name, uint32_t total_accounts, uint32_t max_accounts)
 {
     require_auth(_self);
 
-    auto w = whitelisttable.find(account_name.value);
-    check(w == whitelisttable.end(), "Account already exists in the whitelist");
+    auto w = whitelistedtable.find(account_name.value);
 
-    whitelistedtable.emplace(_self, [&](whitelisted &list) {
-        list.account_name = account_name;
-        list.total_accounts = total_accounts;
-        list.max_accounts = max_accounts;
-    });
+    if (w != whitelistedtable.end())
+    {
+        whitelistedtable.modify(w, same_payer, [&](auto &list) {
+            list.max_accounts = max_accounts;
+        });
+    }
+    else
+    {
+        whitelistedtable.emplace(_self, [&](whitelisted &list) {
+            list.account_name = account_name;
+            list.total_accounts = total_accounts;
+            list.max_accounts = max_accounts;
+        });
+    }
 }
 
 void freeaccounts::removewlist(name account_name)
@@ -172,14 +203,42 @@ void freeaccounts::removewlist(name account_name)
     whitelistedtable.erase(w);
 }
 
-void freeaccounts::erasewlist(name account)
+void freeaccounts::setconflist(name account_name, uint32_t total_accounts, uint32_t max_accounts, uint64_t stake_cpu_tlos_amount, uint64_t stake_net_tlos_amount, uint32_t ram_bytes)
 {
     require_auth(_self);
 
-    auto w = whitelisttable.find(account.value);
-    check(w != whitelisttable.end(), "Account does not exist in the old whitelist");
+    auto w = conflistedtable.find(account_name.value);
 
-    whitelisttable.erase(w);
+    if (w != conflistedtable.end())
+    {
+        conflistedtable.modify(w, same_payer, [&](auto &list) {
+            list.max_accounts = max_accounts;
+            list.stake_cpu_tlos_amount = stake_cpu_tlos_amount;
+            list.stake_net_tlos_amount = stake_net_tlos_amount;
+            list.ram_bytes = ram_bytes;
+        });
+    }
+    else
+    {
+        conflistedtable.emplace(_self, [&](conflisted &list) {
+            list.account_name = account_name;
+            list.total_accounts = total_accounts;
+            list.max_accounts = max_accounts;
+            list.stake_cpu_tlos_amount = stake_cpu_tlos_amount;
+            list.stake_net_tlos_amount = stake_net_tlos_amount;
+            list.ram_bytes = ram_bytes;
+        });
+    }
+}
+
+void freeaccounts::rmvconflist(name account_name)
+{
+    require_auth(_self);
+
+    auto w = conflistedtable.find(account_name.value);
+    check(w != conflistedtable.end(), "Account does not exist in the conflist");
+
+    conflistedtable.erase(w);
 }
 
 void freeaccounts::configure(int16_t max_accounts_per_hour, int64_t stake_cpu_tlos_amount, int64_t stake_net_tlos_amount)
