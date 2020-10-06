@@ -5,7 +5,7 @@
 #define ONE_HOUR_US 900000000       // debug version
 #define SIX_MINUTES_US 360000000    // debug version
 #define TWELVE_MINUTES_US 720000000 // debug version
-#define MAX_PRODUCERS 51
+#define MAX_PRODUCERS 42     // revised for TEDP 2 Phase 2
 #define TOP_PRODUCERS 21
 #define MAX_VOTE_PRODUCERS 30
 
