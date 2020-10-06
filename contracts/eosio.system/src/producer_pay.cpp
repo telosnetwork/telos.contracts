@@ -172,16 +172,16 @@ namespace eosiosystem {
         
         uint32_t sharecount = 0;
 
-        //calculate shares, should be between 2 and 72 shares
+        //calculate shares, should be between 2 and 72 shares - Updated for TEDP2 with 21 BPs + 21 paid standbys
         for (const auto &prod : sortedprods)
         {
             if (prod.active()) { 			//only count activated producers
                 if (sharecount <= 42) {
                     sharecount += 2; 		//top producers count as double shares
-                } else if (sharecount >= 43 && sharecount < 72) {
+                } else if (sharecount >= 43 && sharecount < 63) {    //next 21 BPs get single share each
                     sharecount++;
                 } else
-                    break; 					//no need to count past 72 shares
+                    break; 					//no need to count past 63 shares
             }
         }
         
