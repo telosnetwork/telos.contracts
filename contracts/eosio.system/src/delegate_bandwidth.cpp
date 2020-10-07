@@ -48,7 +48,7 @@ namespace eosiosystem {
    void system_contract::buyram( const name& payer, const name& receiver, const asset& quant )
    {
       require_auth( payer );
-      // update_ram_supply();
+      update_ram_supply();
 
       check( quant.symbol == core_symbol(), "must buy ram with core token" );
       check( quant.amount > 0, "must purchase a positive amount" );
@@ -115,7 +115,7 @@ namespace eosiosystem {
     */
    void system_contract::sellram( const name& account, int64_t bytes ) {
       require_auth( account );
-      // update_ram_supply();
+      update_ram_supply();
 
       check( bytes > 0, "cannot sell negative byte" );
 
