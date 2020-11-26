@@ -2,6 +2,7 @@
 #include <eosio.token/eosio.token.hpp>
 #include "system_kick.cpp"
 
+#define MAX_PRODUCERS 42     // revised for TEDP 2 Phase 2, also set in system_rotation.cpp, change in both places
 namespace eosiosystem {
 
 //    const int64_t  min_pervote_daily_pay = 100'0000;
@@ -170,21 +171,21 @@ namespace eosiosystem {
         //sort producers table
         auto sortedprods = _producers.get_index<"prototalvote"_n>();
         
-        uint32_t sharecount = 0;
+        //calculate shares, based on MAX_PRODUCERS
+        uint32_t activecount = 0;
 
-        //calculate shares, should be between 2 and 72 shares - Updated for TEDP2 with 21 BPs + 21 paid standbys
         for (const auto &prod : sortedprods)
         {
-            if (prod.active()) { 			//only count activated producers
-                if (sharecount <= 42) {
-                    sharecount += 2; 		//top producers count as double shares
-                } else if (sharecount >= 43 && sharecount < 63) {    //next 21 BPs get single share each
-                    sharecount++;
-                } else
-                    break; 					//no need to count past 63 shares
-            }
+            if (prod.active() && activecount < MAX_PRODUCERS)   //only count activated producers
+                activecount++
+            else
+                break;
         }
         
+        // if we don't have standbys (21 active or less), don't attempt to calculate for standbys, just do total activecount X 2
+        // if we have standbys, do 42 shares for the top 21 plus 1 share per standby, so 42 plus the total activecount minus 21
+        uint32_t sharecount = activecount <= 21 ? (activecount * 2) : (42 + (activecount - 21));
+
         auto shareValue = (_gstate.perblock_bucket / sharecount);
         int32_t index = 0;
 
@@ -198,7 +199,7 @@ namespace eosiosystem {
             
             if (index <= 21) {
                 pay_amount = (shareValue * int64_t(2));
-            } else if (index >= 22 && index <= 51) {
+            } else if (index >= 22 && index <= MAX_PRODUCERS) {
                 pay_amount = shareValue;
             } else 
                 break;
