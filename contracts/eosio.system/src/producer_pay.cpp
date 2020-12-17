@@ -177,7 +177,7 @@ namespace eosiosystem {
         for (const auto &prod : sortedprods)
         {
             if (prod.active() && activecount < MAX_PRODUCERS)   //only count activated producers
-                activecount++
+                activecount++;
             else
                 break;
         }
