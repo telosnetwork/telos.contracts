@@ -14,6 +14,7 @@ public:
 
    ACTION settf(uint64_t amount);
    ACTION setecondev(uint64_t amount);
+   ACTION setcoredev(uint64_t amount);
    ACTION setrex(uint64_t amount);
    ACTION delpayout(name to);
    ACTION pay();

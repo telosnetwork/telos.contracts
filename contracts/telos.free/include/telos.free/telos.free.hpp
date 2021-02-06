@@ -14,14 +14,13 @@
 #include <eosio/permission.hpp>
 #include <eosio/singleton.hpp>
 #include <eosio/transaction.hpp>
-#include "exchange_state.hpp"
 
 #include <string>
 
 using namespace std;
 using namespace eosio;
 
-class[[eosio::contract("telos.free")]] freeaccounts : public contract
+class [[eosio::contract("telos.free")]] freeaccounts : public contract
 {
 public:
       using contract::contract;
@@ -59,13 +58,17 @@ public:
 
       [[eosio::action]] void createby(name account_creator, name account_name, public_key owner_key, public_key active_key);
 
+      [[eosio::action]] void createconf(name account_creator, name account_name, bool auth_creator, public_key owner_key, public_key active_key);
+
       [[eosio::action]] void configure(int16_t max_accounts_per_hour, int64_t stake_cpu_tlos_amount, int64_t stake_net_tlos_amount);
 
-      [[eosio::action]] void addwhitelist(name account_name, uint32_t total_accounts, uint32_t max_accounts);
+      [[eosio::action]] void setwhitelist(name account_name, uint32_t total_accounts, uint32_t max_accounts);
 
       [[eosio::action]] void removewlist(name account_name);
 
-      [[eosio::action]] void erasewlist(name account);
+      [[eosio::action]] void setconflist(name account_name, uint32_t total_accounts, uint32_t max_accounts, uint64_t stake_cpu_tlos_amount, uint64_t stake_net_tlos_amount, uint32_t ram_bytes);
+
+      [[eosio::action]] void rmvconflist(name account_name);
 
       struct [[eosio::table("config")]] freeacctcfg
       {
@@ -90,15 +93,6 @@ public:
             EOSLIB_SERIALIZE(freeacctlog, (account_name)(created_on))
       };
 
-      struct [[eosio::table]] whitelist
-      {
-            name account_name;
-
-            auto primary_key() const { return account_name.value; }
-
-            EOSLIB_SERIALIZE(whitelist, (account_name))
-      };
-
       struct [[eosio::table]] whitelisted
       {
             name account_name;
@@ -110,11 +104,25 @@ public:
             EOSLIB_SERIALIZE(whitelisted, (account_name)(total_accounts)(max_accounts))
       };
 
+      struct [[eosio::table]] conflisted
+      {
+            name account_name;
+            uint32_t total_accounts = 0;
+            uint32_t max_accounts = 0;
+            uint64_t stake_cpu_tlos_amount = 0;
+            uint64_t stake_net_tlos_amount = 0;
+            uint32_t ram_bytes = 0;
+
+            auto primary_key() const { return account_name.value; }
+
+            EOSLIB_SERIALIZE(conflisted, (account_name)(total_accounts)(max_accounts)(stake_cpu_tlos_amount)(stake_net_tlos_amount)(ram_bytes))
+      };
+
       typedef multi_index<"freeacctlogs"_n, freeacctlog> t_freeaccountlogs;
 
-      typedef multi_index<"whitelists"_n, whitelist> t_whitelist;
-
       typedef multi_index<"whitelstacts"_n, whitelisted> t_whitelisted;
+
+      typedef multi_index<"conflstacts"_n, conflisted> t_conflisted;
 
       freeaccounts(name self, name code, datastream<const char *> ds);
 
@@ -125,15 +133,12 @@ protected:
       config_singleton configuration;
       t_freeaccountlogs freeacctslogtable;
       t_whitelisted whitelistedtable;
-      t_whitelist whitelisttable;
+      t_conflisted conflistedtable;
 
-      rammarket rammarkettable;
-      static constexpr eosio::name system_account{"eosio"_n};
-      static constexpr symbol RAMCORE_symbol = symbol(symbol_code("RAMCORE"), 4);
-      static constexpr symbol RAM_symbol = symbol(symbol_code("RAM"), 0);
       static constexpr symbol TLOS_symbol = symbol(symbol_code("TLOS"), 4);
 
       freeacctcfg getconfig();
 
       void createpriv(name account_creator, name account_name, public_key owner_pubkey, public_key active_pubkey, bool auth_creator);
+      void makeacct(name account_creator, name account_name, bool auth_creator, public_key owner_pubkey, public_key active_pubkey, uint64_t net, uint64_t cpu, uint32_t ram_bytes);
 };

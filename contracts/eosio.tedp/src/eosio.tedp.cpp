@@ -21,8 +21,11 @@ const uint64_t max_econdev_amount = 16438;
 // 1mil * 12 months / 365 days = 32876.7123
 const uint64_t max_tf_amount = 32876;
 
-// 1mil * 12 months / 365 days / 24hrs / 2 (every half hour) = 684.9315
-const uint64_t max_rex_amount = 685;
+// 300k * 12 months / 365 days = 9863.0136
+const uint64_t max_coredev_amount = 9863;
+
+// 1.7mil * 12 months / 365 days / 24hrs / 2 (every half hour) = 1164.3835
+const uint64_t max_rex_amount = 1165;
 
 ACTION tedp::settf(uint64_t amount)
 {
@@ -36,8 +39,14 @@ ACTION tedp::setecondev(uint64_t amount)
     setpayout(name("econdevfunds"), amount, daily_interval);
 }
 
+ACTION tedp::setcoredev(uint64_t amount)
+{
+    check(amount <= max_coredev_amount, "Max amount for econdevfunds account is 9863 per day");
+    setpayout(name("treasury.tcd"), amount, daily_interval);
+}
+
 ACTION tedp::setrex(uint64_t amount) {
-    check(amount <= max_rex_amount, "Max amount for eosio.rex account is 685 per 30min");
+    check(amount <= max_rex_amount, "Max amount for eosio.rex account is 1165 per 30min");
     setpayout(name("eosio.rex"), amount, rex_interval);
 }
 
