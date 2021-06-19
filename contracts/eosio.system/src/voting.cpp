@@ -264,7 +264,8 @@ namespace eosiosystem {
    }
 
    void system_contract::regproxy( const name& proxy, bool isproxy ) {
-      require_auth( proxy );
+      //require_auth( proxy );
+      check ( !isproxy, "proxy voting is disabled" );
       auto pitr = _voters.find( proxy.value );
       if ( pitr != _voters.end() ) {
          check( isproxy != pitr->is_proxy, "action has no effect" );
