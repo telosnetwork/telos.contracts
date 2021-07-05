@@ -73,9 +73,7 @@ public:
 	};
 
     asset const INITIAL_TFVT_MAX_SUPPLY = asset(500, symbol("TFVT", 0)); //TODO: finalize initial supply
-    
-    asset const INITIAL_TFBOARD_MAX_SUPPLY = asset(13, symbol("TFBOARD", 0)); //TODO: finalize initial supply
-    
+        
     token_settings const INITIAL_TFVT_SETTINGS = token_settings { //TODO: finalize initial tfvt settings
         false, //is_destructible
         false, //is_proxyable
@@ -84,19 +82,6 @@ public:
         true, //is_max_mutable
         false, //is_transferable
         true, //is_recastable
-        false, //is_initialized
-        uint32_t(500), //counterbal_decay_rate (not applicable since non-transferable)
-        true, //lock_after_initialize
-    };
-
-    token_settings const INITIAL_TFBOARD_SETTINGS = token_settings { //TODO: finalize initial tfboard settings
-        false, //is_destructible
-        false, //is_proxyable
-        true, //is_burnable
-        true, //is_seizable
-        true, //is_max_mutable
-        false, //is_transferable
-        false, //is_recastable
         false, //is_initialized
         uint32_t(500), //counterbal_decay_rate (not applicable since non-transferable)
         true, //lock_after_initialize
@@ -137,23 +122,11 @@ public:
 			(board_quorum_divisor)(issue_duration)(start_delay)(leaderboard_duration)(election_frequency)(last_board_election_time)(is_active_election))
     };
 
-	struct [[eosio::table]] issue {
-		name proposer;
-		name issue_name;
-		uint64_t ballot_id;
-		eosio::transaction transaction;
-
-		uint64_t primary_key() const { return proposer.value; }
-		EOSLIB_SERIALIZE(issue, (proposer)(issue_name)(ballot_id)(transaction))
-	};
-
 	//TODO: create multisig compatible packed_trx table for proposals.
     
     typedef multi_index<name("nominees"), board_nominee> nominees_table;
 
     typedef multi_index<name("boardmembers"), board_member> members_table;
-
-	typedef multi_index<name("issues"), issue> issues_table;
 
     typedef singleton<name("config"), config> config_table;
 	config_table configs;
@@ -163,23 +136,11 @@ public:
     [[eosio::action]] //NOTE: sends inline actions to register and initialize TFVT token registry
     void inittfvt(string initial_info_link);
 
-    [[eosio::action]] //NOTE: sends inline actions to register and initialize TFBOARD token registry
-    void inittfboard(string initial_info_link);
-
     [[eosio::action]]
     void setconfig(name publisher, config new_config);
 
     [[eosio::action]]
     void nominate(name nominee, name nominator);
-
-    [[eosio::action]]
-    void makeissue(ignore<name> holder,
-		ignore<string> info_url,
-		ignore<name> issue_name,
-		ignore<transaction> transaction);
-
-    [[eosio::action]]
-    void closeissue(name holder, name proposer);
 
     [[eosio::action]]
     void makeelection(name holder, string info_url);
@@ -224,8 +185,6 @@ public:
     bool is_nominee(name user);
 
     bool is_tfvt_holder(name user);
-
-    bool is_tfboard_holder(name user);
 
 	bool is_term_expired();
 

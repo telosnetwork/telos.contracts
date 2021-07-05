@@ -51,34 +51,6 @@ void tfvt::inittfvt(string initial_info_link) {
     print("\nTFVT Registration and Initialization Actions Sent...");
 }
 
-void tfvt::inittfboard(string initial_info_link) {
-    require_auth(get_self());
-    
-    action(permission_level{get_self(), name("active")}, name("eosio.trail"), name("regtoken"), make_tuple(
-		INITIAL_TFBOARD_MAX_SUPPLY, //max_supply
-		get_self(), 						//publisher
-		initial_info_link 			//info_url
-	)).send();
-
-    action(permission_level{get_self(), name("active")}, name("eosio.trail"), name("initsettings"), make_tuple(
-		get_self(), //publisher
-		INITIAL_TFBOARD_MAX_SUPPLY.symbol, //token_symbol
-		INITIAL_TFBOARD_SETTINGS //new_settings
-	)).send();
-	
-	asset board_token = asset(1, symbol("TFBOARD", 0));
-	action(permission_level{get_self(), "active"_n }, "eosio.trail"_n, "issuetoken"_n,
-		std::make_tuple(
-			get_self(),		//account to update
-			get_self(),
-			board_token,
-			false
-		)
-	).send();
-
-    print("\nTFBOARD Registration and Initialization Actions Sent...");
-}
-
 void tfvt::setconfig(name member, config new_config) { 
     require_auth("tf"_n);
 	configs.remove();
@@ -119,129 +91,6 @@ void tfvt::setconfig(name member, config new_config) {
 	configs.set(_config, get_self());
 }
 
-void tfvt::makeissue(ignore<name> holder, 
-		ignore<string> info_url,
-		ignore<name> issue_name,
-		ignore<transaction> transaction) {
-
-	name 	_holder;
-	string _info_url;
-	name	_issue_name;
-	eosio::transaction _trx;
-
-	_ds >> _holder >> _info_url >> _issue_name >> _trx;
-
-    require_auth(_holder);
-
-	check(is_tfvt_holder(_holder) || is_tfboard_holder(_holder), "caller must be a TFVT or TFBOARD holder");
-
-	ballots_table ballots("eosio.trail"_n, "eosio.trail"_n.value);
-	uint64_t next_ballot_id = ballots.available_primary_key();
-	uint32_t begin_time = current_time_point().sec_since_epoch() + _config.start_delay;
-	uint32_t end_time = begin_time + _config.issue_duration;
-
-    action(permission_level{get_self(), "active"_n}, "eosio.trail"_n, "regballot"_n, make_tuple(
-		get_self(),
-		uint8_t(0), 			//NOTE: makes a proposal on Trail
-		symbol("TFBOARD", 0),
-		begin_time,
-        end_time,
-        _info_url
-	)).send();
-	
-	issues_table issues(get_self(), get_self().value);
-	issues.emplace(get_self(), [&](auto& issue) {
-		issue.proposer = _holder;
-		issue.issue_name = _issue_name;
-		issue.ballot_id = next_ballot_id;
-		issue.transaction = _trx;
-	});
-}
-
-void tfvt::closeissue(name holder, name proposer) {
-    require_auth(holder);
-	check(is_tfvt_holder(holder) || is_tfboard_holder(holder), "caller must be a TFVT or TFBOARD holder");
-
-	issues_table issues(get_self(), get_self().value);
-	auto i_iter = issues.find(proposer.value);
-	check(i_iter != issues.end(), "issue not found");
-	auto issue = *i_iter;
-
-	ballots_table ballots("eosio.trail"_n, "eosio.trail"_n.value);
-	auto ballot = ballots.get(issue.ballot_id, "ballot does not exist");
-
-	proposals_table proposals("eosio.trail"_n, "eosio.trail"_n.value);
-	auto prop = proposals.get(ballot.reference_id, "proposal not found");
-
-	registries_table registries("eosio.trail"_n, "eosio.trail"_n.value);
-	auto registry = registries.get(prop.no_count.symbol.code().raw(), "registry not found, this shouldn't happen");
-	uint32_t total_voters = registry.total_voters;
-	
-	uint32_t unique_voters = prop.unique_voters;
-     
-	uint32_t quorum_threshold = total_voters / (_config.board_quorum_divisor - 1);
-	ISSUE_STATE state = FAIL;
-	if(unique_voters > quorum_threshold)
-		state = COUNT;
-	
-	if(state == COUNT) {
-		if(prop.yes_count > prop.no_count)
-			state = PASS;
-		else if(prop.yes_count == prop.no_count)
-			state = TIE;
-		else
-			state = FAIL;
-	}
-
-	if(state == PASS) {
-		members_table members(get_self(), get_self().value);
-		std::vector<permission_level> requested;
-		auto itr = members.begin();
-
-		while (itr != members.end()) {
-			// print("adding permission_level: ", name{itr->member});
-			requested.emplace_back(permission_level(itr->member, "active"_n));
-			itr++;
-		}	
-		
-		action(permission_level{get_self(), name("active")}, name("eosio.msig"), name("propose"), make_tuple(
-			get_self(),
-			issue.issue_name,
-			requested,
-			issue.transaction
-		)).send();
-	} 
-
-	if(state == FAIL || state == PASS) {
-		
-		issues.erase(i_iter);
-	}
-
-	if(state == TIE) {
-		uint64_t next_ballot_id = ballots.available_primary_key();
-		uint32_t begin_time = current_time_point().sec_since_epoch() + _config.start_delay;
-		uint32_t end_time = begin_time + _config.issue_duration;
-		action(permission_level{get_self(), "active"_n}, "eosio.trail"_n, "regballot"_n, make_tuple(
-			get_self(),					//proposer name
-			uint8_t(0), 				//ballot_type uint8_t
-			symbol("TFVT", 0),			//voting_symbol symbol
-			begin_time,					//begin_time uint32_t
-			end_time,					//end_time uint32_t
-			prop.info_url				//info_url string
-		)).send();
-
-		issues.modify(issue, same_payer, [&](auto& i) {
-			i.ballot_id = next_ballot_id;
-		});
-	}
-
-    action(permission_level{get_self(), "active"_n}, "eosio.trail"_n, "closeballot"_n, make_tuple(
-		get_self(),
-		issue.ballot_id,
-		uint8_t(state)
-	)).send();
-}
-
 void tfvt::nominate(name nominee, name nominator) {
     require_auth(nominator);
 	check(is_account(nominee), "nominee account must exist");
@@ -260,7 +109,7 @@ void tfvt::nominate(name nominee, name nominator) {
 void tfvt::makeelection(name holder, string info_url) {
     require_auth(holder);
 	check(!_config.is_active_election, "there is already an election is progress");
-    check(is_tfvt_holder(holder) || is_tfboard_holder(holder), "caller must be a TFVT or TFBOARD holder");
+    check(is_tfvt_holder(holder), "caller must be a TFVT holder");
 	check(_config.open_seats > 0 || is_term_expired(), "it isn't time for the next election");
 
 	ballots_table ballots("eosio.trail"_n, "eosio.trail"_n.value);
@@ -322,7 +171,7 @@ void tfvt::removecand(name candidate) {
 
 void tfvt::endelection(name holder) {
     require_auth(holder);
-    check(is_tfvt_holder(holder) || is_tfboard_holder(holder), "caller must be a TFVT or TFBOARD holder");
+    check(is_tfvt_holder(holder), "caller must be a TFVT holder");
 	check(_config.is_active_election, "there is no active election to end");
 	uint8_t status = 1;
 
@@ -464,13 +313,6 @@ bool tfvt::is_nominee(name user) {
 
 bool tfvt::is_tfvt_holder(name user) {
     balances_table balances(name("eosio.trail"), symbol("TFVT", 0).code().raw());
-    auto b = balances.find(user.value);
-
-    return b != balances.end();
-}
-
-bool tfvt:: is_tfboard_holder(name user) {
-    balances_table balances(name("eosio.trail"), symbol("TFBOARD", 0).code().raw());
     auto b = balances.find(user.value);
 
     return b != balances.end();
