@@ -1,6 +1,5 @@
 #include <telos.tfvt.hpp>
 #include <eosio/symbol.hpp>
-//#include <eosiolib/print.hpp>
 
 tfvt::tfvt(name self, name code, datastream<const char*> ds)
 : contract(self, code, ds), configs(get_self(), get_self().value) {
@@ -77,11 +76,11 @@ void tfvt::nominate(name nominee, name nominator) {
     });
 }
 
-void tfvt::makeelection(name holder, string info_url) {
-    require_auth(holder);
-	check(!_config.is_active_election, "there is already an election is progress");
+void tfvt::makeelection(name holder) {
+	require_auth(holder);
+	check(!_config.is_active_election, "there is already an election in progress");
 	check(_config.open_seats > 0 || is_term_expired(), "it isn't time for the next election");
-
+	
 	ballots_table ballots(TELOS_DECIDE_N, TELOS_DECIDE_N.value);
 
 	_config.open_election_id = get_next_ballot_id();
@@ -98,28 +97,24 @@ void tfvt::makeelection(name holder, string info_url) {
 	)).send();
 
 	// Todo: set details of the ballot
-
-
-	uint8_t available_seats = _config.open_seats;
 	if(is_term_expired()) {
-		available_seats = _config.max_board_seats;
+		_config.open_seats = _config.max_board_seats;
 	}
 
 	//NOTE: this prevents makeelection from being called multiple times.
 	//NOTE2 : this gets overwritten by setconfig
-	_config.open_seats = 0;
 	_config.is_active_election = true;
 }
 
-void tfvt::addcand(name nominee, string info_link) {
-	require_auth(nominee);
-	check(is_nominee(nominee), "only nominees can be added to the election");
+void tfvt::addcand(name candidate) {
+	require_auth(candidate);
+	check(is_nominee(candidate), "only nominees can be added to the election");
 	check(_config.is_active_election, "no active election for board members at this time");
-	check(!is_board_member(nominee) || is_term_expired(), "nominee can't already be a board member, or their term must be expired.");
+	check(!is_board_member(candidate) || is_term_expired(), "nominee can't already be a board member, or their term must be expired.");
 
     action(permission_level{get_self(), name("active")}, TELOS_DECIDE_N, name("addoption"), make_tuple(
 		_config.open_election_id, 	//ballot_id
-		nominee 					//new_candidate
+		candidate 					//new_candidate
 	)).send();
 }
 
@@ -154,12 +149,12 @@ void tfvt::endelect(name holder) {
     ballots_table ballots(TELOS_DECIDE_N, TELOS_DECIDE_N.value);
     auto bal = ballots.get(_config.open_election_id.value);
 	map<name, asset> candidates = bal.options;
-	vector<pair<asset, name>> sorted_candidates;
+	vector<pair<int64_t, name>> sorted_candidates;
 
 	for (auto it = candidates.begin(); it != candidates.end(); ++it) {
-		sorted_candidates.push_back(make_pair(it->second, it->first));
+		sorted_candidates.push_back(make_pair(it->second.amount, it->first));
 	}
-	sort(sorted_candidates.begin(), sorted_candidates.end());
+	sort(sorted_candidates.begin(), sorted_candidates.end(), [](const auto &c1, const auto &c2) { return c1 > c2; });
 	
 	// Remove candidates tied with the [available-seats] - This discards all the tied on the tail
 	if (sorted_candidates.size() > _config.open_seats) {
@@ -186,8 +181,9 @@ void tfvt::endelect(name holder) {
 	}
 
     for (int n = 0; n < sorted_candidates.size(); n++) {
-		if(sorted_candidates[n].first > asset(0, sorted_candidates[n].first.symbol))
-        	add_to_tfboard(sorted_candidates[n].second);
+		if(sorted_candidates[n].first > 0) {
+			add_to_tfboard(sorted_candidates[n].second);
+		}
     }
     
 	vector<permission_level_weight> currently_elected = perms_from_members(); //NOTE: needs testing
@@ -200,7 +196,6 @@ void tfvt::endelect(name holder) {
 	_config.open_seats = _config.max_board_seats - uint8_t(std::distance(members.begin(), members.end()));
 
 	action(permission_level{get_self(), name("active")}, TELOS_DECIDE_N, name("closevoting"), make_tuple(
-		get_self(),
 		_config.open_election_id
 	)).send();
 	_config.is_active_election = false;
@@ -368,7 +363,7 @@ vector<tfvt::permission_level_weight> tfvt::perms_from_members() {
 name tfvt::get_next_ballot_id() {
 	name ballot_id = _config.open_election_id;
 	if (ballot_id == name()) {
-		ballot_id = name("tfvt_");
+		ballot_id = name("tfvt.");
 	}
 
 	ballots_table ballots(TELOS_DECIDE_N, TELOS_DECIDE_N.value);

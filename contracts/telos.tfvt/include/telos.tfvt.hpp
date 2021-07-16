@@ -99,11 +99,11 @@ public:
 		uint32_t election_frequency = 14515200;
 		uint32_t last_board_election_time;
         uint32_t active_election_min_start_time = 0;
-		bool is_active_election = false;
+        bool is_active_election = false;
 
         uint64_t primary_key() const { return publisher.value; }
         EOSLIB_SERIALIZE(config, (publisher)(max_board_seats)(open_seats)(open_election_id)(holder_quorum_divisor)
-			(board_quorum_divisor)(issue_duration)(start_delay)(leaderboard_duration)(election_frequency)(last_board_election_time)(is_active_election))
+			(board_quorum_divisor)(issue_duration)(start_delay)(leaderboard_duration)(election_frequency)(last_board_election_time)(active_election_min_start_time)(is_active_election))
     };
 
 	//TODO: create multisig compatible packed_trx table for proposals.
@@ -123,13 +123,13 @@ public:
     void nominate(name nominee, name nominator);
 
     [[eosio::action]]
-    void makeelection(name holder, string info_url);
+    void makeelection(name holder);
 
     //[[eosio::action]]
     //void addallcands(name holder, vector<candidate> new_cands);
 
 	[[eosio::action]]
-	void addcand(name nominee, string info_link);
+	void addcand(name candidate);
 
 	[[eosio::action]]
 	void removecand(name candidate);
