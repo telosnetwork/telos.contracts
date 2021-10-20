@@ -60,7 +60,7 @@ namespace eosio {
        medianstable medians_table("delphioracle"_n, name("tlosusd").value);
        for (auto itr = medians_table.begin(); itr != medians_table.end(); ++itr)
        {
-          if (itr->type == medians::get_type(median_types::day))
+          if (itr->type == medians::get_type(median_types::week))
           {
              value += itr->value;
              request_count += itr->request_count;
