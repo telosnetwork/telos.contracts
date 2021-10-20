@@ -6,10 +6,9 @@ namespace eosio {
    {
       double multiplier;
       double power;
-      uint64_t interval;
       bool is_median_cached = false;
    };
-   using singleton_config = eosio::singleton<"config"_n, config>;
+   using median_config_singleton = eosio::singleton<"config"_n, config>;
 
    struct [[eosio::table, eosio::contract("eosio.system")]] mediancache
    {
@@ -47,7 +46,7 @@ namespace eosio {
     double median_price(const name& owner)
     {
        median_cache_singleton cache(owner, owner.value);
-       singleton_config config(owner, owner.value);
+       median_config_singleton config(owner, owner.value);
 
        if (config.exists() && config.get().is_median_cached)
        {

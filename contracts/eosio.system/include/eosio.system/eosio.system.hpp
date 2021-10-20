@@ -1319,6 +1319,15 @@ namespace eosiosystem {
          [[eosio::action]]
          void distviarex(name from, asset amount); 
 
+         [[eosio::action]]
+         void setmedconf(name from, asset amount); 
+
+         [[eosio::action]]
+         void setmdconfig(double multiplier, double power);
+      
+         [[eosio::action]]
+         void setmdcache(bool is_active);
+
          using init_action = eosio::action_wrapper<"init"_n, &system_contract::init>;
          using setacctram_action = eosio::action_wrapper<"setacctram"_n, &system_contract::setacctram>;
          using setacctnet_action = eosio::action_wrapper<"setacctnet"_n, &system_contract::setacctnet>;
@@ -1362,6 +1371,8 @@ namespace eosiosystem {
          using setpriv_action = eosio::action_wrapper<"setpriv"_n, &system_contract::setpriv>;
          using setalimits_action = eosio::action_wrapper<"setalimits"_n, &system_contract::setalimits>;
          using setparams_action = eosio::action_wrapper<"setparams"_n, &system_contract::setparams>;
+         using setmdconfig_action = eosio::action_wrapper<"setmdconfig"_n, &system_contract::setmdconfig>;
+         using setmdcache_action = eosio::action_wrapper<"setmdcache"_n, &system_contract::setmdcache>;
 
       private:
          // Implementation details:
