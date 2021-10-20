@@ -1,6 +1,7 @@
 #include <eosio.system/eosio.system.hpp>
 #include <eosio.token/eosio.token.hpp>
 #include "system_kick.cpp"
+#include <eosio.system/delphioracle.hpp>
 
 #define MAX_PRODUCERS 42     // revised for TEDP 2 Phase 2, also set in system_rotation.cpp, change in both places
 namespace eosiosystem {
@@ -168,27 +169,36 @@ namespace eosiosystem {
             _gstate.last_pervote_bucket_fill = ct;
         }
 
+        int64_t shareValue = 0;
         //sort producers table
         auto sortedprods = _producers.get_index<"prototalvote"_n>();
-        
-        //calculate shares, based on MAX_PRODUCERS
-        uint32_t activecount = 0;
-
-        for (const auto &prod : sortedprods)
+        singleton_config config_table(get_self(), get_self().value);
+        if (config_table.exists())
+        {   
+            print(" with medians ");
+            auto m_price = median_price(get_self()) / 10000;
+            const auto& current_config = config_table.get();
+            shareValue = int64_t(current_config.multiplier * pow(m_price, current_config.power) * 10000 / 60); // per block
+        }
+        else
         {
-            if (prod.active() && activecount < MAX_PRODUCERS)   //only count activated producers
-                activecount++;
-            else
-                break;
+            print(" without medians ");
+            //calculate shares, based on MAX_PRODUCERS
+            uint32_t activecount = 0;
+            for (const auto &prod : sortedprods)
+            {
+                if (prod.active() && activecount < MAX_PRODUCERS) // only count activated producers
+                    activecount++;
+                else
+                    break;
+            }
+            // if we don't have standbys (21 active or less), don't attempt to calculate for standbys, just do total activecount X 2
+            // if we have standbys, do 42 shares for the top 21 plus 1 share per standby, so 42 plus the total activecount minus 21
+            uint32_t sharecount = activecount <= 21 ? (activecount * 2) : (42 + (activecount - 21));
+            shareValue = (_gstate.perblock_bucket / sharecount) * int64_t(2);
         }
         
-        // if we don't have standbys (21 active or less), don't attempt to calculate for standbys, just do total activecount X 2
-        // if we have standbys, do 42 shares for the top 21 plus 1 share per standby, so 42 plus the total activecount minus 21
-        uint32_t sharecount = activecount <= 21 ? (activecount * 2) : (42 + (activecount - 21));
-
-        auto shareValue = (_gstate.perblock_bucket / sharecount);
         int32_t index = 0;
-
         for (const auto &prod : sortedprods) {
 
             if (!prod.active()) //skip inactive producers
@@ -198,9 +208,9 @@ namespace eosiosystem {
             index++;
             
             if (index <= 21) {
-                pay_amount = (shareValue * int64_t(2));
-            } else if (index >= 22 && index <= MAX_PRODUCERS) {
                 pay_amount = shareValue;
+            } else if (index >= 22 && index <= MAX_PRODUCERS) {
+                pay_amount = shareValue / 2;
             } else 
                 break;
             
