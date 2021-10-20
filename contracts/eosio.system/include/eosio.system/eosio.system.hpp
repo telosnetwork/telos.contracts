@@ -1320,9 +1320,6 @@ namespace eosiosystem {
          void distviarex(name from, asset amount); 
 
          [[eosio::action]]
-         void setmedconf(name from, asset amount); 
-
-         [[eosio::action]]
          void setmdconfig(double multiplier, double power);
       
          [[eosio::action]]
