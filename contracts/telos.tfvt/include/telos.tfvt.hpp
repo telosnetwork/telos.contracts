@@ -159,6 +159,8 @@ public:
 	config_table configs;
   	config _config;
 
+    [[eosio::action]]
+    void clean();
 
     [[eosio::action]] //NOTE: sends inline actions to register and initialize TFVT token registry
     void inittfvt(string initial_info_link);
