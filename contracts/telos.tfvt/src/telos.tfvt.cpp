@@ -33,6 +33,11 @@ tfvt::config tfvt::get_default_config() {
 
 #pragma region Actions
 
+void tfvt::clean() {
+    require_auth(get_self());
+    configs.remove();
+}
+
 void tfvt::inittfvt(string initial_info_link) {
     require_auth(get_self());
     
