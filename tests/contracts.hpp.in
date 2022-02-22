@@ -19,27 +19,8 @@ struct contracts {
    static std::vector<uint8_t> bios_wasm() { return read_wasm("${CMAKE_BINARY_DIR}/../contracts/eosio.bios/eosio.bios.wasm"); }
    static std::vector<char>    bios_abi() { return read_abi("${CMAKE_BINARY_DIR}/../contracts/eosio.bios/eosio.bios.abi"); }
 
-   static std::vector<char>    trail_abi() { return read_abi("${CMAKE_BINARY_DIR}/../contracts/eosio.trail/eosio.trail.abi"); }
-   static std::vector<uint8_t> trail_wasm() { return read_wasm("${CMAKE_BINARY_DIR}/../contracts/eosio.trail/eosio.trail.wasm"); }
-
-   static std::vector<char>    amend_abi() { return read_abi("${CMAKE_BINARY_DIR}/../contracts/eosio.amend/eosio.amend.abi"); }
-   static std::vector<uint8_t> amend_wasm() { return read_wasm("${CMAKE_BINARY_DIR}/../contracts/eosio.amend/eosio.amend.wasm"); }
-
-   static std::vector<char>    tfvt_abi() { return read_abi("${CMAKE_BINARY_DIR}/../contracts/telos.tfvt/telos.tfvt.abi"); }
-   static std::vector<uint8_t> tfvt_wasm() { return read_wasm("${CMAKE_BINARY_DIR}/../contracts/telos.tfvt/telos.tfvt.wasm"); }
-
-   static std::vector<uint8_t> eosio_saving_wasm() { return read_wasm("${CMAKE_BINARY_DIR}/../contracts/eosio.saving/eosio.saving.wasm"); }
-   static std::string          eosio_saving_wast() { return read_wast("${CMAKE_BINARY_DIR}/../contracts/eosio.saving/eosio.saving.wast"); }
-   static std::vector<char>    eosio_saving_abi() { return read_abi("${CMAKE_BINARY_DIR}/../contracts/eosio.saving/eosio.saving.abi"); }
-
-   static std::vector<uint8_t> eosio_arb_wasm() { return read_wasm("${CMAKE_BINARY_DIR}/../contracts/eosio.arbitration/eosio.arbitration.wasm"); }
-   static std::string          eosio_arb_wast() { return read_wast("${CMAKE_BINARY_DIR}/../contracts/eosio.arbitration/eosio.arbitration.wast"); }
-   static std::vector<char>    eosio_arb_abi() { return read_abi("${CMAKE_BINARY_DIR}/../contracts/eosio.arbitration/eosio.arbitration.abi"); }
-
-   static std::vector<uint8_t> eosio_tedp_wasm() { return read_wasm("${CMAKE_BINARY_DIR}/../contracts/eosio.tedp/eosio.tedp.wasm"); }
-   static std::string          eosio_tedp_wast() { return read_wast("${CMAKE_BINARY_DIR}/../contracts/eosio.tedp/eosio.tedp.wast"); }
-   static std::vector<char>    eosio_tecp_abi() { return read_abi("${CMAKE_BINARY_DIR}/../contracts/eosio.tedp/eosio.tedp.abi"); }
-   
+   static std::vector<char>    trail_abi() { return read_abi("${CMAKE_BINARY_DIR}/test_contracts/eosio.trail/eosio.trail.abi"); }
+   static std::vector<uint8_t> trail_wasm() { return read_wasm("${CMAKE_BINARY_DIR}/test_contracts/eosio.trail/eosio.trail.wasm"); }
 
    struct util {
       static std::vector<uint8_t> reject_all_wasm() { return read_wasm("${CMAKE_SOURCE_DIR}/test_contracts/reject_all.wasm"); }
