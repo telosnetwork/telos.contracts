@@ -6,6 +6,22 @@ set(EOSIO_VERSION_SOFT_MAX "1.8")
 
 find_package(eosio)
 
+set(EOSIO_WASM_OLD_BEHAVIOR "Off")
+find_package(eosio.cdt)
+
+include(ExternalProject)
+ExternalProject_Add(
+    eosio_trail
+    SOURCE_DIR ${CMAKE_SOURCE_DIR}/test_contracts/eosio.trail
+    BINARY_DIR ${CMAKE_BINARY_DIR}/test_contracts/eosio.trail
+    CMAKE_ARGS -DCMAKE_TOOLCHAIN_FILE=${EOSIO_CDT_ROOT}/lib/cmake/eosio.cdt/EosioWasmToolchain.cmake
+    UPDATE_COMMAND ""
+    PATCH_COMMAND ""
+    TEST_COMMAND ""
+    INSTALL_COMMAND ""
+    BUILD_ALWAYS 1
+)
+
 ### Check the version of eosio
 set(VERSION_MATCH_ERROR_MSG "")
 EOSIO_CHECK_VERSION(VERSION_OUTPUT "${EOSIO_VERSION}"
