@@ -91,16 +91,21 @@ namespace eosiosystem {
       totalActiveVotedProds = totalActiveVotedProds > MAX_PRODUCERS ? MAX_PRODUCERS : totalActiveVotedProds;
 
       std::vector<eosio::producer_key> prods;
+      std::map<eosio::name, uint16_t> locations;
       prods.reserve(size_t(totalActiveVotedProds));
 
       for ( auto it = idx.cbegin(); it != idx.cend() && prods.size() < totalActiveVotedProds && it->total_votes > 0 && it->active(); ++it ) {
          prods.emplace_back( eosio::producer_key{it->owner, it->producer_key} );
+         locations.insert(std::pair<eosio::name, uint16_t>(it->owner, it->location));
       }
 
       std::vector<eosio::producer_key> top_producers = check_rotation_state(prods, block_time);
 
-      /// sort by producer name
-      std::sort( top_producers.begin(), top_producers.end() );
+      // sort by location
+      std::sort( top_producers.begin(), top_producers.end(), [&locations]( const eosio::producer_key& lhs, const eosio::producer_key& rhs ) {
+         // return lhs.producer_name < rhs.producer_name; // sort by producer name
+         return locations[lhs.producer_name] < locations[rhs.producer_name];
+      } );
 
       auto schedule_version = set_proposed_producers(top_producers);
       if (schedule_version >= 0) {
