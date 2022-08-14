@@ -175,7 +175,7 @@ namespace eosiosystem {
         if (is_active_medians())
         {   
             print(" with medians ");
-            shareValue = calculate_payment();
+            shareValue = calculate_payment(get_self());
         }
         else
         {
