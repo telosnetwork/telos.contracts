@@ -172,13 +172,10 @@ namespace eosiosystem {
         int64_t shareValue = 0;
         //sort producers table
         auto sortedprods = _producers.get_index<"prototalvote"_n>();
-        median_config_singleton config_table(get_self(), get_self().value);
-        if (config_table.exists())
+        if (is_active_medians())
         {   
             print(" with medians ");
-            auto m_price = median_price(get_self()) / 10000;
-            const auto& current_config = config_table.get();
-            shareValue = int64_t(current_config.multiplier * pow(m_price, current_config.power) * 10000 / 60); // per block
+            shareValue = calculate_payment();
         }
         else
         {
@@ -235,29 +232,5 @@ namespace eosiosystem {
                 });
         }
     }
-
-   void system_contract::setmdcache(bool is_active) {
-        require_auth( get_self() );
-
-        median_config_singleton config_table( get_self(), get_self().value );
-        check( config_table.exists(), "don't valid median config" );
-
-        auto data = config_table.get();
-        data.is_median_cached = is_active;
-        config_table.set(data, get_self());
-   }
-
-   void system_contract::setmdconfig(double multiplier, double power) {
-        require_auth( get_self() );
-
-        config config_obj;
-        median_config_singleton config_table (get_self(), get_self().value );
-
-        auto data = config_table.get_or_create( get_self(), config_obj );
-        data.multiplier = multiplier;
-        data.power = power;
-
-        config_table.set(data, get_self());
-   }
 
 } //namespace eosiosystem
