@@ -105,12 +105,11 @@ namespace eosio {
       auto m_price = median_price(self) / 10000;
       // print("m_price=", m_price, "; multiplier=", current_config.multiplier, "; power=", current_config.power);
 
-      auto payment_per_block = current_config.multiplier * pow(m_price, current_config.power);
-      auto payment_per_30min = payment_per_block * 31.5;
-      auto payment_per_day = payment_per_30min * 48;
+      auto payment_per_bp_30min = current_config.multiplier * pow(m_price, current_config.power);
+      auto payment_bp_day = payment_per_bp_30min * 48;
 
-      // print("; per_block=", payment_per_block, "; per_30min=", payment_per_30min, "; per_day=", payment_per_day, "; ");
+      // print("; payment_per_bp_30min=", payment_per_bp_30min, "; payment_bp_day=", payment_bp_day, "; ");
 
-      return int64_t(payment_per_day * 10000);
+      return int64_t(payment_bp_day * 10000);
    } 
 }
