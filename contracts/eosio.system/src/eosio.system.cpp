@@ -30,12 +30,23 @@ namespace eosiosystem {
     _rexretbuckets(get_self(), get_self().value),
     _rexfunds(get_self(), get_self().value),
     _rexbalance(get_self(), get_self().value),
-    _rexorders(get_self(), get_self().value)
+    _rexorders(get_self(), get_self().value),
+    // TELOS BEGIN
+    _schedule_metrics(_self, _self.value),
+    _rotation(_self, _self.value),
+    _payrate(_self, _self.value),
+    _payments(_self, _self.value)
+    // TELOS END
    {
       _gstate  = _global.exists() ? _global.get() : get_default_parameters();
       _gstate2 = _global2.exists() ? _global2.get() : eosio_global_state2{};
       _gstate3 = _global3.exists() ? _global3.get() : eosio_global_state3{};
       _gstate4 = _global4.exists() ? _global4.get() : get_default_inflation_parameters();
+      // TELOS BEGIN
+      _gschedule_metrics = _schedule_metrics.get_or_create(_self, schedule_metrics_state{ name(0), 0, std::vector<producer_metric>() });
+      _grotation = _rotation.get_or_create(_self, rotation_state{ name(0), name(0), 21, 75, block_timestamp(), block_timestamp() });
+      _gpayrate = _payrate.get_or_create(_self, payrates{ max_bpay_rate, max_worker_monthly_amount });
+      // TELOS END
    }
 
    eosio_global_state system_contract::get_default_parameters() {
@@ -62,6 +73,11 @@ namespace eosiosystem {
       _global2.set( _gstate2, get_self() );
       _global3.set( _gstate3, get_self() );
       _global4.set( _gstate4, get_self() );
+      // TELOS BEGIN
+      _schedule_metrics.set(_gschedule_metrics, _self);
+      _rotation.set(_grotation, _self);
+      _payrate.set(_gpayrate, _self);
+      // TELOS END
    }
 
    void system_contract::setram( uint64_t max_ram_size ) {
@@ -511,4 +527,29 @@ namespace eosiosystem {
       open_act.send( rex_account, core, get_self() );
    }
 
+   // TELOS BEGIN
+   void system_contract::votebpout(name bp, uint32_t penalty_hours) {
+      require_auth(_self);
+      check(penalty_hours != 0, "The penalty should be greater than zero.");
+
+      auto pitr = _producers.find(bp.value);
+      check(pitr != _producers.end(), "Producer account was not found");
+
+      _producers.modify(pitr, same_payer, [&](auto &p) {
+        p.kick(kick_type::BPS_VOTING, penalty_hours);
+      });
+   }
+
+   void system_contract::setpayrates(uint64_t bpay, uint64_t worker) {
+      require_auth(_self);
+      check(worker <= max_worker_monthly_amount, "WPS rate exceeds the max");
+      check(bpay <= max_bpay_rate, "BPAY rate exceeds the max");
+      _gpayrate.bpay_rate = bpay;
+      _gpayrate.worker_amount = worker;
+   }
+
+   void system_contract::distviarex(name from, asset amount) {
+      system_contract::channel_to_rex(from, amount);
+   }
+   // TELOS END
 } /// eosio.system

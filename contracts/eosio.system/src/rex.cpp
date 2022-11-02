@@ -43,7 +43,9 @@ namespace eosiosystem {
 
       check( amount.symbol == core_symbol(), "asset must be core token" );
       check( 0 < amount.amount, "must use positive amount" );
+      /* TELOS Remove requirement to vote 21 BPs or select a proxy to stake to REX
       check_voting_requirement( from );
+      */
       transfer_from_fund( from, amount );
       const asset rex_received    = add_to_rex_pool( amount );
       const asset delta_rex_stake = add_to_rex_balance( from, amount, rex_received );
@@ -61,7 +63,9 @@ namespace eosiosystem {
       check( from_net.symbol == core_symbol() && from_cpu.symbol == core_symbol(), "asset must be core token" );
       check( (0 <= from_net.amount) && (0 <= from_cpu.amount) && (0 < from_net.amount || 0 < from_cpu.amount),
              "must unstake a positive amount to buy rex" );
-      check_voting_requirement( owner );
+      /* TELOS Remove requirement to vote 21 BPs or select a proxy to stake to REX
+      check_voting_requirement( from );
+      */
 
       {
          del_bandwidth_table dbw_table( get_self(), owner.value );
