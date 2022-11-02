@@ -82,7 +82,7 @@ BOOST_FIXTURE_TEST_CASE( buysell, eosio_system_tester ) try {
    wdump((init_bytes)(bought_bytes)(bytes) );
 
    BOOST_REQUIRE_EQUAL( true, total["ram_bytes"].as_uint64() == init_bytes );
-   BOOST_REQUIRE_EQUAL( core_sym::from_string("99901248.0048"), get_balance( "alice1111111" ) );
+   BOOST_REQUIRE_EQUAL( core_sym::from_string("99901248.0040"), get_balance( "alice1111111" ) );  // TELOS
 
    BOOST_REQUIRE_EQUAL( success(), buyram( "alice1111111", "alice1111111", core_sym::from_string("100.0000") ) );
    BOOST_REQUIRE_EQUAL( success(), buyram( "alice1111111", "alice1111111", core_sym::from_string("100.0000") ) );
@@ -93,7 +93,7 @@ BOOST_FIXTURE_TEST_CASE( buysell, eosio_system_tester ) try {
    BOOST_REQUIRE_EQUAL( success(), buyram( "alice1111111", "alice1111111", core_sym::from_string("10.0000") ) );
    BOOST_REQUIRE_EQUAL( success(), buyram( "alice1111111", "alice1111111", core_sym::from_string("10.0000") ) );
    BOOST_REQUIRE_EQUAL( success(), buyram( "alice1111111", "alice1111111", core_sym::from_string("30.0000") ) );
-   BOOST_REQUIRE_EQUAL( core_sym::from_string("99900688.0048"), get_balance( "alice1111111" ) );
+   BOOST_REQUIRE_EQUAL( core_sym::from_string("99900688.0040"), get_balance( "alice1111111" ) );  // TELOS
 
    auto newtotal = get_total_stake( "alice1111111" );
 
@@ -102,7 +102,7 @@ BOOST_FIXTURE_TEST_CASE( buysell, eosio_system_tester ) try {
    wdump((newbytes)(bytes)(bought_bytes) );
 
    BOOST_REQUIRE_EQUAL( success(), sellram( "alice1111111", bought_bytes ) );
-   BOOST_REQUIRE_EQUAL( core_sym::from_string("99901242.4187"), get_balance( "alice1111111" ) );
+   BOOST_REQUIRE_EQUAL( core_sym::from_string("99901242.4175"), get_balance( "alice1111111" ) );  // TELOS
 
    newtotal = get_total_stake( "alice1111111" );
    auto startbytes = newtotal["ram_bytes"].as_uint64();
@@ -116,7 +116,7 @@ BOOST_FIXTURE_TEST_CASE( buysell, eosio_system_tester ) try {
    BOOST_REQUIRE_EQUAL( success(), buyram( "alice1111111", "alice1111111", core_sym::from_string("100000.0000") ) );
    BOOST_REQUIRE_EQUAL( success(), buyram( "alice1111111", "alice1111111", core_sym::from_string("100000.0000") ) );
    BOOST_REQUIRE_EQUAL( success(), buyram( "alice1111111", "alice1111111", core_sym::from_string("300000.0000") ) );
-   BOOST_REQUIRE_EQUAL( core_sym::from_string("49301242.4187"), get_balance( "alice1111111" ) );
+   BOOST_REQUIRE_EQUAL( core_sym::from_string("49301242.4175"), get_balance( "alice1111111" ) );  // TELOS
 
    auto finaltotal = get_total_stake( "alice1111111" );
    auto endbytes = finaltotal["ram_bytes"].as_uint64();
@@ -175,7 +175,10 @@ BOOST_FIXTURE_TEST_CASE( buysell, eosio_system_tester ) try {
 } FC_LOG_AND_RETHROW()
 
 BOOST_FIXTURE_TEST_CASE( stake_unstake, eosio_system_tester ) try {
-   cross_15_percent_threshold();
+   // TELOS BEGIN
+   activate_network();
+   // cross_15_percent_threshold();
+   // TELOS END
 
    produce_blocks( 10 );
    produce_block( fc::hours(3*24) );
@@ -240,7 +243,10 @@ BOOST_FIXTURE_TEST_CASE( stake_unstake, eosio_system_tester ) try {
 } FC_LOG_AND_RETHROW()
 
 BOOST_FIXTURE_TEST_CASE( stake_unstake_with_transfer, eosio_system_tester ) try {
-   cross_15_percent_threshold();
+   // TELOS BEGIN
+   activate_network();
+   // cross_15_percent_threshold();
+   // TELOS END
 
    BOOST_REQUIRE_EQUAL( core_sym::from_string("0.0000"), get_balance( "alice1111111" ) );
 
@@ -293,7 +299,10 @@ BOOST_FIXTURE_TEST_CASE( stake_unstake_with_transfer, eosio_system_tester ) try 
 } FC_LOG_AND_RETHROW()
 
 BOOST_FIXTURE_TEST_CASE( stake_to_self_with_transfer, eosio_system_tester ) try {
-   cross_15_percent_threshold();
+   // TELOS BEGIN
+   activate_network();
+   // cross_15_percent_threshold();
+   // TELOS END
 
    BOOST_REQUIRE_EQUAL( core_sym::from_string("0.0000"), get_balance( "alice1111111" ) );
    transfer( "eosio", "alice1111111", core_sym::from_string("1000.0000"), "eosio" );
@@ -305,7 +314,10 @@ BOOST_FIXTURE_TEST_CASE( stake_to_self_with_transfer, eosio_system_tester ) try 
 } FC_LOG_AND_RETHROW()
 
 BOOST_FIXTURE_TEST_CASE( stake_while_pending_refund, eosio_system_tester ) try {
-   cross_15_percent_threshold();
+   // TELOS BEGIN
+   activate_network();
+   // cross_15_percent_threshold();
+   // TELOS END
 
    BOOST_REQUIRE_EQUAL( core_sym::from_string("0.0000"), get_balance( "alice1111111" ) );
 
@@ -357,7 +369,10 @@ BOOST_FIXTURE_TEST_CASE( stake_while_pending_refund, eosio_system_tester ) try {
 } FC_LOG_AND_RETHROW()
 
 BOOST_FIXTURE_TEST_CASE( fail_without_auth, eosio_system_tester ) try {
-   cross_15_percent_threshold();
+   // TELOS BEGIN
+   activate_network();
+   // cross_15_percent_threshold();
+   // TELOS END
 
    issue_and_transfer( "alice1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
 
@@ -387,7 +402,6 @@ BOOST_FIXTURE_TEST_CASE( fail_without_auth, eosio_system_tester ) try {
    );
    //REQUIRE_MATCHING_OBJECT( , get_voter_info( "alice1111111" ) );
 } FC_LOG_AND_RETHROW()
-
 
 BOOST_FIXTURE_TEST_CASE( stake_negative, eosio_system_tester ) try {
    issue_and_transfer( "alice1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
@@ -443,7 +457,10 @@ BOOST_FIXTURE_TEST_CASE( unstake_negative, eosio_system_tester ) try {
 
 
 BOOST_FIXTURE_TEST_CASE( unstake_more_than_at_stake, eosio_system_tester ) try {
-   cross_15_percent_threshold();
+   // TELOS BEGIN
+   activate_network();
+   // cross_15_percent_threshold();
+   // TELOS END
 
    issue_and_transfer( "alice1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
    BOOST_REQUIRE_EQUAL( success(), stake( "alice1111111", core_sym::from_string("200.0000"), core_sym::from_string("100.0000") ) );
@@ -475,7 +492,10 @@ BOOST_FIXTURE_TEST_CASE( unstake_more_than_at_stake, eosio_system_tester ) try {
 
 
 BOOST_FIXTURE_TEST_CASE( delegate_to_another_user, eosio_system_tester ) try {
-   cross_15_percent_threshold();
+   // TELOS BEGIN
+   activate_network();
+   // cross_15_percent_threshold();
+   // TELOS END
 
    issue_and_transfer( "alice1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
 
@@ -531,7 +551,10 @@ BOOST_FIXTURE_TEST_CASE( delegate_to_another_user, eosio_system_tester ) try {
 
 
 BOOST_FIXTURE_TEST_CASE( stake_unstake_separate, eosio_system_tester ) try {
-   cross_15_percent_threshold();
+   // TELOS BEGIN
+   activate_network();
+   // cross_15_percent_threshold();
+   // TELOS END
 
    issue_and_transfer( "alice1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
    BOOST_REQUIRE_EQUAL( core_sym::from_string("1000.0000"), get_balance( "alice1111111" ) );
@@ -569,7 +592,10 @@ BOOST_FIXTURE_TEST_CASE( stake_unstake_separate, eosio_system_tester ) try {
 
 
 BOOST_FIXTURE_TEST_CASE( adding_stake_partial_unstake, eosio_system_tester ) try {
-   cross_15_percent_threshold();
+   // TELOS BEGIN
+   activate_network();
+   // cross_15_percent_threshold();
+   // TELOS END
 
    issue_and_transfer( "alice1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
    BOOST_REQUIRE_EQUAL( success(), stake( "alice1111111", "bob111111111", core_sym::from_string("200.0000"), core_sym::from_string("100.0000") ) );
@@ -610,7 +636,10 @@ BOOST_FIXTURE_TEST_CASE( adding_stake_partial_unstake, eosio_system_tester ) try
 } FC_LOG_AND_RETHROW()
 
 BOOST_FIXTURE_TEST_CASE( stake_from_refund, eosio_system_tester ) try {
-   cross_15_percent_threshold();
+   // TELOS BEGIN
+   activate_network();
+   // cross_15_percent_threshold();
+   // TELOS END
 
    issue_and_transfer( "alice1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
    BOOST_REQUIRE_EQUAL( success(), stake( "alice1111111", "alice1111111", core_sym::from_string("200.0000"), core_sym::from_string("100.0000") ) );
@@ -699,7 +728,10 @@ BOOST_FIXTURE_TEST_CASE( stake_from_refund, eosio_system_tester ) try {
 } FC_LOG_AND_RETHROW()
 
 BOOST_FIXTURE_TEST_CASE( stake_to_another_user_not_from_refund, eosio_system_tester ) try {
-   cross_15_percent_threshold();
+   // TELOS BEGIN
+   activate_network();
+   // cross_15_percent_threshold();
+   // TELOS END
 
    issue_and_transfer( "alice1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
    BOOST_REQUIRE_EQUAL( success(), stake( "alice1111111", core_sym::from_string("200.0000"), core_sym::from_string("100.0000") ) );
@@ -805,7 +837,10 @@ BOOST_FIXTURE_TEST_CASE( producer_register_unregister, eosio_system_tester ) try
 
 
 BOOST_FIXTURE_TEST_CASE( producer_wtmsig, eosio_system_tester ) try {
-   cross_15_percent_threshold();
+   // TELOS BEGIN
+   activate_network();
+   // cross_15_percent_threshold();
+   // TELOS END
 
    BOOST_REQUIRE_EQUAL( control->active_producers().version, 0u );
 
@@ -900,12 +935,15 @@ BOOST_FIXTURE_TEST_CASE( producer_wtmsig, eosio_system_tester ) try {
 } FC_LOG_AND_RETHROW()
 
 BOOST_FIXTURE_TEST_CASE( producer_wtmsig_transition, eosio_system_tester ) try {
-   cross_15_percent_threshold();
+   // TELOS BEGIN
+   activate_network();
+   // cross_15_percent_threshold();
+   // TELOS END
 
    BOOST_REQUIRE_EQUAL( control->active_producers().version, 0u );
 
-   set_code( config::system_account_name, contracts::util::system_wasm_v1_8() );
-   set_abi(  config::system_account_name, contracts::util::system_abi_v1_8().data() );
+   set_code( config::system_account_name, contracts::util::system_wasm_old() );
+   set_abi(  config::system_account_name, contracts::util::system_abi_old().data() );
 
    issue_and_transfer( "alice1111111"_n, core_sym::from_string("200000000.0000"),  config::system_account_name );
    BOOST_REQUIRE_EQUAL( success(), push_action( "alice1111111"_n, "regproducer"_n, mvo()
@@ -1001,7 +1039,10 @@ BOOST_FIXTURE_TEST_CASE( producer_wtmsig_transition, eosio_system_tester ) try {
 } FC_LOG_AND_RETHROW()
 
 BOOST_FIXTURE_TEST_CASE( vote_for_producer, eosio_system_tester, * boost::unit_test::tolerance(1e+5) ) try {
-   cross_15_percent_threshold();
+   // TELOS BEGIN
+   activate_network();
+   // cross_15_percent_threshold();
+   // TELOS END
 
    issue_and_transfer( "alice1111111", core_sym::from_string("1000.0000"),  config::system_account_name );
    fc::variant params = producer_parameters_example(1);
@@ -1277,7 +1318,8 @@ BOOST_FIXTURE_TEST_CASE( vote_for_two_producers, eosio_system_tester, * boost::u
 
 } FC_LOG_AND_RETHROW()
 
-
+// TELOS BEGIN: Some tests dont apply to our code, and the rest moved to custom `telos.system_tests.cpp` file.
+/*
 BOOST_FIXTURE_TEST_CASE( proxy_register_unregister_keeps_stake, eosio_system_tester ) try {
    //register proxy by first action for this user ever
    BOOST_REQUIRE_EQUAL( success(), push_action("alice1111111"_n, "regproxy"_n, mvo()
@@ -1335,7 +1377,10 @@ BOOST_FIXTURE_TEST_CASE( proxy_register_unregister_keeps_stake, eosio_system_tes
 
 
 BOOST_FIXTURE_TEST_CASE( proxy_stake_unstake_keeps_proxy_flag, eosio_system_tester ) try {
-   cross_15_percent_threshold();
+   // TELOS BEGIN
+   activate_network();
+   // cross_15_percent_threshold();
+   // TELOS END
 
    BOOST_REQUIRE_EQUAL( success(), push_action( "alice1111111"_n, "regproxy"_n, mvo()
                                                ("proxy",  "alice1111111")
@@ -1367,7 +1412,10 @@ BOOST_FIXTURE_TEST_CASE( proxy_stake_unstake_keeps_proxy_flag, eosio_system_test
 
 
 BOOST_FIXTURE_TEST_CASE( proxy_actions_affect_producers, eosio_system_tester, * boost::unit_test::tolerance(1e+5) ) try {
-   cross_15_percent_threshold();
+   // TELOS BEGIN
+   activate_network();
+   // cross_15_percent_threshold();
+   // TELOS END
 
    create_accounts_with_resources( {  "defproducer1"_n, "defproducer2"_n, "defproducer3"_n } );
    BOOST_REQUIRE_EQUAL( success(), regproducer( "defproducer1"_n, 1) );
@@ -2298,7 +2346,10 @@ BOOST_FIXTURE_TEST_CASE(multiple_producer_votepay_share, eosio_system_tester, * 
 
 BOOST_FIXTURE_TEST_CASE(votepay_share_invariant, eosio_system_tester, * boost::unit_test::tolerance(1e-10)) try {
 
-   cross_15_percent_threshold();
+   // TELOS BEGIN
+   activate_network();
+   // cross_15_percent_threshold();
+   // TELOS END
 
    const asset net = core_sym::from_string("80.0000");
    const asset cpu = core_sym::from_string("80.0000");
@@ -2366,7 +2417,10 @@ BOOST_FIXTURE_TEST_CASE(votepay_share_invariant, eosio_system_tester, * boost::u
 
 BOOST_FIXTURE_TEST_CASE(votepay_share_proxy, eosio_system_tester, * boost::unit_test::tolerance(1e-5)) try {
 
-   cross_15_percent_threshold();
+   // TELOS BEGIN
+   activate_network();
+   // cross_15_percent_threshold();
+   // TELOS END
 
    const asset net = core_sym::from_string("80.0000");
    const asset cpu = core_sym::from_string("80.0000");
@@ -2514,7 +2568,10 @@ BOOST_FIXTURE_TEST_CASE(votepay_share_proxy, eosio_system_tester, * boost::unit_
 
 BOOST_FIXTURE_TEST_CASE(votepay_share_update_order, eosio_system_tester, * boost::unit_test::tolerance(1e-10)) try {
 
-   cross_15_percent_threshold();
+   // TELOS BEGIN
+   activate_network();
+   // cross_15_percent_threshold();
+   // TELOS END
 
    const asset net = core_sym::from_string("80.0000");
    const asset cpu = core_sym::from_string("80.0000");
@@ -2656,7 +2713,6 @@ BOOST_AUTO_TEST_CASE(votepay_transition2, * boost::unit_test::tolerance(1e-10)) 
    };
 
    t.create_core_token( old_contract_core_symbol );
-   t.set_code( config::system_account_name, contracts::util::system_wasm_old() );
    t.set_abi(  config::system_account_name, contracts::util::system_abi_old().data() );
    {
       const auto& accnt = t.control->db().get<account_object,by_name>( config::system_account_name );
@@ -2722,6 +2778,8 @@ BOOST_AUTO_TEST_CASE(votepay_transition2, * boost::unit_test::tolerance(1e-10)) 
                        t.get_global_state3()["total_vpay_share_change_rate"].as_double() );
 
 } FC_LOG_AND_RETHROW()
+*/
+// TELOS END
 
 
 BOOST_FIXTURE_TEST_CASE(producers_upgrade_system_contract, eosio_system_tester) try {
@@ -2842,6 +2900,8 @@ BOOST_FIXTURE_TEST_CASE(producers_upgrade_system_contract, eosio_system_tester) 
 
 } FC_LOG_AND_RETHROW()
 
+// TELOS BEGIN: producer_onblock_check on telos.system_tests.cpp
+/*
 BOOST_FIXTURE_TEST_CASE(producer_onblock_check, eosio_system_tester) try {
 
    const asset large_asset = core_sym::from_string("80.0000");
@@ -2937,7 +2997,9 @@ BOOST_FIXTURE_TEST_CASE(producer_onblock_check, eosio_system_tester) try {
    BOOST_CHECK_EQUAL( success(), unstake( "producvotera", core_sym::from_string("50.0000"), core_sym::from_string("50.0000") ) );
 
 } FC_LOG_AND_RETHROW()
-
+*/
+// TELOS BEGIN: Disable proxy test
+/*
 BOOST_FIXTURE_TEST_CASE( voters_actions_affect_proxy_and_producers, eosio_system_tester, * boost::unit_test::tolerance(1e+6) ) try {
    cross_15_percent_threshold();
 
@@ -3017,7 +3079,6 @@ BOOST_FIXTURE_TEST_CASE( voters_actions_affect_proxy_and_producers, eosio_system
    BOOST_TEST_REQUIRE( 0.0 == get_producer_info( "defproducer3" )["total_votes"].as_double() );
 
 } FC_LOG_AND_RETHROW()
-
 
 BOOST_FIXTURE_TEST_CASE( vote_both_proxy_and_producers, eosio_system_tester ) try {
    //alice1111111 becomes a proxy
@@ -3103,7 +3164,6 @@ BOOST_FIXTURE_TEST_CASE( double_register_unregister_proxy_keeps_votes, eosio_sys
 
 } FC_LOG_AND_RETHROW()
 
-
 BOOST_FIXTURE_TEST_CASE( proxy_cannot_use_another_proxy, eosio_system_tester ) try {
    //alice1111111 becomes a proxy
    BOOST_REQUIRE_EQUAL( success(), push_action( "alice1111111"_n, "regproxy"_n, mvo()
@@ -3141,6 +3201,7 @@ BOOST_FIXTURE_TEST_CASE( proxy_cannot_use_another_proxy, eosio_system_tester ) t
                         vote( "bob111111111"_n, vector<account_name>(), "bob111111111" ) );
 
 } FC_LOG_AND_RETHROW()
+*/
 
 fc::mutable_variant_object config_to_variant( const eosio::chain::chain_config& config ) {
    return mutable_variant_object()
@@ -3173,6 +3234,9 @@ BOOST_FIXTURE_TEST_CASE( elect_producers /*_and_parameters*/, eosio_system_teste
    BOOST_REQUIRE_EQUAL( success(), stake( "alice1111111", "alice1111111", core_sym::from_string("300000000.0000"), core_sym::from_string("300000000.0000") ) );
    //vote for producers
    BOOST_REQUIRE_EQUAL( success(), vote( "alice1111111"_n, { "defproducer1"_n } ) );
+   // TELOS BEGIN
+   activate_network();
+   // TELOS END
    produce_blocks(250);
    auto producer_keys = control->head_block_state()->active_schedule.producers;
    BOOST_REQUIRE_EQUAL( 1, producer_keys.size() );
@@ -3238,6 +3302,9 @@ BOOST_FIXTURE_TEST_CASE( buyname, eosio_system_tester ) try {
 
    regproducer( config::system_account_name );
    BOOST_REQUIRE_EQUAL( success(), vote( "sam"_n, { config::system_account_name } ) );
+   // TELOS BEGIN
+   activate_network();
+   // TELOS END
    // wait 14 days after min required amount has been staked
    produce_block( fc::days(7) );
    BOOST_REQUIRE_EQUAL( success(), vote( "dan"_n, { config::system_account_name } ) );
@@ -3359,6 +3426,10 @@ BOOST_FIXTURE_TEST_CASE( multiple_namebids, eosio_system_tester ) try {
    BOOST_REQUIRE_EQUAL(0, get_producer_info("producer")["unpaid_blocks"].as<uint32_t>());
    BOOST_REQUIRE_EQUAL( success(), vote( "alice"_n, { "producer"_n } ) );
 
+   // TELOS BEGIN
+   activate_network();
+   // TELOS END
+
    // need to wait for 14 days after going live
    produce_blocks(10);
    produce_block( fc::days(2) );
@@ -3422,7 +3493,10 @@ BOOST_FIXTURE_TEST_CASE( multiple_namebids, eosio_system_tester ) try {
 } FC_LOG_AND_RETHROW()
 
 BOOST_FIXTURE_TEST_CASE( namebid_pending_winner, eosio_system_tester ) try {
-   cross_15_percent_threshold();
+   // TELOS BEGIN
+   active_and_vote_producers2();
+   // cross_15_percent_threshold();
+   // TELOS END
    produce_block( fc::hours(14*24) );    //wait 14 day for name auction activation
    transfer( config::system_account_name, "alice1111111"_n, core_sym::from_string("10000.0000") );
    transfer( config::system_account_name, "bob111111111"_n, core_sym::from_string("10000.0000") );
@@ -3437,6 +3511,8 @@ BOOST_FIXTURE_TEST_CASE( namebid_pending_winner, eosio_system_tester ) try {
 } FC_LOG_AND_RETHROW()
 
 BOOST_FIXTURE_TEST_CASE( vote_producers_in_and_out, eosio_system_tester ) try {
+   // TELOS ADDITION
+   activate_network();
 
    const asset net = core_sym::from_string("80.0000");
    const asset cpu = core_sym::from_string("80.0000");
@@ -3476,7 +3552,10 @@ BOOST_FIXTURE_TEST_CASE( vote_producers_in_and_out, eosio_system_tester ) try {
 
    // give a chance for everyone to produce blocks
    {
-      produce_blocks(23 * 12 + 20);
+      // TELOS SPECIFIC
+      // produce_blocks(23 * 12 + 20);
+      produce_blocks(51 * 24 + 20);
+
       bool all_21_produced = true;
       for (uint32_t i = 0; i < 21; ++i) {
          if (0 == get_producer_info(producer_names[i])["unpaid_blocks"].as<uint32_t>()) {
@@ -3493,6 +3572,8 @@ BOOST_FIXTURE_TEST_CASE( vote_producers_in_and_out, eosio_system_tester ) try {
    }
 
    {
+      // BEGIN TELOS REPLACEMENT
+      /*
       produce_block(fc::hours(7));
       const uint32_t voted_out_index = 20;
       const uint32_t new_prod_index  = 23;
@@ -3509,6 +3590,29 @@ BOOST_FIXTURE_TEST_CASE( vote_producers_in_and_out, eosio_system_tester ) try {
       produce_blocks(2 * 12 * 21);
       BOOST_REQUIRE(fc::crypto::public_key() != fc::crypto::public_key(get_producer_info(producer_names[voted_out_index])["producer_key"].as_string()));
       BOOST_REQUIRE_EQUAL(success(), push_action(producer_names[voted_out_index], "claimrewards"_n, mvo()("owner", producer_names[voted_out_index])));
+      */
+      produce_block(fc::hours(3));
+      const uint32_t voted_out_index = 20;
+      const uint32_t new_prod_index  = 23;
+      // the new weight calculation gives bigger weight for more voted producers
+      vector<account_name> v = vector<account_name>(producer_names.begin(), producer_names.begin()+(voted_out_index-1));
+      v.emplace_back(producer_names[new_prod_index]);
+
+      BOOST_REQUIRE_EQUAL(success(), stake("producvoterd", core_sym::from_string("40000000.0000"), core_sym::from_string("40000000.0000")));
+      BOOST_REQUIRE_EQUAL(success(), vote("producvoterd"_n, v));
+      BOOST_REQUIRE_EQUAL(0, get_producer_info(producer_names[new_prod_index])["unpaid_blocks"].as<uint32_t>());
+      produce_blocks(4 * 24 * 21);
+
+      BOOST_REQUIRE(0 < get_producer_info(producer_names[new_prod_index])["unpaid_blocks"].as<uint32_t>());
+      const uint32_t initial_unpaid_blocks = get_producer_info(producer_names[voted_out_index])["unpaid_blocks"].as<uint32_t>();
+      produce_blocks(2 * 24 * 21);
+      // BOOST_REQUIRE_EQUAL(initial_unpaid_blocks, get_producer_info(producer_names[voted_out_index])["unpaid_blocks"].as<uint32_t>());
+      produce_block(fc::hours(24));
+      BOOST_REQUIRE_EQUAL(success(), vote("producvoterd"_n, { producer_names[voted_out_index] }));
+      produce_blocks(2 * 24 * 21);
+      BOOST_REQUIRE(fc::crypto::public_key() != fc::crypto::public_key(get_producer_info(producer_names[voted_out_index])["producer_key"].as_string()));
+      BOOST_REQUIRE_EQUAL(success(), push_action(producer_names[voted_out_index], "claimrewards"_n, mvo()("owner", producer_names[voted_out_index])));
+      // END TELOS REPLACEMENT
    }
 
 } FC_LOG_AND_RETHROW()
@@ -3731,11 +3835,11 @@ BOOST_FIXTURE_TEST_CASE( setram_effect, eosio_system_tester ) try {
 
       // increase max_ram_size, ram bought by name_b loses part of its value
       BOOST_REQUIRE_EQUAL( wasm_assert_msg("ram may only be increased"),
-                           push_action(config::system_account_name, "setram"_n, mvo()("max_ram_size", 64ll*1024 * 1024 * 1024)) );
+                           push_action(config::system_account_name, "setram"_n, mvo()("max_ram_size", 12ll*1024 * 1024 * 1024)) );
       BOOST_REQUIRE_EQUAL( error("missing authority of eosio"),
-                           push_action(name_b, "setram"_n, mvo()("max_ram_size", 80ll*1024 * 1024 * 1024)) );
+                           push_action(name_b, "setram"_n, mvo()("max_ram_size", 16ll*1024 * 1024 * 1024)) );
       BOOST_REQUIRE_EQUAL( success(),
-                           push_action(config::system_account_name, "setram"_n, mvo()("max_ram_size", 80ll*1024 * 1024 * 1024)) );
+                           push_action(config::system_account_name, "setram"_n, mvo()("max_ram_size", 16ll*1024 * 1024 * 1024)) );
 
       BOOST_REQUIRE_EQUAL( success(), sellram(name_b, bought_bytes_b ) );
       BOOST_REQUIRE( core_sym::from_string("900.0000") < get_balance(name_b) );
@@ -3744,6 +3848,8 @@ BOOST_FIXTURE_TEST_CASE( setram_effect, eosio_system_tester ) try {
 
 } FC_LOG_AND_RETHROW()
 
+// TELOS BEGIN
+/*
 BOOST_FIXTURE_TEST_CASE( ram_inflation, eosio_system_tester ) try {
 
    const uint64_t init_max_ram_size = 64ll*1024 * 1024 * 1024;
@@ -3791,6 +3897,8 @@ BOOST_FIXTURE_TEST_CASE( ram_inflation, eosio_system_tester ) try {
    BOOST_REQUIRE_EQUAL( cur_ram_size + 11 * old_rate + 6 * rate, get_global_state()["max_ram_size"].as_uint64() );
 
 } FC_LOG_AND_RETHROW()
+*/
+// TELOS END
 
 BOOST_FIXTURE_TEST_CASE( eosioram_ramusage, eosio_system_tester ) try {
    BOOST_REQUIRE_EQUAL( core_sym::from_string("0.0000"), get_balance( "alice1111111" ) );
@@ -3883,7 +3991,7 @@ BOOST_FIXTURE_TEST_CASE( rex_rounding_issue, eosio_system_tester ) try {
       create_accounts_with_resources({ w });
       stake_with_transfer(config::system_account_name, w, core_sym::from_string("1000.0000"), core_sym::from_string("1000.0000"));
       issue_and_transfer(w, core_sym::from_string("100000000.0000"));
-      BOOST_REQUIRE_EQUAL( success(), vote( w, { }, "proxyaccount"_n ) );
+      // BOOST_REQUIRE_EQUAL( success(), vote( w, { }, "proxyaccount"_n ) );
       BOOST_REQUIRE_EQUAL( success(), push_action( w, "deposit"_n, mvo()("owner", w)("amount", core_sym::from_string("1000000.0000")) ) );
       BOOST_REQUIRE_EQUAL( success(), push_action( w, "buyrex"_n, mvo()("from", w)("amount", core_sym::from_string("1000000.0000")) ) );
    }
@@ -3896,14 +4004,14 @@ BOOST_FIXTURE_TEST_CASE( rex_rounding_issue, eosio_system_tester ) try {
       buyram(config::system_account_name, rb, core_sym::from_string("10.0000"));
       issue_and_transfer(rb, core_sym::from_string("1000000.0000"));
       stake_with_transfer(config::system_account_name, rb, core_sym::from_string("1000.0000"), core_sym::from_string("1000.0000"));
-      BOOST_REQUIRE_EQUAL( success(), vote( rb, { }, "proxyaccount"_n ) );
+      // BOOST_REQUIRE_EQUAL( success(), vote( rb, { }, "proxyaccount"_n ) );
       BOOST_REQUIRE_EQUAL( success(), push_action( rb, "deposit"_n, mvo()("owner", rb)("amount", core_sym::from_string("1000000.0000")) ) );
    }
    // get accounts into rex
    for(auto& acct : accounts){
       stake_with_transfer(config::system_account_name, acct, core_sym::from_string("1000.0000"), core_sym::from_string("1000.0000"));
       issue_and_transfer(acct, core_sym::from_string("100.1239"));
-      BOOST_REQUIRE_EQUAL( success(), vote( acct, { }, "proxyaccount"_n ) );
+      // BOOST_REQUIRE_EQUAL( success(), vote( acct, { }, "proxyaccount"_n ) );
       BOOST_REQUIRE_EQUAL( success(), push_action( acct, "deposit"_n, mvo()("owner", acct)("amount", core_sym::from_string("100.1239")) ) );
       BOOST_REQUIRE_EQUAL( success(), push_action( acct, "buyrex"_n, mvo()("from", acct)("amount", core_sym::from_string("100.1239")) ) );
    }
@@ -4122,17 +4230,29 @@ BOOST_FIXTURE_TEST_CASE( unstake_buy_rex, eosio_system_tester, * boost::unit_tes
    // create accounts {defproducera, defproducerb, ..., defproducerz} and register as producers
    std::vector<account_name> producer_names;
    {
+      // BEGIN TELOS REPLACEMENT
+      /*
       producer_names.reserve('z' - 'a' + 1);
       const std::string root("defproducer");
       for ( char c = 'a'; c <= 'z'; ++c ) {
          producer_names.emplace_back(root + std::string(1, c));
       }
+      */
+      producer_names.reserve(30);
+      const std::string root("tprod");
+      for(uint8_t i = 0; i < 30; i++) {
+         name p = name(root + toBase31(i));
+         producer_names.emplace_back(p);
+      }
+      // END TELOS REPLACEMENT
 
       setup_producer_accounts(producer_names);
       for ( const auto& p: producer_names ) {
          BOOST_REQUIRE_EQUAL( success(), regproducer(p) );
          BOOST_TEST_REQUIRE( 0 == get_producer_info(p)["total_votes"].as<double>() );
       }
+      // TELOS ADDITION
+      std::sort(producer_names.begin(), producer_names.end());
    }
 
    const int64_t init_cpu_limit = get_cpu_limit( alice );
@@ -4146,12 +4266,14 @@ BOOST_FIXTURE_TEST_CASE( unstake_buy_rex, eosio_system_tester, * boost::unit_tes
       BOOST_REQUIRE_EQUAL( success(),                               stake( alice, alice, net_stake, cpu_stake ) );
       BOOST_REQUIRE_EQUAL( get_cpu_limit( alice ),                  init_cpu_limit + cpu_stake.get_amount() );
       BOOST_REQUIRE_EQUAL( get_net_limit( alice ),                  init_net_limit + net_stake.get_amount() );
+      // TELOS BEGIN
+      // BOOST_REQUIRE_EQUAL( success(),
+      //                      vote( alice, std::vector<account_name>(producer_names.begin(), producer_names.begin() + 20) ) );
+      // BOOST_REQUIRE_EQUAL( wasm_assert_msg("must vote for at least 21 producers or for a proxy before buying REX"),
+      //                      unstaketorex( alice, alice, net_stake, cpu_stake ) );
+      // TELOS END
       BOOST_REQUIRE_EQUAL( success(),
-                           vote( alice, std::vector<account_name>(producer_names.begin(), producer_names.begin() + 20) ) );
-      BOOST_REQUIRE_EQUAL( wasm_assert_msg("must vote for at least 21 producers or for a proxy before buying REX"),
-                           unstaketorex( alice, alice, net_stake, cpu_stake ) );
-      BOOST_REQUIRE_EQUAL( success(),
-                           vote( alice, std::vector<account_name>(producer_names.begin(), producer_names.begin() + 21) ) );
+                           vote( alice, std::vector<account_name>(producer_names.begin(), producer_names.begin() + 30) ) );  // TELOS
       const asset init_eosio_stake_balance = get_balance( "eosio.stake"_n );
       const auto init_voter_info = get_voter_info( alice );
       const auto init_prod_info  = get_producer_info( producer_names[0] );
@@ -4170,7 +4292,7 @@ BOOST_FIXTURE_TEST_CASE( unstake_buy_rex, eosio_system_tester, * boost::unit_tes
       BOOST_REQUIRE_EQUAL( init_voter_info["staked"].as<int64_t>(), current_voter_info["staked"].as<int64_t>() );
       BOOST_TEST_REQUIRE( current_prod_info["total_votes"].as_double() ==
                           stake2votes( asset( current_voter_info["staked"].as<int64_t>(), symbol{CORE_SYM} ) ) );
-      BOOST_TEST_REQUIRE( init_prod_info["total_votes"].as_double() < current_prod_info["total_votes"].as_double() );
+      BOOST_TEST_REQUIRE( init_prod_info["total_votes"].as_double() <= /*TELOS*/ current_prod_info["total_votes"].as_double() );
    }
 
    {
@@ -4739,7 +4861,10 @@ BOOST_FIXTURE_TEST_CASE( ramfee_namebid_to_rex, eosio_system_tester ) try {
    BOOST_REQUIRE_EQUAL( 0,                                        cur_rex_pool["namebid_proceeds"].as<asset>().get_amount() );
 
    // required for closing namebids
-   cross_15_percent_threshold();
+   // TELOS SPECIFIC
+   // cross_15_percent_threshold();
+   active_and_vote_producers2();
+   vote("proxyaccount"_n, { "tprodaaaaaaa"_n });
    produce_block( fc::days(14) );
 
    cur_rex_balance = get_balance( "eosio.rex"_n );
@@ -4749,7 +4874,7 @@ BOOST_FIXTURE_TEST_CASE( ramfee_namebid_to_rex, eosio_system_tester ) try {
    BOOST_REQUIRE_EQUAL( core_sym::from_string("29.3500"), get_balance( "eosio.names"_n ));
 
    produce_block( fc::hours(24) );
-   produce_blocks( 2 );
+   produce_blocks( 1000 );  // TELOS SPECIFIC
 
    BOOST_REQUIRE_EQUAL( core_sym::from_string("29.3500"), get_rex_pool()["namebid_proceeds"].as<asset>() );
    BOOST_REQUIRE_EQUAL( success(),                        deposit( frank, core_sym::from_string("5.0000") ) );
@@ -5153,26 +5278,39 @@ BOOST_FIXTURE_TEST_CASE( update_rex, eosio_system_tester, * boost::unit_test::to
    BOOST_REQUIRE_EQUAL( payment,                                get_rex_vote_stake(alice) );
    BOOST_REQUIRE_EQUAL( get_rex_vote_stake(alice).get_amount(), get_voter_info( alice )["staked"].as<int64_t>() - init_stake );
 
-   // create accounts {defproducera, defproducerb, ..., defproducerz} and register as producers
+   // create accounts {tprodaaaaaaa, tprodaaaaaab, ..., tprodaaaaaaz} and register as producers
    std::vector<account_name> producer_names;
    {
+      // BEGIN TELOS REPLACEMENT
+      /*
       producer_names.reserve('z' - 'a' + 1);
       const std::string root("defproducer");
       for ( char c = 'a'; c <= 'z'; ++c ) {
          producer_names.emplace_back(root + std::string(1, c));
       }
+      */
+      producer_names.reserve(30);
+      const std::string root("tprod");
+      for(uint8_t i = 0; i < 30; i++) {
+         name p = name(root + toBase31(i));
+         producer_names.emplace_back(p);
+      }
+      // END TELOS REPLACEMENT
 
       setup_producer_accounts(producer_names);
       for ( const auto& p: producer_names ) {
          BOOST_REQUIRE_EQUAL( success(), regproducer(p) );
          BOOST_TEST_REQUIRE( 0 == get_producer_info(p)["total_votes"].as<double>() );
       }
+      // TELOS ADDITION
+      std::sort(producer_names.begin(), producer_names.end());
    }
 
-   BOOST_REQUIRE_EQUAL( wasm_assert_msg("voter holding REX tokens must vote for at least 21 producers or for a proxy"),
-                        vote( alice, std::vector<account_name>(producer_names.begin(), producer_names.begin() + 20) ) );
+   // TELOS DELETION
+   // BOOST_REQUIRE_EQUAL( wasm_assert_msg("voter holding REX tokens must vote for at least 21 producers or for a proxy"),
+   //                      vote( alice, std::vector<account_name>(producer_names.begin(), producer_names.begin() + 20) ) );
    BOOST_REQUIRE_EQUAL( success(),
-                        vote( alice, std::vector<account_name>(producer_names.begin(), producer_names.begin() + 21) ) );
+                        vote( alice, std::vector<account_name>(producer_names.begin(), producer_names.begin() + 30) ) );  // TELOS SPECIFIC
 
    BOOST_TEST_REQUIRE( stake2votes( asset( get_voter_info( alice )["staked"].as<int64_t>(), symbol{CORE_SYM} ) )
                        == get_producer_info(producer_names[0])["total_votes"].as<double>() );
@@ -5180,16 +5318,28 @@ BOOST_FIXTURE_TEST_CASE( update_rex, eosio_system_tester, * boost::unit_test::to
                        == get_producer_info(producer_names[20])["total_votes"].as<double>() );
 
    BOOST_REQUIRE_EQUAL( success(), updaterex( alice ) );
+   // BEGIN TELOS REPLACEMENT
+   /*
    produce_block( fc::days(10) );
    BOOST_TEST_REQUIRE( get_producer_info(producer_names[20])["total_votes"].as<double>()
                        < stake2votes( asset( get_voter_info( alice )["staked"].as<int64_t>(), symbol{CORE_SYM} ) ) );
+   */
+   produce_block( fc::days(20) );
+
+   //NOTE: TELOS doesn't have "vote decay", this test has been rewritten to reflect telos voting logic. 
+   BOOST_TEST_REQUIRE( get_producer_info(producer_names[20])["total_votes"].as<double>()
+                       == stake2votes( asset( get_voter_info( alice )["staked"].as<int64_t>(), symbol{CORE_SYM} ) ) );
+   // END TELOS REPLACEMENT
 
    BOOST_REQUIRE_EQUAL( success(), updaterex( alice ) );
    BOOST_TEST_REQUIRE( stake2votes( asset( get_voter_info( alice )["staked"].as<int64_t>(), symbol{CORE_SYM} ) )
                        == get_producer_info(producer_names[20])["total_votes"].as<double>() );
 
+   // BEGIN TELOS DELETION
+   /*
    produce_block( fc::hours(19 * 24 + 23) );
    BOOST_REQUIRE_EQUAL( success(),                                       rexexec( alice, 1 ) );
+   */
    const asset   init_rex             = get_rex_balance( alice );
    const auto    current_rex_pool     = get_rex_pool();
    const int64_t total_lendable       = current_rex_pool["total_lendable"].as<asset>().get_amount();
@@ -5206,23 +5356,25 @@ BOOST_FIXTURE_TEST_CASE( update_rex, eosio_system_tester, * boost::unit_test::to
    BOOST_REQUIRE_EQUAL( success(), sellrex( alice, get_rex_balance( alice ) ) );
    BOOST_REQUIRE_EQUAL( 0,         get_rex_balance( alice ).get_amount() );
    BOOST_REQUIRE_EQUAL( success(), vote( alice, { producer_names[0], producer_names[4] } ) );
-   BOOST_REQUIRE_EQUAL( wasm_assert_msg("must vote for at least 21 producers or for a proxy before buying REX"),
-                        buyrex( alice, core_sym::from_string("1.0000") ) );
+   // TELOS DELETION
+   // BOOST_REQUIRE_EQUAL( wasm_assert_msg("must vote for at least 21 producers or for a proxy before buying REX"),
+   //                      buyrex( alice, core_sym::from_string("1.0000") ) );
 
 } FC_LOG_AND_RETHROW()
 
 
-BOOST_FIXTURE_TEST_CASE( update_rex_vote, eosio_system_tester, * boost::unit_test::tolerance(1e-8) ) try {
+BOOST_FIXTURE_TEST_CASE( update_rex_vote, eosio_system_tester, * boost::unit_test::tolerance(1e-10) ) try {
 
-   cross_15_percent_threshold();
+   activate_network();
 
    // create accounts {defproducera, defproducerb, ..., defproducerz} and register as producers
    std::vector<account_name> producer_names;
    {
-      producer_names.reserve('z' - 'a' + 1);
-      const std::string root("defproducer");
-      for ( char c = 'a'; c <= 'z'; ++c ) {
-         producer_names.emplace_back(root + std::string(1, c));
+      producer_names.reserve(30);
+      const std::string root("tprod");
+      for(uint8_t i = 0; i < 30; i++) {
+         name p = name(root + toBase31(i));
+         producer_names.emplace_back(p);
       }
 
       setup_producer_accounts(producer_names);
@@ -5230,6 +5382,7 @@ BOOST_FIXTURE_TEST_CASE( update_rex_vote, eosio_system_tester, * boost::unit_tes
          BOOST_REQUIRE_EQUAL( success(), regproducer(p) );
          BOOST_TEST_REQUIRE( 0 == get_producer_info(p)["total_votes"].as<double>() );
       }
+      std::sort(producer_names.begin(), producer_names.end());
    }
 
    const asset init_balance = core_sym::from_string("30000.0000");
@@ -5247,7 +5400,8 @@ BOOST_FIXTURE_TEST_CASE( update_rex_vote, eosio_system_tester, * boost::unit_tes
    BOOST_REQUIRE_EQUAL( get_rex_vote_stake(alice).get_amount(), get_voter_info(alice)["staked"].as<int64_t>() - init_stake_amount );
    BOOST_REQUIRE_EQUAL( purchase,                               get_rex_pool()["total_lendable"].as<asset>() );
 
-   BOOST_REQUIRE_EQUAL( success(),                              vote( alice, std::vector<account_name>(producer_names.begin(), producer_names.begin() + 21) ) );
+   BOOST_REQUIRE_EQUAL( success(),
+                        vote( alice, std::vector<account_name>(producer_names.begin(), producer_names.begin() + 30) ) );
    BOOST_REQUIRE_EQUAL( purchase,                               get_rex_vote_stake(alice) );
    BOOST_REQUIRE_EQUAL( purchase.get_amount(),                  get_voter_info(alice)["staked"].as<int64_t>() - init_stake_amount );
 
@@ -5258,12 +5412,11 @@ BOOST_FIXTURE_TEST_CASE( update_rex_vote, eosio_system_tester, * boost::unit_tes
    produce_block( fc::days(31) );
    BOOST_REQUIRE_EQUAL( success(),                              rexexec( alice, 1 ) );
    const auto curr_rex_pool = get_rex_pool();
-   BOOST_TEST_REQUIRE( within_one( curr_rex_pool["total_lendable"].as<asset>().get_amount(),
-                                   init_rex_pool["total_lendable"].as<asset>().get_amount() + rent.get_amount() ) );
-
-   BOOST_REQUIRE_EQUAL( success(),                              vote( alice, std::vector<account_name>(producer_names.begin(), producer_names.begin() + 21) ) );
-   BOOST_TEST_REQUIRE( within_one( (purchase + rent).get_amount(), get_voter_info(alice)["staked"].as<int64_t>() - init_stake_amount ) );
-   BOOST_TEST_REQUIRE( within_one( (purchase + rent).get_amount(), get_rex_vote_stake(alice).get_amount() ) );
+   BOOST_REQUIRE_EQUAL( curr_rex_pool["total_lendable"].as<asset>(), init_rex_pool["total_lendable"].as<asset>() + rent );
+   BOOST_REQUIRE_EQUAL( success(),
+                        vote( alice, std::vector<account_name>(producer_names.begin(), producer_names.begin() + 30) ) );
+   BOOST_REQUIRE_EQUAL( (purchase + rent).get_amount(),         get_voter_info(alice)["staked"].as<int64_t>() - init_stake_amount );
+   BOOST_REQUIRE_EQUAL( purchase + rent,                        get_rex_vote_stake(alice) );
    BOOST_TEST_REQUIRE ( stake2votes(purchase + rent + init_stake) ==
                         get_producer_info(producer_names[0])["total_votes"].as_double() );
    BOOST_TEST_REQUIRE ( stake2votes(purchase + rent + init_stake) ==
@@ -5276,7 +5429,7 @@ BOOST_FIXTURE_TEST_CASE( update_rex_vote, eosio_system_tester, * boost::unit_tes
    produce_block( fc::hours(30 * 24 + 13) );
    BOOST_REQUIRE_EQUAL( success(),                              rexexec( alice, 1 ) );
    BOOST_REQUIRE_EQUAL( success(),                              stake( alice, alice, to_net_stake, to_cpu_stake ) );
-   BOOST_REQUIRE_EQUAL(  purchase + rent + rent,                get_rex_vote_stake(alice) );
+   BOOST_REQUIRE_EQUAL( purchase + rent + rent,                 get_rex_vote_stake(alice) );
    BOOST_TEST_REQUIRE ( stake2votes(init_stake + purchase + rent + rent + to_net_stake + to_cpu_stake) ==
                         get_producer_info(producer_names[0])["total_votes"].as_double() );
    BOOST_REQUIRE_EQUAL( success(),                              rentcpu( emily, bob, rent ) );
@@ -5284,7 +5437,7 @@ BOOST_FIXTURE_TEST_CASE( update_rex_vote, eosio_system_tester, * boost::unit_tes
    BOOST_REQUIRE_EQUAL( success(),                              rexexec( alice, 1 ) );
    BOOST_REQUIRE_EQUAL( success(),                              unstake( alice, alice, to_net_stake, to_cpu_stake ) );
    BOOST_REQUIRE_EQUAL( purchase + rent + rent + rent,          get_rex_vote_stake(alice) );
-   BOOST_TEST_REQUIRE ( stake2votes(init_stake + get_rex_vote_stake(alice) ) ==
+   BOOST_TEST_REQUIRE ( stake2votes(init_stake + purchase + rent + rent + rent) ==
                         get_producer_info(producer_names[0])["total_votes"].as_double() );
 
 } FC_LOG_AND_RETHROW()
@@ -5468,7 +5621,8 @@ BOOST_FIXTURE_TEST_CASE( set_rex, eosio_system_tester ) try {
 
 } FC_LOG_AND_RETHROW()
 
-
+// TELOS BEGIN
+/*
 BOOST_FIXTURE_TEST_CASE( b1_vesting, eosio_system_tester ) try {
 
    cross_15_percent_threshold();
@@ -5529,6 +5683,8 @@ BOOST_FIXTURE_TEST_CASE( b1_vesting, eosio_system_tester ) try {
                         unstake( b1, b1, small_amount, small_amount ) );
 
 } FC_LOG_AND_RETHROW()
+*/
+// TELOS END
 
 
 BOOST_FIXTURE_TEST_CASE( rex_return, eosio_system_tester ) try {

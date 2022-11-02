@@ -438,6 +438,20 @@
             ]
         },
         {
+            "name": "distviarex",
+            "base": "",
+            "fields": [
+                {
+                    "name": "from",
+                    "type": "name"
+                },
+                {
+                    "name": "amount",
+                    "type": "asset"
+                }
+            ]
+        },
+        {
             "name": "eosio_global_state",
             "base": "blockchain_parameters",
             "fields": [
@@ -455,6 +469,10 @@
                 },
                 {
                     "name": "last_producer_schedule_update",
+                    "type": "block_timestamp_type"
+                },
+                {
+                    "name": "last_proposed_schedule_update",
                     "type": "block_timestamp_type"
                 },
                 {
@@ -492,13 +510,19 @@
                 {
                     "name": "last_name_close",
                     "type": "block_timestamp_type"
-                }
-            ]
-        },
-        {
-            "name": "eosio_global_state2",
-            "base": "",
-            "fields": [
+                },
+                {
+                    "name": "block_num",
+                    "type": "uint32"
+                },
+                {
+                    "name": "last_claimrewards",
+                    "type": "uint32"
+                },
+                {
+                    "name": "next_payment",
+                    "type": "uint32"
+                },
                 {
                     "name": "new_ram_per_block",
                     "type": "uint16"
@@ -518,38 +542,6 @@
                 {
                     "name": "revision",
                     "type": "uint8"
-                }
-            ]
-        },
-        {
-            "name": "eosio_global_state3",
-            "base": "",
-            "fields": [
-                {
-                    "name": "last_vpay_state_update",
-                    "type": "time_point"
-                },
-                {
-                    "name": "total_vpay_share_change_rate",
-                    "type": "float64"
-                }
-            ]
-        },
-        {
-            "name": "eosio_global_state4",
-            "base": "",
-            "fields": [
-                {
-                    "name": "continuous_rate",
-                    "type": "float64"
-                },
-                {
-                    "name": "inflation_pay_factor",
-                    "type": "int64"
-                },
-                {
-                    "name": "votepay_factor",
-                    "type": "int64"
                 }
             ]
         },
@@ -758,12 +750,40 @@
             "base": "",
             "fields": [
                 {
-                    "name": "key",
+                    "name": "first",
                     "type": "time_point_sec"
                 },
                 {
-                    "name": "value",
+                    "name": "second",
                     "type": "int64"
+                }
+            ]
+        },
+        {
+            "name": "payment_info",
+            "base": "",
+            "fields": [
+                {
+                    "name": "bp",
+                    "type": "name"
+                },
+                {
+                    "name": "pay",
+                    "type": "asset"
+                }
+            ]
+        },
+        {
+            "name": "payrates",
+            "base": "",
+            "fields": [
+                {
+                    "name": "bpay_rate",
+                    "type": "uint64"
+                },
+                {
+                    "name": "worker_amount",
+                    "type": "uint64"
                 }
             ]
         },
@@ -816,11 +836,27 @@
                     "type": "bool"
                 },
                 {
+                    "name": "unreg_reason",
+                    "type": "string"
+                },
+                {
                     "name": "url",
                     "type": "string"
                 },
                 {
                     "name": "unpaid_blocks",
+                    "type": "uint32"
+                },
+                {
+                    "name": "lifetime_produced_blocks",
+                    "type": "uint32"
+                },
+                {
+                    "name": "missed_blocks_per_rotation",
+                    "type": "uint32"
+                },
+                {
+                    "name": "lifetime_missed_blocks",
                     "type": "uint32"
                 },
                 {
@@ -830,24 +866,26 @@
                 {
                     "name": "location",
                     "type": "uint16"
-                }
-            ]
-        },
-        {
-            "name": "producer_info2",
-            "base": "",
-            "fields": [
-                {
-                    "name": "owner",
-                    "type": "name"
                 },
                 {
-                    "name": "votepay_share",
-                    "type": "float64"
+                    "name": "kick_reason_id",
+                    "type": "uint32"
                 },
                 {
-                    "name": "last_votepay_share_update",
-                    "type": "time_point"
+                    "name": "kick_reason",
+                    "type": "string"
+                },
+                {
+                    "name": "times_kicked",
+                    "type": "uint32"
+                },
+                {
+                    "name": "kick_penalty_hours",
+                    "type": "uint32"
+                },
+                {
+                    "name": "last_time_kicked",
+                    "type": "block_timestamp_type"
                 }
             ]
         },
@@ -862,6 +900,20 @@
                 {
                     "name": "block_signing_key",
                     "type": "public_key"
+                }
+            ]
+        },
+        {
+            "name": "producer_metric",
+            "base": "",
+            "fields": [
+                {
+                    "name": "bp_name",
+                    "type": "name"
+                },
+                {
+                    "name": "missed_blocks_per_cycle",
+                    "type": "uint32"
                 }
             ]
         },
@@ -1150,54 +1202,6 @@
             ]
         },
         {
-            "name": "rex_return_buckets",
-            "base": "",
-            "fields": [
-                {
-                    "name": "version",
-                    "type": "uint8"
-                },
-                {
-                    "name": "return_buckets",
-                    "type": "pair_time_point_sec_int64[]"
-                }
-            ]
-        },
-        {
-            "name": "rex_return_pool",
-            "base": "",
-            "fields": [
-                {
-                    "name": "version",
-                    "type": "uint8"
-                },
-                {
-                    "name": "last_dist_time",
-                    "type": "time_point_sec"
-                },
-                {
-                    "name": "pending_bucket_time",
-                    "type": "time_point_sec"
-                },
-                {
-                    "name": "oldest_bucket_time",
-                    "type": "time_point_sec"
-                },
-                {
-                    "name": "pending_bucket_proceeds",
-                    "type": "int64"
-                },
-                {
-                    "name": "current_rate_of_increase",
-                    "type": "int64"
-                },
-                {
-                    "name": "proceeds",
-                    "type": "int64"
-                }
-            ]
-        },
-        {
             "name": "rexexec",
             "base": "",
             "fields": [
@@ -1218,6 +1222,54 @@
                 {
                     "name": "producer",
                     "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "rotation_state",
+            "base": "",
+            "fields": [
+                {
+                    "name": "bp_currently_out",
+                    "type": "name"
+                },
+                {
+                    "name": "sbp_currently_in",
+                    "type": "name"
+                },
+                {
+                    "name": "bp_out_index",
+                    "type": "uint32"
+                },
+                {
+                    "name": "sbp_in_index",
+                    "type": "uint32"
+                },
+                {
+                    "name": "next_rotation_time",
+                    "type": "block_timestamp_type"
+                },
+                {
+                    "name": "last_rotation_time",
+                    "type": "block_timestamp_type"
+                }
+            ]
+        },
+        {
+            "name": "schedule_metrics_state",
+            "base": "",
+            "fields": [
+                {
+                    "name": "last_onblock_caller",
+                    "type": "name"
+                },
+                {
+                    "name": "block_counter_correction",
+                    "type": "int32"
+                },
+                {
+                    "name": "producers_metric",
+                    "type": "producer_metric[]"
                 }
             ]
         },
@@ -1350,30 +1402,26 @@
             ]
         },
         {
-            "name": "setinflation",
-            "base": "",
-            "fields": [
-                {
-                    "name": "annual_rate",
-                    "type": "int64"
-                },
-                {
-                    "name": "inflation_pay_factor",
-                    "type": "int64"
-                },
-                {
-                    "name": "votepay_factor",
-                    "type": "int64"
-                }
-            ]
-        },
-        {
             "name": "setparams",
             "base": "",
             "fields": [
                 {
                     "name": "params",
                     "type": "blockchain_parameters"
+                }
+            ]
+        },
+        {
+            "name": "setpayrates",
+            "base": "",
+            "fields": [
+                {
+                    "name": "inflation",
+                    "type": "uint64"
+                },
+                {
+                    "name": "worker",
+                    "type": "uint64"
                 }
             ]
         },
@@ -1472,6 +1520,20 @@
             ]
         },
         {
+            "name": "unregreason",
+            "base": "",
+            "fields": [
+                {
+                    "name": "producer",
+                    "type": "name"
+                },
+                {
+                    "name": "reason",
+                    "type": "string"
+                }
+            ]
+        },
+        {
             "name": "unstaketorex",
             "base": "",
             "fields": [
@@ -1558,6 +1620,20 @@
             ]
         },
         {
+            "name": "votebpout",
+            "base": "",
+            "fields": [
+                {
+                    "name": "bp",
+                    "type": "name"
+                },
+                {
+                    "name": "penalty_hours",
+                    "type": "uint32"
+                }
+            ]
+        },
+        {
             "name": "voteproducer",
             "base": "",
             "fields": [
@@ -1593,6 +1669,10 @@
                 },
                 {
                     "name": "staked",
+                    "type": "int64"
+                },
+                {
+                    "name": "last_stake",
                     "type": "int64"
                 },
                 {
@@ -1679,7 +1759,7 @@
         {
             "name": "buyrex",
             "type": "buyrex",
-            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Buy REX Tokens\nsummary: '{{nowrap from}} buys REX tokens in exchange for {{nowrap amount}} and their vote stake increases by {{nowrap amount}}'\nicon: http://127.0.0.1/ricardian_assets/eosio.contracts/icons/rex.png#d229837fa62a464b9c71e06060aa86179adf0b3f4e3b8c4f9702f4f4b0c340a8\n---\n\n{{amount}} is taken out of {{from}}’s REX fund and used to purchase REX tokens at the current market exchange rate. In order for the action to succeed, {{from}} must have voted for a proxy or at least 21 block producers. {{amount}} is added to {{from}}’s vote stake.\n\nA sell order of the purchased amount can only be initiated after waiting for the maturity period of 4 to 5 days to pass. Even then, depending on the market conditions, the initiated sell order may not be executed immediately."
+            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Buy REX Tokens\nsummary: '{{nowrap from}} buys REX tokens in exchange for {{nowrap amount}} and his vote stake increases by {{nowrap amount}}'\nicon: http://127.0.0.1/ricardian_assets/eosio.contracts/icons/rex.png#d229837fa62a464b9c71e06060aa86179adf0b3f4e3b8c4f9702f4f4b0c340a8\n---\n\n{{amount}} is taken out of {{from}}’s REX fund and used to purchase REX tokens at the current market exchange rate. In order for the action to succeed, {{from}} must have voted for a proxy or at least 21 block producers. {{amount}} is added to {{from}}’s vote stake.\n\nA sell order of the purchased amount can only be initiated after waiting for the maturity period of 4 to 5 days to pass. Even then, depending on the market conditions, the initiated sell order may not be executed immediately."
         },
         {
             "name": "canceldelay",
@@ -1730,6 +1810,11 @@
             "name": "deposit",
             "type": "deposit",
             "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Deposit Into REX Fund\nsummary: 'Add to {{nowrap owner}}’s REX fund by transferring {{nowrap amount}} from {{nowrap owner}}’s liquid balance'\nicon: http://127.0.0.1/ricardian_assets/eosio.contracts/icons/rex.png#d229837fa62a464b9c71e06060aa86179adf0b3f4e3b8c4f9702f4f4b0c340a8\n---\n\nTransfer {{amount}} from {{owner}}’s liquid balance to {{owner}}’s REX fund. All proceeds and expenses related to REX are added to or taken out of this fund."
+        },
+        {
+            "name": "distviarex",
+            "type": "distviarex",
+            "ricardian_contract": ""
         },
         {
             "name": "fundcpuloan",
@@ -1852,14 +1937,14 @@
             "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Deploy Contract Code\nsummary: 'Deploy contract code on account {{nowrap account}}'\nicon: http://127.0.0.1/ricardian_assets/eosio.contracts/icons/account.png#3d55a2fc3a5c20b456f5657faf666bc25ffd06f4836c5e8256f741149b0b294f\n---\n\nDeploy compiled contract code to the account {{account}}."
         },
         {
-            "name": "setinflation",
-            "type": "setinflation",
-            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Set Inflation Parameters\nsummary: 'Set inflation parameters'\nicon: http://127.0.0.1/ricardian_assets/eosio.contracts/icons/admin.png#9bf1cec664863bd6aaac0f814b235f8799fb02c850e9aa5da34e8a004bd6518e\n---\n\n{{$action.account}} sets the inflation parameters as follows:\n\n* Annual inflation rate (in units of a hundredth of a percent): {{annual_rate}}\n* Fraction of inflation used to reward block producers: 10000/{{inflation_pay_factor}}\n* Fraction of block producer rewards to be distributed proportional to blocks produced: 10000/{{votepay_factor}}"
-        },
-        {
             "name": "setparams",
             "type": "setparams",
             "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Set System Parameters\nsummary: 'Set System Parameters'\nicon: http://127.0.0.1/ricardian_assets/eosio.contracts/icons/admin.png#9bf1cec664863bd6aaac0f814b235f8799fb02c850e9aa5da34e8a004bd6518e\n---\n\n{{$action.account}} sets system parameters to:\n{{to_json params}}"
+        },
+        {
+            "name": "setpayrates",
+            "type": "setpayrates",
+            "ricardian_contract": ""
         },
         {
             "name": "setpriv",
@@ -1897,6 +1982,11 @@
             "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Unregister as a Block Producer Candidate\nsummary: '{{nowrap producer}} unregisters as a block producer candidate'\nicon: http://127.0.0.1/ricardian_assets/eosio.contracts/icons/voting.png#db28cd3db6e62d4509af3644ce7d377329482a14bb4bfaca2aa5f1400d8e8a84\n---\n\n{{producer}} unregisters as a block producer candidate. {{producer}} account will retain its votes and those votes can change based on voter stake changes or votes removed from {{producer}}. However new voters will not be able to vote for {{producer}} while it remains unregistered."
         },
         {
+            "name": "unregreason",
+            "type": "unregreason",
+            "ricardian_contract": ""
+        },
+        {
             "name": "unstaketorex",
             "type": "unstaketorex",
             "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Buy REX Tokens Using Staked Tokens\nsummary: '{{nowrap owner}} buys REX tokens in exchange for tokens currently staked to NET and/or CPU'\nicon: http://127.0.0.1/ricardian_assets/eosio.contracts/icons/rex.png#d229837fa62a464b9c71e06060aa86179adf0b3f4e3b8c4f9702f4f4b0c340a8\n---\n\n{{from_net}} and {{from_cpu}} are withdrawn from {{receiver}}’s NET and CPU bandwidths respectively. These funds are used to purchase REX tokens at the current market exchange rate. In order for the action to succeed, {{owner}} must have voted for a proxy or at least 21 block producers.\n\nA sell order of the purchased amount can only be initiated after waiting for the maturity period of 4 to 5 days to pass. Even then, depending on the market conditions, the initiated sell order may not be executed immediately."
@@ -1915,6 +2005,11 @@
             "name": "updtrevision",
             "type": "updtrevision",
             "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Update System Contract Revision Number\nsummary: 'Update system contract revision number'\nicon: http://127.0.0.1/ricardian_assets/eosio.contracts/icons/admin.png#9bf1cec664863bd6aaac0f814b235f8799fb02c850e9aa5da34e8a004bd6518e\n---\n\n{{$action.account}} advances the system contract revision number to {{revision}}."
+        },
+        {
+            "name": "votebpout",
+            "type": "votebpout",
+            "ricardian_contract": ""
         },
         {
             "name": "voteproducer",
@@ -1964,27 +2059,6 @@
             "key_types": []
         },
         {
-            "name": "global2",
-            "type": "eosio_global_state2",
-            "index_type": "i64",
-            "key_names": [],
-            "key_types": []
-        },
-        {
-            "name": "global3",
-            "type": "eosio_global_state3",
-            "index_type": "i64",
-            "key_names": [],
-            "key_types": []
-        },
-        {
-            "name": "global4",
-            "type": "eosio_global_state4",
-            "index_type": "i64",
-            "key_names": [],
-            "key_types": []
-        },
-        {
             "name": "namebids",
             "type": "name_bid",
             "index_type": "i64",
@@ -1999,15 +2073,22 @@
             "key_types": []
         },
         {
-            "name": "producers",
-            "type": "producer_info",
+            "name": "payments",
+            "type": "payment_info",
             "index_type": "i64",
             "key_names": [],
             "key_types": []
         },
         {
-            "name": "producers2",
-            "type": "producer_info2",
+            "name": "payrate",
+            "type": "payrates",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "producers",
+            "type": "producer_info",
             "index_type": "i64",
             "key_names": [],
             "key_types": []
@@ -2022,13 +2103,6 @@
         {
             "name": "refunds",
             "type": "refund_request",
-            "index_type": "i64",
-            "key_names": [],
-            "key_types": []
-        },
-        {
-            "name": "retbuckets",
-            "type": "rex_return_buckets",
             "index_type": "i64",
             "key_names": [],
             "key_types": []
@@ -2062,8 +2136,15 @@
             "key_types": []
         },
         {
-            "name": "rexretpool",
-            "type": "rex_return_pool",
+            "name": "rotations",
+            "type": "rotation_state",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "schedulemetr",
+            "type": "schedule_metrics_state",
             "index_type": "i64",
             "key_names": [],
             "key_types": []
