@@ -7,7 +7,7 @@ on:
   pull_request:
     types: [assigned, opened, synchronize, reopened, labeled]
 env:
-  BUILDER_IMAGE: "ghcr.io/eosnetworkfoundation/contract-builder-ubuntu-20.04-unpinned:61d503c54e0e1893d04b3a470933d553b35e957d"
+  BUILDER_IMAGE: "guilledk/py-eosio:cdt-3.0.1"
 jobs:
   ubuntu-2004-build:
     name: Ubuntu 20.04 | Build
@@ -18,8 +18,9 @@ jobs:
       - name: Build
         run: |
           set -e
-          export DOCKER="docker run --rm -v ${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE} -w ${GITHUB_WORKSPACE} --user $(id -u):$(id -g) ${BUILDER_IMAGE}"
+          export DOCKER="docker run --rm -v $(pwd):/root/target ${BUILDER_IMAGE}"
           docker pull ${BUILDER_IMAGE}
+          echo ${DOCKER}
           echo =====
           mkdir build
           ${DOCKER} bash -c "cd build && cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=yes .."
@@ -72,6 +73,6 @@ jobs:
         run: |
           set -e
           tar -xzf ubuntu-2004-build/build.tar.gz
-          export DOCKER="docker run --rm -v ${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE} -w ${GITHUB_WORKSPACE} ${BUILDER_IMAGE}"
+          export DOCKER="docker run --rm -v $(pwd):/root/target ${BUILDER_IMAGE}"
           docker pull ${BUILDER_IMAGE}
           ${DOCKER} bash -c 'cd build/tests && ctest -j $(nproc)'

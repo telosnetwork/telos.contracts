@@ -25,6 +25,16 @@ using mvo = fc::mutable_variant_object;
 
 namespace eosio_system {
 
+auto dump_trace = [](transaction_trace_ptr trace_ptr) -> transaction_trace_ptr {
+   std::cout << std::endl << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << std::endl;
+   for(auto trace : trace_ptr->action_traces) {
+      std::cout << "action_name trace: " << trace.act.name.to_string() << std::endl;
+      //TODO: split by new line character, loop and indent output
+      std::cout << trace.console << std::endl << std::endl;
+   }
+   std::cout << std::endl << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" << std::endl << std::endl;
+   return trace_ptr;
+};
 
 class eosio_system_tester : public TESTER {
 public:
@@ -33,7 +43,11 @@ public:
       produce_blocks( 2 );
 
       create_accounts({ "eosio.token"_n, "eosio.ram"_n, "eosio.ramfee"_n, "eosio.stake"_n,
-               "eosio.bpay"_n, "eosio.vpay"_n, "eosio.saving"_n, "eosio.names"_n, "eosio.rex"_n });
+               "eosio.bpay"_n, "eosio.vpay"_n, "eosio.saving"_n, "eosio.names"_n, "eosio.rex"_n,
+               // TELOS BEGIN
+               "exrsrv.tf"_n, "telos.decide"_n, "works.decide"_n
+               // TELOS END
+               });
 
 
       produce_blocks( 100 );
@@ -71,6 +85,16 @@ public:
          BOOST_REQUIRE_EQUAL(abi_serializer::to_abi(accnt.abi, abi), true);
          abi_ser.set_abi(abi, abi_serializer::create_yield_function(abi_serializer_max_time));
       }
+
+      set_code( "telos.decide"_n, contracts::decide_wasm() );
+      set_abi( "telos.decide"_n, contracts::decide_abi().data() );
+
+      {
+         const auto& accnt = control->db().get<account_object,by_name>( "telos.decide"_n );
+         abi_def abi;
+         BOOST_REQUIRE_EQUAL(abi_serializer::to_abi(accnt.abi, abi), true);
+         decide_abi_ser.set_abi(abi, abi_serializer::create_yield_function(abi_serializer_max_time));
+      }
    }
 
    void remaining_setup() {
@@ -82,6 +106,10 @@ public:
       create_account_with_resources( "carol1111111"_n, config::system_account_name, core_sym::from_string("1.0000"), false );
 
       BOOST_REQUIRE_EQUAL( core_sym::from_string("1000000000.0000"), get_balance("eosio")  + get_balance("eosio.ramfee") + get_balance("eosio.stake") + get_balance("eosio.ram") );
+      // TELOS BEGIN
+      produce_blocks();
+      open( "exrsrv.tf"_n, symbol{CORE_SYM}, "exrsrv.tf"_n );
+      // TELOS END
    }
 
    enum class setup_level {
@@ -159,6 +187,23 @@ public:
       trx.sign( get_private_key( creator, "active" ), control->get_chain_id()  );
       return push_transaction( trx );
    }
+
+   // TELOS BEGIN
+   transaction_trace_ptr on_block() {
+      signed_transaction trx;
+      set_transaction_headers(trx);
+      action on_block_act;
+      on_block_act.account = config::system_account_name;
+      on_block_act.name = "onblock"_n;
+      on_block_act.authorization = vector<permission_level>{{config::system_account_name, config::active_name}};
+      on_block_act.data = fc::raw::pack(control->head_block_header());
+      trx.actions.emplace_back(on_block_act);
+      trx.sign( get_private_key( config::system_account_name, "active" ), control->get_chain_id()  );
+      auto t = push_transaction(trx);
+      dump_trace(t);
+      return t;
+   }
+   // TELOS END
 
    transaction_trace_ptr create_account_with_resources( account_name a, account_name creator, asset ramfunds, bool multisig,
                                                         asset net = core_sym::from_string("10.0000"), asset cpu = core_sym::from_string("10.0000") ) {
@@ -645,6 +690,13 @@ public:
       return data.empty() ? fc::variant() : abi_ser.binary_to_variant( "rex_order", data, abi_serializer::create_yield_function(abi_serializer_max_time) );
    }
 
+   // TELOS BEGIN
+   fc::variant get_payrate_info() {
+      vector<char> data = get_row_by_account( config::system_account_name, config::system_account_name, "payrate"_n, "payrate"_n );
+      return data.empty() ? fc::variant() : abi_ser.binary_to_variant( "payrates", data, abi_serializer_max_time );
+   }
+   // TELOS END
+
    fc::variant get_rex_pool() const {
       vector<char> data;
       const auto& db = control->db();
@@ -715,13 +767,17 @@ public:
                             bool deposit_into_rex_fund = true ) {
       const asset nstake = core_sym::from_string("10.0000");
       const asset cstake = core_sym::from_string("10.0000");
-      create_account_with_resources( "proxyaccount"_n, config::system_account_name, core_sym::from_string("1.0000"), false, net, cpu );
-      BOOST_REQUIRE_EQUAL( success(), push_action( "proxyaccount"_n, "regproxy"_n, mvo()("proxy", "proxyaccount")("isproxy", true) ) );
+      // TELOS BEGIN:
+      // create_account_with_resources( "proxyaccount"_n, config::system_account_name, core_sym::from_string("1.0000"), false, net, cpu );
+      // BOOST_REQUIRE_EQUAL( success(), push_action( "proxyaccount"_n, "regproxy"_n, mvo()("proxy", "proxyaccount")("isproxy", true) ) );
+      // TELOS END
       for (const auto& a: accounts) {
          create_account_with_resources( a, config::system_account_name, core_sym::from_string("1.0000"), false, net, cpu );
          transfer( config::system_account_name, a, init_balance + nstake + cstake, config::system_account_name );
          BOOST_REQUIRE_EQUAL( success(),                        stake( a, a, nstake, cstake) );
-         BOOST_REQUIRE_EQUAL( success(),                        vote( a, { }, "proxyaccount"_n ) );
+         // TELOS BEGIN
+         // BOOST_REQUIRE_EQUAL( success(),                        vote( a, { }, "proxyaccount"_n ) );
+         // TELOS END
          BOOST_REQUIRE_EQUAL( init_balance,                     get_balance(a) );
          BOOST_REQUIRE_EQUAL( asset::from_string("0.0000 REX"), get_rex_balance(a) );
          if (deposit_into_rex_fund) {
@@ -776,6 +832,50 @@ public:
       BOOST_REQUIRE_EQUAL( success(), r);
       return r;
    }
+
+   // TELOS BEGIN
+   void printMetrics(vector<account_name> producer_names){
+      auto metrics = get_gmetrics_state();
+      auto x = metrics["producers_metric"];
+      int64_t counter = metrics["block_counter_correction"].as_int64();
+      std::cout<<(counter/100)<<((counter%100)/10)<<(counter%10)<<" | ";
+      std::cout<<metrics["last_onblock_caller"]<<" | ";
+      std::cout<<'[';
+      int count11 = 0; bool allOthersHave12 = true;
+      for(int i = 0; i < x.size(); i++){
+         if ( x[i]["missed_blocks_per_cycle"].as_int64() == 11 ) {
+            count11++;
+         }else
+         if ( x[i]["missed_blocks_per_cycle"].as_int64() != 12 ) {
+            allOthersHave12 = 0;
+         }
+         std::cout<<std::setfill('0')<<std::setw(2)<<x[i]["missed_blocks_per_cycle"];
+         std::cout<<", ";
+      }
+      std::cout<<']';
+      if(allOthersHave12 && count11 <= 1){
+         int space = 0;
+         std::cout<<" !! end of cylce / reset / wait !!";
+         if(count11 > 0){
+            std::cout<<" !! producers !! : ["<<std::endl;
+            for (const auto& p: producer_names) {
+               auto q = get_producer_info(p);
+               std::cout<<q["owner"]<<" = ";
+               std::cout<<std::setfill('0')<<std::setw(4)<<q["missed_blocks_per_rotation"];
+               std::cout<<' ';
+               std::cout<<std::setfill('0')<<std::setw(4)<<q["lifetime_missed_blocks"];
+               std::cout<<" | ";
+               if(++space % 5 == 0){
+                  std::cout<<std::endl;
+               }
+            }
+            std::cout<<']'<<std::endl;
+         }
+
+      }
+      std::cout<<std::endl;
+   }
+   // TELOS END
 
    action_result vote( const account_name& voter, const std::vector<account_name>& producers, const account_name& proxy = name(0) ) {
       return push_action(voter, "voteproducer"_n, mvo()
@@ -839,6 +939,16 @@ public:
 
       base_tester::push_action(contract, "create"_n, contract, act );
    }
+
+   // TELOS BEGIN
+   void open( name owner, const symbol& symbol, name ram_payer = config::system_account_name ) {
+      base_tester::push_action( "eosio.token"_n, "open"_n, ram_payer, mutable_variant_object()
+                                ("owner",      owner )
+                                ("symbol", symbol )
+                                ("ram_payer", ram_payer)
+                                );
+   }
+   // TELOS END
 
    void issue( const asset& amount, const name& manager = config::system_account_name ) {
       base_tester::push_action( "eosio.token"_n, "issue"_n, manager, mutable_variant_object()
@@ -907,14 +1017,29 @@ public:
       issue_and_transfer( name(to), amount );
    }
 
-   double stake2votes( asset stake ) {
-      auto now = control->pending_block_time().time_since_epoch().count() / 1000000;
-      return stake.get_amount() * pow(2, int64_t((now - (config::block_timestamp_epoch / 1000)) / (86400 * 7))/ double(52) ); // 52 week periods (i.e. ~years)
+   // TELOS BEGIN
+   double stake2votes( const string& s, double voted_producers_count, double total_producers_count ) {
+      return stake2votes( core_sym::from_string(s), voted_producers_count, total_producers_count );
    }
 
-   double stake2votes( const string& s ) {
-      return stake2votes( core_sym::from_string(s) );
+   double stake2votes( asset stake, double voted_producers_count, double total_producers_count ){
+      if (voted_producers_count == 0.0) {
+         return 0;
+      }
+ 
+      total_producers_count = 30;
+
+      double percentVoted = voted_producers_count / total_producers_count;
+      double voteWeight = (sin(M_PI * percentVoted - M_PI_2) + 1.0) / 2.0;
+      double staked = stake.get_amount();
+
+      return (voteWeight * staked);
    }
+
+   double stake2votes( asset a) {
+      return stake2votes( a, 30, 30 );
+   }
+   // TELOS END
 
    fc::variant get_stats( const string& symbolname ) {
       auto symb = eosio::chain::symbol::from_string(symbolname);
@@ -947,6 +1072,25 @@ public:
       return data.empty() ? fc::variant() : abi_ser.binary_to_variant( "eosio_global_state3", data, abi_serializer::create_yield_function(abi_serializer_max_time) );
    }
 
+   // BEGIN TELOS ADDITIONS
+   fc::variant get_gmetrics_state() {
+      vector<char> data = get_row_by_account( config::system_account_name, config::system_account_name, "schedulemetr"_n, "schedulemetr"_n );
+      if (data.empty()) std::cout << "\nData is empty\n" << std::endl;
+      return data.empty() ? fc::variant() : abi_ser.binary_to_variant( "schedule_metrics_state", data, abi_serializer::create_yield_function(abi_serializer_max_time) );
+   }
+
+   fc::variant get_rotation_state() {
+      vector<char> data = get_row_by_account( config::system_account_name, config::system_account_name, "rotations"_n, "rotations"_n );
+      if (data.empty()) std::cout << "\nData is empty\n" << std::endl;
+      return data.empty() ? fc::variant() : abi_ser.binary_to_variant( "rotation_state", data, abi_serializer::create_yield_function(abi_serializer_max_time) );
+   }
+
+   fc::variant get_payment_info( name account ) {
+      vector<char> data = get_row_by_account( config::system_account_name, config::system_account_name, "payments"_n, account );
+      return data.empty() ? fc::variant() : abi_ser.binary_to_variant( "payment_info", data, abi_serializer::create_yield_function(abi_serializer_max_time) );
+   }
+   // END TELOS ADDITIONS
+
    fc::variant get_refund_request( name account ) {
       vector<char> data = get_row_by_account( config::system_account_name, account, "refunds"_n, account );
       return data.empty() ? fc::variant() : abi_ser.binary_to_variant( "refund_request", data, abi_serializer::create_yield_function(abi_serializer_max_time) );
@@ -977,7 +1121,32 @@ public:
       return msig_abi_ser;
    }
 
+   // TELOS BEGIN
+   string base31 = "abcdefghijklmnopqrstuvwxyz12345";
+   string toBase31(uint32_t in) {
+	   vector<uint32_t> out = { 0, 0, 0, 0, 0, 0, 0 };
+	   uint32_t remainder = in;
+	   uint32_t divisor = 0;
+	   uint32_t quotient = 0;
+	   for (int i = 0; i < out.size(); i++) {
+		   divisor = pow(31, out.size() - 1 - i);
+		   quotient = remainder / divisor;
+		   remainder = remainder - (quotient * divisor);
+		   out[i] = quotient;
+	   }
+	   string output = "aaaaaaa";
+	   for (int i = 0; i < out.size(); i++) {
+		   output[i] = base31[out[i]];
+	   }
+
+	   return output;
+   }
+   // TELOS END
+
    vector<name> active_and_vote_producers() {
+      // TELOS BEGIN
+      activate_network();
+      // TELOS END
       //stake more than 15% of total EOS supply to activate chain
       transfer( "eosio"_n, "alice1111111"_n, core_sym::from_string("650000000.0000"), config::system_account_name );
       BOOST_REQUIRE_EQUAL( success(), stake( "alice1111111"_n, "alice1111111"_n, core_sym::from_string("300000000.0000"), core_sym::from_string("300000000.0000") ) );
@@ -1030,6 +1199,76 @@ public:
 
       return producer_names;
    }
+
+   // TELOS BEGIN
+   vector<name> active_and_vote_producers2() {
+      activate_network();
+      //stake more than 15% of total EOS supply to activate chain
+      transfer( "eosio", "alice1111111", core_sym::from_string("650000000.0000"), "eosio" );
+      BOOST_REQUIRE_EQUAL( success(), stake( "alice1111111", "alice1111111", core_sym::from_string("300000000.0000"), core_sym::from_string("300000000.0000") ) );
+
+      // create accounts {defproducera, defproducerb, ..., defproducerz} and register as producers
+      std::vector<account_name> producer_names;
+      {
+         producer_names.reserve(51);
+         const std::string root("tprod");
+         for(uint8_t i = 0; i < 51; i++) {
+            name p = name(root + toBase31(i));
+            producer_names.emplace_back(p);
+         }
+         setup_producer_accounts(producer_names);
+         for (const auto& p: producer_names) {
+            BOOST_REQUIRE_EQUAL( success(), regproducer(p) );
+         }
+      }
+      produce_blocks( 250);
+
+      auto trace_auth = TESTER::push_action(config::system_account_name, updateauth::get_name(), config::system_account_name, mvo()
+                                            ("account", name(config::system_account_name).to_string())
+                                            ("permission", name(config::active_name).to_string())
+                                            ("parent", name(config::owner_name).to_string())
+                                            ("auth",  authority(1, {key_weight{get_public_key( config::system_account_name, "active" ), 1}}, {
+                                                  permission_level_weight{{config::system_account_name, config::eosio_code_name}, 1},
+                                                     permission_level_weight{{config::producers_account_name,  config::active_name}, 1}
+                                               }
+                                            ))
+      );
+      BOOST_REQUIRE_EQUAL(transaction_receipt::executed, trace_auth->receipt->status);
+
+      //vote for producers
+      {
+         transfer( config::system_account_name, "alice1111111", core_sym::from_string("100000000.0000"), config::system_account_name );
+         BOOST_REQUIRE_EQUAL(success(), stake( "alice1111111", core_sym::from_string("30000000.0000"), core_sym::from_string("30000000.0000") ) );
+         BOOST_REQUIRE_EQUAL(success(), buyram( "alice1111111", "alice1111111", core_sym::from_string("30000000.0000") ) );
+         BOOST_REQUIRE_EQUAL(success(), push_action("alice1111111"_n, "voteproducer"_n, mvo()
+                                                    ("voter",  "alice1111111")
+                                                    ("proxy", name(0).to_string())
+                                                    ("producers", vector<account_name>(producer_names.begin(), producer_names.begin()+21))
+                             )
+         );
+      }
+      produce_blocks( 250 );
+
+      auto producer_keys = control->head_block_state()->active_schedule.producers;
+      BOOST_REQUIRE_EQUAL( 21, producer_keys.size() );
+      BOOST_REQUIRE_EQUAL( "tprodaaaaaaa"_n, producer_keys[0].producer_name );
+
+      return producer_names;
+   }
+
+   uint64_t get_current_time() {
+      return static_cast<uint64_t>( control->pending_block_time().time_since_epoch().count() );
+   }
+
+   time_point get_current_time_point() {
+      const static time_point ct{ microseconds{ static_cast<int64_t>( get_current_time() ) } };
+      return ct;
+   }
+
+   void activate_network(){
+      produce_blocks(1001);
+   }
+   // TELOS END
 
    void cross_15_percent_threshold() {
       setup_producer_accounts({"producer1111"_n});
@@ -1084,6 +1323,9 @@ public:
 
    abi_serializer abi_ser;
    abi_serializer token_abi_ser;
+   // TELOS BEGIN
+   abi_serializer decide_abi_ser;
+   // TELOS END
 };
 
 inline fc::mutable_variant_object voter( account_name acct ) {

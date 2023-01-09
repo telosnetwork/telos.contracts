@@ -1,6 +1,8 @@
 #pragma once
 
-#define CORE_SYM_NAME "TST"
+// TELOS BEGIN
+#define CORE_SYM_NAME "TLOS"
+// TELOS END
 #define CORE_SYM_PRECISION 4
 
 #define _STRINGIZE1(x) #x

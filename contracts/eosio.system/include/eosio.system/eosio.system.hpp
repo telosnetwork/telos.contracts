@@ -16,6 +16,9 @@
 #include <string>
 #include <type_traits>
 
+// TELOS BEGIN
+#include <cmath>
+// TELOS END
 #ifdef CHANNEL_RAM_AND_NAMEBID_FEES_TO_REX
 #undef CHANNEL_RAM_AND_NAMEBID_FEES_TO_REX
 #endif
@@ -40,6 +43,8 @@ namespace eosiosystem {
    using eosio::time_point;
    using eosio::time_point_sec;
    using eosio::unsigned_int;
+   // TELOS
+   using producer_location_pair = std::pair<eosio::producer_authority, uint16_t>;
 
    inline constexpr int64_t powerup_frac = 1'000'000'000'000'000ll;  // 1.0 = 10^15
 
@@ -93,6 +98,72 @@ namespace eosiosystem {
    using blockchain_parameters_t = eosio::blockchain_parameters;
 #endif
 
+   // BEGIN TELOS
+   /*
+    * NOTE: 1000 is used only to make the unit tests pass.
+    * the number that is set on the main net is 1,000,000.
+	* This value should be changed by ABPs before launching.
+    */
+   const uint32_t block_num_network_activation = 1000;
+
+   const uint64_t max_bpay_rate = 6000;
+   const uint64_t max_worker_monthly_amount = 1'000'000'0000;
+
+   struct[[ eosio::table, eosio::contract("eosio.system") ]] payment_info {
+     name bp;
+     asset pay;
+
+     uint64_t primary_key() const { return bp.value; }
+   };
+
+   typedef eosio::multi_index< "payments"_n, payment_info > payments_table;
+
+   struct [[eosio::table("schedulemetr"), eosio::contract("eosio.system")]] schedule_metrics_state {
+     name                             last_onblock_caller;
+     int32_t                          block_counter_correction;
+     std::vector<producer_metric>     producers_metric;
+
+     uint64_t primary_key()const { return last_onblock_caller.value; }
+   };
+
+   typedef eosio::singleton< "schedulemetr"_n, schedule_metrics_state > schedule_metrics_singleton;
+
+   struct [[eosio::table("rotations"), eosio::contract("eosio.system")]] rotation_state {
+      // bool                            is_rotation_active = true;
+      name                    bp_currently_out;
+      name                    sbp_currently_in;
+      uint32_t                bp_out_index;
+      uint32_t                sbp_in_index;
+      block_timestamp         next_rotation_time;
+      block_timestamp         last_rotation_time;
+
+      //NOTE: This might not be the best place for this information
+
+      // bool                            is_kick_active = true;
+      // account_name                    last_onblock_caller;
+      // block_timestamp                 last_time_block_produced;
+   };
+
+   typedef eosio::singleton< "rotations"_n, rotation_state> rotation_singleton;
+
+
+   struct[[ eosio::table("payrate"), eosio::contract("eosio.system") ]] payrates {
+      uint64_t bpay_rate;
+      uint64_t worker_amount;
+      uint64_t primary_key() const { return bpay_rate; }
+      EOSLIB_SERIALIZE(payrates, (bpay_rate)(worker_amount))
+   };
+
+   typedef eosio::singleton< "payrate"_n, payrates > payrate_singleton;
+
+
+   enum class kick_type {
+      REACHED_TRESHOLD = 1,
+      //  PREVENT_LIB_STOP_MOVING = 2,
+      BPS_VOTING = 2
+   };
+   // END TELOS
+
   /**
    * The `eosio.system` smart contract is provided by `block.one` as a sample system contract, and it defines the structures and actions needed for blockchain's core functionality.
    * 
@@ -106,7 +177,7 @@ namespace eosiosystem {
    * - A resource exchange system (REX) allows token holders to lend their tokens,
    *    and users to rent CPU and Network resources in return for a market-determined fee.
    */
-  
+
    // A name bid, which consists of:
    // - a `newname` name that the bid is for
    // - a `high_bidder` account name that is the one with the highest bid so far
@@ -141,11 +212,12 @@ namespace eosiosystem {
    struct [[eosio::table("global"), eosio::contract("eosio.system")]] eosio_global_state : eosio::blockchain_parameters {
       uint64_t free_ram()const { return max_ram_size - total_ram_bytes_reserved; }
 
-      uint64_t             max_ram_size = 64ll*1024 * 1024 * 1024;
+      uint64_t             max_ram_size = 12ll*1024 * 1024 * 1024;  // TELOS SPECIFIC
       uint64_t             total_ram_bytes_reserved = 0;
       int64_t              total_ram_stake = 0;
 
       block_timestamp      last_producer_schedule_update;
+      block_timestamp      last_proposed_schedule_update;  // TELOS SPECIFIC
       time_point           last_pervote_bucket_fill;
       int64_t              pervote_bucket = 0;
       int64_t              perblock_bucket = 0;
@@ -155,13 +227,24 @@ namespace eosiosystem {
       uint16_t             last_producer_schedule_size = 0;
       double               total_producer_vote_weight = 0; /// the sum of all producer votes
       block_timestamp      last_name_close;
+      // BEGIN TELOS
+      uint32_t             block_num = 12;
+      uint32_t             last_claimrewards = 0;
+      uint32_t             next_payment = 0;
+      uint16_t             new_ram_per_block = 0;
+      block_timestamp      last_ram_increase;
+      block_timestamp      last_block_num; /* deprecated */
+      double               total_producer_votepay_share = 0;
+      uint8_t              revision = 0; ///< used to track version updates in the future.
+      // END TELOS
 
       // explicit serialization macro is not necessary, used here only to improve compilation time
       EOSLIB_SERIALIZE_DERIVED( eosio_global_state, eosio::blockchain_parameters,
                                 (max_ram_size)(total_ram_bytes_reserved)(total_ram_stake)
-                                (last_producer_schedule_update)(last_pervote_bucket_fill)
+                                (last_producer_schedule_update)(last_proposed_schedule_update)(last_pervote_bucket_fill)
                                 (pervote_bucket)(perblock_bucket)(total_unpaid_blocks)(total_activated_stake)(thresh_activated_stake_time)
-                                (last_producer_schedule_size)(total_producer_vote_weight)(last_name_close) )
+                                (last_producer_schedule_size)(total_producer_vote_weight)(last_name_close)(block_num)(last_claimrewards)(next_payment)
+                                (new_ram_per_block)(last_ram_increase)(last_block_num)(total_producer_votepay_share)(revision) )
    };
 
    // Defines new global state parameters added after version 1.0
@@ -207,16 +290,56 @@ namespace eosiosystem {
       double                                                   total_votes = 0;
       eosio::public_key                                        producer_key; /// a packed public key object
       bool                                                     is_active = true;
+      // TELOS BEGIN
+      std::string                                              unreg_reason;
+      // TELOS END
       std::string                                              url;
       uint32_t                                                 unpaid_blocks = 0;
+      // TELOS BEGIN
+      uint32_t                                                 lifetime_produced_blocks = 0;
+      uint32_t                                                 missed_blocks_per_rotation = 0;
+      uint32_t                                                 lifetime_missed_blocks;
+      // TELOS END
       time_point                                               last_claim_time;
       uint16_t                                                 location = 0;
+      // TELOS BEGIN
+      uint32_t                                                 kick_reason_id = 0;
+      std::string                                              kick_reason;
+      uint32_t                                                 times_kicked = 0;
+      uint32_t                                                 kick_penalty_hours = 0;
+      block_timestamp                                          last_time_kicked;
+      // TELOS END
       eosio::binary_extension<eosio::block_signing_authority>  producer_authority; // added in version 1.9.0
 
       uint64_t primary_key()const { return owner.value;                             }
       double   by_votes()const    { return is_active ? -total_votes : total_votes;  }
       bool     active()const      { return is_active;                               }
       void     deactivate()       { producer_key = public_key(); producer_authority.reset(); is_active = false; }
+
+      // TELOS BEGIN
+      void kick(kick_type kt, uint32_t penalty = 0) {
+         times_kicked++;
+         last_time_kicked = block_timestamp(eosio::current_time_point());
+
+         if(penalty == 0) kick_penalty_hours  = uint32_t(std::pow(2, times_kicked));
+
+         switch(kt) {
+           case kick_type::REACHED_TRESHOLD:
+             kick_reason_id = uint32_t(kick_type::REACHED_TRESHOLD);
+             kick_reason = "Producer account was deactivated because it reached the maximum missed blocks in this rotation timeframe.";
+           break;
+           case kick_type::BPS_VOTING:
+             kick_reason_id = uint32_t(kick_type::BPS_VOTING);
+             kick_reason = "Producer account was deactivated by vote.";
+             kick_penalty_hours = penalty;
+           break;
+         }
+         lifetime_missed_blocks += missed_blocks_per_rotation;
+         missed_blocks_per_rotation = 0;
+         // print("\nblock producer: ", name{owner}, " was kicked.");
+         deactivate();
+      }
+      // TELOS END
 
       eosio::block_signing_authority get_producer_authority()const {
          if( producer_authority.has_value() ) {
@@ -240,32 +363,52 @@ namespace eosiosystem {
       // So, a custom serialization is defined to handle the binary_extension producer_authority
       // field in the desired way. (Note: v1.9.0 did not have this custom serialization behavior.)
 
+      // TELOS EDITED WITH CUSTOM FIELDS
       template<typename DataStream>
       friend DataStream& operator << ( DataStream& ds, const producer_info& t ) {
          ds << t.owner
             << t.total_votes
             << t.producer_key
             << t.is_active
+            << t.unreg_reason
             << t.url
             << t.unpaid_blocks
+            << t.lifetime_produced_blocks
+            << t.missed_blocks_per_rotation
+            << t.lifetime_missed_blocks
             << t.last_claim_time
-            << t.location;
+            << t.location
+            << t.kick_reason_id
+            << t.kick_reason
+            << t.times_kicked
+            << t.kick_penalty_hours
+            << t.last_time_kicked;
 
          if( !t.producer_authority.has_value() ) return ds;
 
          return ds << t.producer_authority;
       }
 
+      // TELOS EDITED WITH CUSTOM FIELDS
       template<typename DataStream>
       friend DataStream& operator >> ( DataStream& ds, producer_info& t ) {
          return ds >> t.owner
                    >> t.total_votes
                    >> t.producer_key
                    >> t.is_active
+                   >> t.unreg_reason
                    >> t.url
                    >> t.unpaid_blocks
+                   >> t.lifetime_produced_blocks
+                   >> t.missed_blocks_per_rotation
+                   >> t.lifetime_missed_blocks
                    >> t.last_claim_time
                    >> t.location
+                   >> t.kick_reason_id
+                   >> t.kick_reason
+                   >> t.times_kicked
+                   >> t.kick_penalty_hours
+                   >> t.last_time_kicked
                    >> t.producer_authority;
       }
    };
@@ -293,6 +436,10 @@ namespace eosiosystem {
       std::vector<name>   producers; /// the producers approved by this voter if no proxy set
       int64_t             staked = 0;
 
+      // TELOS BEGIN
+      int64_t             last_stake = 0;
+      // TELOS END
+
       //  Every time a vote is cast we must first "undo" the last vote weight, before casting the
       //  new vote weight.  Vote weight is calculated as:
       //  stated.amount * 2 ^ ( weeks_since_launch/weeks_per_year)
@@ -316,7 +463,7 @@ namespace eosiosystem {
       };
 
       // explicit serialization macro is not necessary, used here only to improve compilation time
-      EOSLIB_SERIALIZE( voter_info, (owner)(proxy)(producers)(staked)(last_vote_weight)(proxied_vote_weight)(is_proxy)(flags1)(reserved2)(reserved3) )
+      EOSLIB_SERIALIZE( voter_info, (owner)(proxy)(producers)(staked)(last_stake)(last_vote_weight)(proxied_vote_weight)(is_proxy)(flags1)(reserved2)(reserved3) )
    };
 
 
@@ -698,6 +845,16 @@ namespace eosiosystem {
          rex_balance_table        _rexbalance;
          rex_order_table          _rexorders;
 
+         // TELOS BEGIN
+         schedule_metrics_singleton  _schedule_metrics;
+         schedule_metrics_state      _gschedule_metrics;
+         rotation_singleton          _rotation;
+         rotation_state              _grotation;
+         payrate_singleton           _payrate;
+         payrates                    _gpayrate;
+         payments_table              _payments;
+         // TELOS END
+
       public:
          static constexpr eosio::name active_permission{"active"_n};
          static constexpr eosio::name token_account{"eosio.token"_n};
@@ -714,6 +871,13 @@ namespace eosiosystem {
          static constexpr symbol ramcore_symbol = symbol(symbol_code("RAMCORE"), 4);
          static constexpr symbol ram_symbol     = symbol(symbol_code("RAM"), 0);
          static constexpr symbol rex_symbol     = symbol(symbol_code("REX"), 4);
+
+         // TELOS BEGIN
+         static constexpr eosio::name tedp_account{"exrsrv.tf"_n};
+         static constexpr eosio::name decide_account{"telos.decide"_n};
+         static constexpr eosio::name works_account{"works.decide"_n};
+         static constexpr eosio::name amend_account{"amend.decide"_n};
+         // TELOS END
 
          system_contract( name s, name code, datastream<const char*> ds );
          ~system_contract();
@@ -1440,6 +1604,26 @@ namespace eosiosystem {
          using powerupexec_action = eosio::action_wrapper<"powerupexec"_n, &system_contract::powerupexec>;
          using powerup_action = eosio::action_wrapper<"powerup"_n, &system_contract::powerup>;
 
+         // TELOS BEGIN
+         [[eosio::action]]
+         void unregreason( const name& producer, std::string reason );
+
+         [[eosio::action]]
+         void votebpout(name bp, uint32_t penalty_hours);
+
+         [[eosio::action]]
+         void setpayrates(uint64_t inflation, uint64_t worker);
+
+         [[eosio::action]]
+         void distviarex(name from, asset amount);
+
+
+         using unregreason_action = eosio::action_wrapper<"unregreason"_n, &system_contract::unregreason>;
+         using votebpout_action = eosio::action_wrapper<"votebpout"_n, &system_contract::votebpout>;
+         using setpayrates_action = eosio::action_wrapper<"setpayrates"_n, &system_contract::setpayrates>;
+         using distviarex_action = eosio::action_wrapper<"distviarex"_n, &system_contract::distviarex>;
+         // TELOS END
+
       private:
          // Implementation details:
 
@@ -1549,6 +1733,31 @@ namespace eosiosystem {
 
          // defined in block_info.cpp
          void add_to_blockinfo_table(const eosio::checksum256& previous_block_id, const eosio::block_timestamp timestamp) const;
+
+         // TELOS BEGIN
+         // defined in producer_pay.cpp
+         void claimrewards_snapshot();
+
+
+         double inverse_vote_weight(double staked, double amountVotedProducers);
+         void recalculate_votes();
+
+         //defined in system_kick.cpp
+         bool crossed_missed_blocks_threshold(uint32_t amountBlocksMissed, uint32_t schedule_size);
+         void reset_schedule_metrics(name producer);
+         void update_producer_missed_blocks(name producer);
+         bool is_new_schedule_activated(name active_schedule[], uint32_t size);
+         bool is_new_schedule_activated(std::vector<name>& schedule);
+         bool check_missed_blocks(block_timestamp timestamp, name producer);
+
+         //define in system_rotation.cpp
+         void set_bps_rotation(name bpOut, name sbpIn);
+         void update_rotation_time(block_timestamp block_time);
+         void update_missed_blocks_per_rotation();
+         void restart_missed_blocks_per_rotation(std::vector<producer_location_pair> prods);
+         bool is_in_range(int32_t index, int32_t low_bound, int32_t up_bound);
+         std::vector<producer_location_pair> check_rotation_state(std::vector<producer_location_pair> producers, block_timestamp block_time);
+         // TELOS END
    };
 
 }

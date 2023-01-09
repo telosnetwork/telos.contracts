@@ -1,0 +1,1666 @@
+{
+    "____comment": "This file was generated with eosio-abigen. DO NOT EDIT ",
+    "version": "eosio::abi/1.1",
+    "types": [],
+    "structs": [
+        {
+            "name": "account",
+            "base": "",
+            "fields": [
+                {
+                    "name": "balance",
+                    "type": "asset"
+                }
+            ]
+        },
+        {
+            "name": "addfunds",
+            "base": "",
+            "fields": [
+                {
+                    "name": "from",
+                    "type": "name"
+                },
+                {
+                    "name": "treasury_symbol",
+                    "type": "symbol"
+                },
+                {
+                    "name": "quantity",
+                    "type": "asset"
+                }
+            ]
+        },
+        {
+            "name": "addoption",
+            "base": "",
+            "fields": [
+                {
+                    "name": "ballot_name",
+                    "type": "name"
+                },
+                {
+                    "name": "new_option_name",
+                    "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "addseat",
+            "base": "",
+            "fields": [
+                {
+                    "name": "committee_name",
+                    "type": "name"
+                },
+                {
+                    "name": "treasury_symbol",
+                    "type": "symbol"
+                },
+                {
+                    "name": "new_seat_name",
+                    "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "archival",
+            "base": "",
+            "fields": [
+                {
+                    "name": "ballot_name",
+                    "type": "name"
+                },
+                {
+                    "name": "archived_until",
+                    "type": "time_point_sec"
+                }
+            ]
+        },
+        {
+            "name": "archive",
+            "base": "",
+            "fields": [
+                {
+                    "name": "ballot_name",
+                    "type": "name"
+                },
+                {
+                    "name": "archived_until",
+                    "type": "time_point_sec"
+                }
+            ]
+        },
+        {
+            "name": "assignseat",
+            "base": "",
+            "fields": [
+                {
+                    "name": "committee_name",
+                    "type": "name"
+                },
+                {
+                    "name": "treasury_symbol",
+                    "type": "symbol"
+                },
+                {
+                    "name": "seat_name",
+                    "type": "name"
+                },
+                {
+                    "name": "seat_holder",
+                    "type": "name"
+                },
+                {
+                    "name": "memo",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "name": "ballot",
+            "base": "",
+            "fields": [
+                {
+                    "name": "ballot_name",
+                    "type": "name"
+                },
+                {
+                    "name": "category",
+                    "type": "name"
+                },
+                {
+                    "name": "publisher",
+                    "type": "name"
+                },
+                {
+                    "name": "status",
+                    "type": "name"
+                },
+                {
+                    "name": "title",
+                    "type": "string"
+                },
+                {
+                    "name": "description",
+                    "type": "string"
+                },
+                {
+                    "name": "content",
+                    "type": "string"
+                },
+                {
+                    "name": "treasury_symbol",
+                    "type": "symbol"
+                },
+                {
+                    "name": "voting_method",
+                    "type": "name"
+                },
+                {
+                    "name": "min_options",
+                    "type": "uint8"
+                },
+                {
+                    "name": "max_options",
+                    "type": "uint8"
+                },
+                {
+                    "name": "options",
+                    "type": "pair_name_asset[]"
+                },
+                {
+                    "name": "total_voters",
+                    "type": "uint32"
+                },
+                {
+                    "name": "total_delegates",
+                    "type": "uint32"
+                },
+                {
+                    "name": "total_raw_weight",
+                    "type": "asset"
+                },
+                {
+                    "name": "cleaned_count",
+                    "type": "uint32"
+                },
+                {
+                    "name": "settings",
+                    "type": "pair_name_bool[]"
+                },
+                {
+                    "name": "begin_time",
+                    "type": "time_point_sec"
+                },
+                {
+                    "name": "end_time",
+                    "type": "time_point_sec"
+                }
+            ]
+        },
+        {
+            "name": "broadcast",
+            "base": "",
+            "fields": [
+                {
+                    "name": "ballot_name",
+                    "type": "name"
+                },
+                {
+                    "name": "final_results",
+                    "type": "pair_name_asset[]"
+                },
+                {
+                    "name": "total_voters",
+                    "type": "uint32"
+                }
+            ]
+        },
+        {
+            "name": "burn",
+            "base": "",
+            "fields": [
+                {
+                    "name": "quantity",
+                    "type": "asset"
+                },
+                {
+                    "name": "memo",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "name": "cancelballot",
+            "base": "",
+            "fields": [
+                {
+                    "name": "ballot_name",
+                    "type": "name"
+                },
+                {
+                    "name": "memo",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "name": "castvote",
+            "base": "",
+            "fields": [
+                {
+                    "name": "voter",
+                    "type": "name"
+                },
+                {
+                    "name": "ballot_name",
+                    "type": "name"
+                },
+                {
+                    "name": "options",
+                    "type": "name[]"
+                }
+            ]
+        },
+        {
+            "name": "claimpayment",
+            "base": "",
+            "fields": [
+                {
+                    "name": "worker_name",
+                    "type": "name"
+                },
+                {
+                    "name": "treasury_symbol",
+                    "type": "symbol"
+                }
+            ]
+        },
+        {
+            "name": "cleanupvote",
+            "base": "",
+            "fields": [
+                {
+                    "name": "voter",
+                    "type": "name"
+                },
+                {
+                    "name": "ballot_name",
+                    "type": "name"
+                },
+                {
+                    "name": "worker",
+                    "type": "name?"
+                }
+            ]
+        },
+        {
+            "name": "closevoting",
+            "base": "",
+            "fields": [
+                {
+                    "name": "ballot_name",
+                    "type": "name"
+                },
+                {
+                    "name": "broadcast",
+                    "type": "bool"
+                }
+            ]
+        },
+        {
+            "name": "committee",
+            "base": "",
+            "fields": [
+                {
+                    "name": "committee_title",
+                    "type": "string"
+                },
+                {
+                    "name": "committee_name",
+                    "type": "name"
+                },
+                {
+                    "name": "treasury_symbol",
+                    "type": "symbol"
+                },
+                {
+                    "name": "seats",
+                    "type": "pair_name_name[]"
+                },
+                {
+                    "name": "updater_acct",
+                    "type": "name"
+                },
+                {
+                    "name": "updater_auth",
+                    "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "config",
+            "base": "",
+            "fields": [
+                {
+                    "name": "app_name",
+                    "type": "string"
+                },
+                {
+                    "name": "app_version",
+                    "type": "string"
+                },
+                {
+                    "name": "total_deposits",
+                    "type": "asset"
+                },
+                {
+                    "name": "fees",
+                    "type": "pair_name_asset[]"
+                },
+                {
+                    "name": "times",
+                    "type": "pair_name_uint32[]"
+                }
+            ]
+        },
+        {
+            "name": "delcommittee",
+            "base": "",
+            "fields": [
+                {
+                    "name": "committee_name",
+                    "type": "name"
+                },
+                {
+                    "name": "treasury_symbol",
+                    "type": "symbol"
+                },
+                {
+                    "name": "memo",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "name": "delegate",
+            "base": "",
+            "fields": [
+                {
+                    "name": "delegate_name",
+                    "type": "name"
+                },
+                {
+                    "name": "total_delegated",
+                    "type": "asset"
+                },
+                {
+                    "name": "constituents",
+                    "type": "uint32"
+                }
+            ]
+        },
+        {
+            "name": "deleteballot",
+            "base": "",
+            "fields": [
+                {
+                    "name": "ballot_name",
+                    "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "editdetails",
+            "base": "",
+            "fields": [
+                {
+                    "name": "ballot_name",
+                    "type": "name"
+                },
+                {
+                    "name": "title",
+                    "type": "string"
+                },
+                {
+                    "name": "description",
+                    "type": "string"
+                },
+                {
+                    "name": "content",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "name": "editminmax",
+            "base": "",
+            "fields": [
+                {
+                    "name": "ballot_name",
+                    "type": "name"
+                },
+                {
+                    "name": "new_min_options",
+                    "type": "uint8"
+                },
+                {
+                    "name": "new_max_options",
+                    "type": "uint8"
+                }
+            ]
+        },
+        {
+            "name": "editpayrate",
+            "base": "",
+            "fields": [
+                {
+                    "name": "treasury_symbol",
+                    "type": "symbol"
+                },
+                {
+                    "name": "period_length",
+                    "type": "uint32"
+                },
+                {
+                    "name": "per_period",
+                    "type": "asset"
+                }
+            ]
+        },
+        {
+            "name": "edittrsinfo",
+            "base": "",
+            "fields": [
+                {
+                    "name": "treasury_symbol",
+                    "type": "symbol"
+                },
+                {
+                    "name": "title",
+                    "type": "string"
+                },
+                {
+                    "name": "description",
+                    "type": "string"
+                },
+                {
+                    "name": "icon",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "name": "featured_ballot",
+            "base": "",
+            "fields": [
+                {
+                    "name": "ballot_name",
+                    "type": "name"
+                },
+                {
+                    "name": "featured_until",
+                    "type": "time_point_sec"
+                }
+            ]
+        },
+        {
+            "name": "forfeitwork",
+            "base": "",
+            "fields": [
+                {
+                    "name": "worker_name",
+                    "type": "name"
+                },
+                {
+                    "name": "treasury_symbol",
+                    "type": "symbol"
+                }
+            ]
+        },
+        {
+            "name": "init",
+            "base": "",
+            "fields": [
+                {
+                    "name": "app_version",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "name": "labor",
+            "base": "",
+            "fields": [
+                {
+                    "name": "worker_name",
+                    "type": "name"
+                },
+                {
+                    "name": "start_time",
+                    "type": "time_point_sec"
+                },
+                {
+                    "name": "unclaimed_volume",
+                    "type": "pair_name_asset[]"
+                },
+                {
+                    "name": "unclaimed_events",
+                    "type": "pair_name_uint32[]"
+                }
+            ]
+        },
+        {
+            "name": "labor_bucket",
+            "base": "",
+            "fields": [
+                {
+                    "name": "payroll_name",
+                    "type": "name"
+                },
+                {
+                    "name": "claimable_volume",
+                    "type": "pair_name_asset[]"
+                },
+                {
+                    "name": "claimable_events",
+                    "type": "pair_name_uint32[]"
+                }
+            ]
+        },
+        {
+            "name": "lock",
+            "base": "",
+            "fields": [
+                {
+                    "name": "treasury_symbol",
+                    "type": "symbol"
+                }
+            ]
+        },
+        {
+            "name": "mint",
+            "base": "",
+            "fields": [
+                {
+                    "name": "to",
+                    "type": "name"
+                },
+                {
+                    "name": "quantity",
+                    "type": "asset"
+                },
+                {
+                    "name": "memo",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "name": "mutatemax",
+            "base": "",
+            "fields": [
+                {
+                    "name": "new_max_supply",
+                    "type": "asset"
+                },
+                {
+                    "name": "memo",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "name": "newballot",
+            "base": "",
+            "fields": [
+                {
+                    "name": "ballot_name",
+                    "type": "name"
+                },
+                {
+                    "name": "category",
+                    "type": "name"
+                },
+                {
+                    "name": "publisher",
+                    "type": "name"
+                },
+                {
+                    "name": "treasury_symbol",
+                    "type": "symbol"
+                },
+                {
+                    "name": "voting_method",
+                    "type": "name"
+                },
+                {
+                    "name": "initial_options",
+                    "type": "name[]"
+                }
+            ]
+        },
+        {
+            "name": "newtreasury",
+            "base": "",
+            "fields": [
+                {
+                    "name": "manager",
+                    "type": "name"
+                },
+                {
+                    "name": "max_supply",
+                    "type": "asset"
+                },
+                {
+                    "name": "access",
+                    "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "openvoting",
+            "base": "",
+            "fields": [
+                {
+                    "name": "ballot_name",
+                    "type": "name"
+                },
+                {
+                    "name": "end_time",
+                    "type": "time_point_sec"
+                }
+            ]
+        },
+        {
+            "name": "pair_name_asset",
+            "base": "",
+            "fields": [
+                {
+                    "name": "key",
+                    "type": "name"
+                },
+                {
+                    "name": "value",
+                    "type": "asset"
+                }
+            ]
+        },
+        {
+            "name": "pair_name_bool",
+            "base": "",
+            "fields": [
+                {
+                    "name": "key",
+                    "type": "name"
+                },
+                {
+                    "name": "value",
+                    "type": "bool"
+                }
+            ]
+        },
+        {
+            "name": "pair_name_name",
+            "base": "",
+            "fields": [
+                {
+                    "name": "key",
+                    "type": "name"
+                },
+                {
+                    "name": "value",
+                    "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "pair_name_uint32",
+            "base": "",
+            "fields": [
+                {
+                    "name": "key",
+                    "type": "name"
+                },
+                {
+                    "name": "value",
+                    "type": "uint32"
+                }
+            ]
+        },
+        {
+            "name": "payroll",
+            "base": "",
+            "fields": [
+                {
+                    "name": "payroll_name",
+                    "type": "name"
+                },
+                {
+                    "name": "payroll_funds",
+                    "type": "asset"
+                },
+                {
+                    "name": "period_length",
+                    "type": "uint32"
+                },
+                {
+                    "name": "per_period",
+                    "type": "asset"
+                },
+                {
+                    "name": "last_claim_time",
+                    "type": "time_point_sec"
+                },
+                {
+                    "name": "claimable_pay",
+                    "type": "asset"
+                },
+                {
+                    "name": "payee",
+                    "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "postresults",
+            "base": "",
+            "fields": [
+                {
+                    "name": "ballot_name",
+                    "type": "name"
+                },
+                {
+                    "name": "light_results",
+                    "type": "pair_name_asset[]"
+                },
+                {
+                    "name": "total_voters",
+                    "type": "uint32"
+                }
+            ]
+        },
+        {
+            "name": "rebalance",
+            "base": "",
+            "fields": [
+                {
+                    "name": "voter",
+                    "type": "name"
+                },
+                {
+                    "name": "ballot_name",
+                    "type": "name"
+                },
+                {
+                    "name": "worker",
+                    "type": "name?"
+                }
+            ]
+        },
+        {
+            "name": "reclaim",
+            "base": "",
+            "fields": [
+                {
+                    "name": "voter",
+                    "type": "name"
+                },
+                {
+                    "name": "quantity",
+                    "type": "asset"
+                },
+                {
+                    "name": "memo",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "name": "refresh",
+            "base": "",
+            "fields": [
+                {
+                    "name": "voter",
+                    "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "regcommittee",
+            "base": "",
+            "fields": [
+                {
+                    "name": "committee_name",
+                    "type": "name"
+                },
+                {
+                    "name": "committee_title",
+                    "type": "string"
+                },
+                {
+                    "name": "treasury_symbol",
+                    "type": "symbol"
+                },
+                {
+                    "name": "initial_seats",
+                    "type": "name[]"
+                },
+                {
+                    "name": "registree",
+                    "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "regvoter",
+            "base": "",
+            "fields": [
+                {
+                    "name": "voter",
+                    "type": "name"
+                },
+                {
+                    "name": "treasury_symbol",
+                    "type": "symbol"
+                },
+                {
+                    "name": "referrer",
+                    "type": "name?"
+                }
+            ]
+        },
+        {
+            "name": "removeseat",
+            "base": "",
+            "fields": [
+                {
+                    "name": "committee_name",
+                    "type": "name"
+                },
+                {
+                    "name": "treasury_symbol",
+                    "type": "symbol"
+                },
+                {
+                    "name": "seat_name",
+                    "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "rmvoption",
+            "base": "",
+            "fields": [
+                {
+                    "name": "ballot_name",
+                    "type": "name"
+                },
+                {
+                    "name": "option_name",
+                    "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "setunlocker",
+            "base": "",
+            "fields": [
+                {
+                    "name": "treasury_symbol",
+                    "type": "symbol"
+                },
+                {
+                    "name": "new_unlock_acct",
+                    "type": "name"
+                },
+                {
+                    "name": "new_unlock_auth",
+                    "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "setupdater",
+            "base": "",
+            "fields": [
+                {
+                    "name": "committee_name",
+                    "type": "name"
+                },
+                {
+                    "name": "treasury_symbol",
+                    "type": "symbol"
+                },
+                {
+                    "name": "updater_account",
+                    "type": "name"
+                },
+                {
+                    "name": "updater_auth",
+                    "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "setversion",
+            "base": "",
+            "fields": [
+                {
+                    "name": "new_app_version",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "name": "stake",
+            "base": "",
+            "fields": [
+                {
+                    "name": "voter",
+                    "type": "name"
+                },
+                {
+                    "name": "quantity",
+                    "type": "asset"
+                }
+            ]
+        },
+        {
+            "name": "toggle",
+            "base": "",
+            "fields": [
+                {
+                    "name": "treasury_symbol",
+                    "type": "symbol"
+                },
+                {
+                    "name": "setting_name",
+                    "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "togglebal",
+            "base": "",
+            "fields": [
+                {
+                    "name": "ballot_name",
+                    "type": "name"
+                },
+                {
+                    "name": "setting_name",
+                    "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "transfer",
+            "base": "",
+            "fields": [
+                {
+                    "name": "from",
+                    "type": "name"
+                },
+                {
+                    "name": "to",
+                    "type": "name"
+                },
+                {
+                    "name": "quantity",
+                    "type": "asset"
+                },
+                {
+                    "name": "memo",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "name": "treasury",
+            "base": "",
+            "fields": [
+                {
+                    "name": "supply",
+                    "type": "asset"
+                },
+                {
+                    "name": "max_supply",
+                    "type": "asset"
+                },
+                {
+                    "name": "access",
+                    "type": "name"
+                },
+                {
+                    "name": "manager",
+                    "type": "name"
+                },
+                {
+                    "name": "title",
+                    "type": "string"
+                },
+                {
+                    "name": "description",
+                    "type": "string"
+                },
+                {
+                    "name": "icon",
+                    "type": "string"
+                },
+                {
+                    "name": "voters",
+                    "type": "uint32"
+                },
+                {
+                    "name": "delegates",
+                    "type": "uint32"
+                },
+                {
+                    "name": "committees",
+                    "type": "uint32"
+                },
+                {
+                    "name": "open_ballots",
+                    "type": "uint32"
+                },
+                {
+                    "name": "locked",
+                    "type": "bool"
+                },
+                {
+                    "name": "unlock_acct",
+                    "type": "name"
+                },
+                {
+                    "name": "unlock_auth",
+                    "type": "name"
+                },
+                {
+                    "name": "settings",
+                    "type": "pair_name_bool[]"
+                }
+            ]
+        },
+        {
+            "name": "unarchive",
+            "base": "",
+            "fields": [
+                {
+                    "name": "ballot_name",
+                    "type": "name"
+                },
+                {
+                    "name": "force",
+                    "type": "bool"
+                }
+            ]
+        },
+        {
+            "name": "unlock",
+            "base": "",
+            "fields": [
+                {
+                    "name": "treasury_symbol",
+                    "type": "symbol"
+                }
+            ]
+        },
+        {
+            "name": "unregvoter",
+            "base": "",
+            "fields": [
+                {
+                    "name": "voter",
+                    "type": "name"
+                },
+                {
+                    "name": "treasury_symbol",
+                    "type": "symbol"
+                }
+            ]
+        },
+        {
+            "name": "unstake",
+            "base": "",
+            "fields": [
+                {
+                    "name": "voter",
+                    "type": "name"
+                },
+                {
+                    "name": "quantity",
+                    "type": "asset"
+                }
+            ]
+        },
+        {
+            "name": "unvoteall",
+            "base": "",
+            "fields": [
+                {
+                    "name": "voter",
+                    "type": "name"
+                },
+                {
+                    "name": "ballot_name",
+                    "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "updatefee",
+            "base": "",
+            "fields": [
+                {
+                    "name": "fee_name",
+                    "type": "name"
+                },
+                {
+                    "name": "fee_amount",
+                    "type": "asset"
+                }
+            ]
+        },
+        {
+            "name": "updatetime",
+            "base": "",
+            "fields": [
+                {
+                    "name": "time_name",
+                    "type": "name"
+                },
+                {
+                    "name": "length",
+                    "type": "uint32"
+                }
+            ]
+        },
+        {
+            "name": "vote",
+            "base": "",
+            "fields": [
+                {
+                    "name": "voter",
+                    "type": "name"
+                },
+                {
+                    "name": "is_delegate",
+                    "type": "bool"
+                },
+                {
+                    "name": "raw_votes",
+                    "type": "asset"
+                },
+                {
+                    "name": "weighted_votes",
+                    "type": "pair_name_asset[]"
+                },
+                {
+                    "name": "vote_time",
+                    "type": "time_point_sec"
+                },
+                {
+                    "name": "worker",
+                    "type": "name"
+                },
+                {
+                    "name": "rebalances",
+                    "type": "uint8"
+                },
+                {
+                    "name": "rebalance_volume",
+                    "type": "asset"
+                }
+            ]
+        },
+        {
+            "name": "voter",
+            "base": "",
+            "fields": [
+                {
+                    "name": "liquid",
+                    "type": "asset"
+                },
+                {
+                    "name": "staked",
+                    "type": "asset"
+                },
+                {
+                    "name": "staked_time",
+                    "type": "time_point_sec"
+                },
+                {
+                    "name": "delegated",
+                    "type": "asset"
+                },
+                {
+                    "name": "delegated_to",
+                    "type": "name"
+                },
+                {
+                    "name": "delegation_time",
+                    "type": "time_point_sec"
+                }
+            ]
+        },
+        {
+            "name": "withdraw",
+            "base": "",
+            "fields": [
+                {
+                    "name": "voter",
+                    "type": "name"
+                },
+                {
+                    "name": "quantity",
+                    "type": "asset"
+                }
+            ]
+        }
+    ],
+    "actions": [
+        {
+            "name": "addfunds",
+            "type": "addfunds",
+            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Add Payroll Funds\nsummary: 'Add to Treasury Payroll Funds'\nicon: https://github.com/Telos-Foundation/images/raw/master/ricardian_assets/eosio.contracts/icons/token.png#207ff68b0406eaa56618b08bda81d6a0954543f36adc328ab3065f31a5c5d654\n---\n\n{{$action.account}} adds {{quantity}} to the {{treasury_symbol}}'s {{payroll_name}} payroll."
+        },
+        {
+            "name": "addoption",
+            "type": "addoption",
+            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Add Ballot Option\nsummary: 'Add Ballot Option'\nicon: https://github.com/Telos-Foundation/images/raw/master/ricardian_assets/eosio.contracts/icons/token.png#207ff68b0406eaa56618b08bda81d6a0954543f36adc328ab3065f31a5c5d654\n---\n\nBallot publisher {{$action.account}} adds the {{new_option_name}} option to the {{ballot_name}} ballot."
+        },
+        {
+            "name": "addseat",
+            "type": "addseat",
+            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Add Committee Seat\nsummary: 'Add Committee Seat'\nicon: https://github.com/Telos-Foundation/images/raw/master/ricardian_assets/eosio.contracts/icons/account.png#3d55a2fc3a5c20b456f5657faf666bc25ffd06f4836c5e8256f741149b0b294f\n---\n\nCommittee updater {{$action.account}} adds the {{seat_name}} seat to the {{committee_name}} committee."
+        },
+        {
+            "name": "archive",
+            "type": "archive",
+            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Archive Ballot\nsummary: 'Archive Ballot'\nicon: https://github.com/Telos-Foundation/images/raw/master/ricardian_assets/eosio.contracts/icons/token.png#207ff68b0406eaa56618b08bda81d6a0954543f36adc328ab3065f31a5c5d654\n---\n\nBallot publisher {{$action.account}} archives the {{ballot_name}} ballot until {{archived_until}}."
+        },
+        {
+            "name": "assignseat",
+            "type": "assignseat",
+            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Assign Committee Seat\nsummary: 'Assign Committee Seat'\nicon: https://github.com/Telos-Foundation/images/raw/master/ricardian_assets/eosio.contracts/icons/account.png#3d55a2fc3a5c20b456f5657faf666bc25ffd06f4836c5e8256f741149b0b294f\n---\n\nCommittee updater {{$action.account}} assigns {{seat_holder}} to the {{seat_name}} seat in the {{committee_name}} committee."
+        },
+        {
+            "name": "broadcast",
+            "type": "broadcast",
+            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Broadcast Ballot Results\nsummary: 'Broadcast Ballot Results'\nicon: https://github.com/Telos-Foundation/images/raw/master/ricardian_assets/eosio.contracts/icons/token.png#207ff68b0406eaa56618b08bda81d6a0954543f36adc328ab3065f31a5c5d654\n---\n\nBroadcasts the final ballot results to the ballot publisher's account."
+        },
+        {
+            "name": "burn",
+            "type": "burn",
+            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Burn Tokens\nsummary: 'Burn Treasury Tokens from Manager Balance'\nicon: https://github.com/Telos-Foundation/images/raw/master/ricardian_assets/eosio.contracts/icons/token.png#207ff68b0406eaa56618b08bda81d6a0954543f36adc328ab3065f31a5c5d654\n---\n\nTreasury Manager {{$action.account}} burns {{quantity}} from their account."
+        },
+        {
+            "name": "cancelballot",
+            "type": "cancelballot",
+            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Cancel Ballot\nsummary: 'Cancel Ballot'\nicon: https://github.com/Telos-Foundation/images/raw/master/ricardian_assets/eosio.contracts/icons/token.png#207ff68b0406eaa56618b08bda81d6a0954543f36adc328ab3065f31a5c5d654\n---\n\nBallot publisher {{$action.account}} cancels the {{ballot_name}} ballot and forfeits all fees spent in its creation.\n\n## Ballot Status Change\n\nThe {{ballot_name}} will be changed to the \"cancelled\" status. From there, it can be fully deleted with the deleteballot() action."
+        },
+        {
+            "name": "castvote",
+            "type": "castvote",
+            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Cast Vote\nsummary: 'Cast Vote on a Ballot'\nicon: https://github.com/Telos-Foundation/images/raw/master/ricardian_assets/eosio.contracts/icons/voting.png#db28cd3db6e62d4509af3644ce7d377329482a14bb4bfaca2aa5f1400d8e8a84\n---\n\nVoter {{$action.account}} casts votes for {{options}} on the {{ballot_name}} ballot."
+        },
+        {
+            "name": "claimpayment",
+            "type": "claimpayment",
+            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Claim Payment\nsummary: 'Claim Payment'\nicon: https://github.com/Telos-Foundation/images/raw/master/ricardian_assets/eosio.contracts/icons/account.png#3d55a2fc3a5c20b456f5657faf666bc25ffd06f4836c5e8256f741149b0b294f\n---\n\nWorker {{$action.account}} claims payment for all committed work on the {{treasury_symbol}} treasury."
+        },
+        {
+            "name": "cleanupvote",
+            "type": "cleanupvote",
+            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Clean Vote\nsummary: 'Clean Vote'\nicon: https://github.com/Telos-Foundation/images/raw/master/ricardian_assets/eosio.contracts/icons/voting.png#db28cd3db6e62d4509af3644ce7d377329482a14bb4bfaca2aa5f1400d8e8a84\n---\n\nWorker {{$action.account}} cleans {{voter}}'s vote on the {{ballot_name}}."
+        },
+        {
+            "name": "closevoting",
+            "type": "closevoting",
+            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Close Ballot Voting\nsummary: 'Close Ballot Voting'\nicon: https://github.com/Telos-Foundation/images/raw/master/ricardian_assets/eosio.contracts/icons/token.png#207ff68b0406eaa56618b08bda81d6a0954543f36adc328ab3065f31a5c5d654\n---\n\nBallot publisher {{$action.account}} closes the completed {{ballot_name}} ballot."
+        },
+        {
+            "name": "delcommittee",
+            "type": "delcommittee",
+            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Delete Committee\nsummary: 'Delete Committee'\nicon: https://github.com/Telos-Foundation/images/raw/master/ricardian_assets/eosio.contracts/icons/account.png#3d55a2fc3a5c20b456f5657faf666bc25ffd06f4836c5e8256f741149b0b294f\n---\n\nCommittee Updater {{$action.account}} deletes the committee."
+        },
+        {
+            "name": "deleteballot",
+            "type": "deleteballot",
+            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Delete Ballot\nsummary: 'Delete Ballot'\nicon: https://github.com/Telos-Foundation/images/raw/master/ricardian_assets/eosio.contracts/icons/token.png#207ff68b0406eaa56618b08bda81d6a0954543f36adc328ab3065f31a5c5d654\n---\n\n{{$action.account}} deletes the {{ballot_name}} ballot."
+        },
+        {
+            "name": "editdetails",
+            "type": "editdetails",
+            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Edit Ballot Info\nsummary: 'Edit Ballot Info'\nicon: https://github.com/Telos-Foundation/images/raw/master/ricardian_assets/eosio.contracts/icons/token.png#207ff68b0406eaa56618b08bda81d6a0954543f36adc328ab3065f31a5c5d654\n---\n\nBallot publiser {{$action.account}} edits the ballot title to {{title}}, the description to {{description}}, and the content to {{content}}."
+        },
+        {
+            "name": "editminmax",
+            "type": "editminmax",
+            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Edit Ballot Min/Max\nsummary: 'Edit Ballot Min/Max Options'\nicon: https://github.com/Telos-Foundation/images/raw/master/ricardian_assets/eosio.contracts/icons/token.png#207ff68b0406eaa56618b08bda81d6a0954543f36adc328ab3065f31a5c5d654\n---\n\nBallot publisher {{$action.account}} edits number of minimum vote options to {{new_min_options}}, and the max vote options to {{new_max_options}}. This means voters can select between {{new_min_options}} and {{new_max_options}} options when voting."
+        },
+        {
+            "name": "editpayrate",
+            "type": "editpayrate",
+            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Edit Payroll Pay Rate\nsummary: 'Edit Payroll Pay Rate'\nicon: https://github.com/Telos-Foundation/images/raw/master/ricardian_assets/eosio.contracts/icons/token.png#207ff68b0406eaa56618b08bda81d6a0954543f36adc328ab3065f31a5c5d654\n---\n\nTreasury Manager {{$action.account}} changes {{treasury_symbol}}'s {{payroll_name}} pay rate to {{per_period}} per {{period_length}} second period."
+        },
+        {
+            "name": "edittrsinfo",
+            "type": "edittrsinfo",
+            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Edit Treasury Info\nsummary: 'Edit Treasury Info'\nicon: https://github.com/Telos-Foundation/images/raw/master/ricardian_assets/eosio.contracts/icons/resource.png#3830f1ce8cb07f7757dbcf383b1ec1b11914ac34a1f9d8b065f07600fa9dac19\n---\n\n{{$action.account}} sets the treasury title to {{title}}, the description to {{description}}, and the icon to {{icon}} for the {{treasury_symbol}} treasury."
+        },
+        {
+            "name": "forfeitwork",
+            "type": "forfeitwork",
+            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Forfeit Work\nsummary: 'Forfeit Work'\nicon: https://github.com/Telos-Foundation/images/raw/master/ricardian_assets/eosio.contracts/icons/voting.png#db28cd3db6e62d4509af3644ce7d377329482a14bb4bfaca2aa5f1400d8e8a84\n---\n\nWorker {{$action.account}} forfeits all currently commited work on the {{treasury_symbol}} treasury."
+        },
+        {
+            "name": "init",
+            "type": "init",
+            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Set Decide Config\nsummary: 'Set Decide Config Version'\nicon: https://github.com/Telos-Foundation/images/raw/master/ricardian_assets/eosio.contracts/icons/admin.png#9bf1cec664863bd6aaac0f814b235f8799fb02c850e9aa5da34e8a004bd6518e\n---\n\n{{$action.account}} sets the Telos Decide config to version {{app_version}}."
+        },
+        {
+            "name": "lock",
+            "type": "lock",
+            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Lock Treasury Settings\nsummary: 'Lock Treasury Settings'\nicon: https://github.com/Telos-Foundation/images/raw/master/ricardian_assets/eosio.contracts/icons/token.png#207ff68b0406eaa56618b08bda81d6a0954543f36adc328ab3065f31a5c5d654\n---\n\nTreasury Manager {{$action.account}} locks the {{treasury_symbol}} treasury."
+        },
+        {
+            "name": "mint",
+            "type": "mint",
+            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Mint Tokens\nsummary: 'Mint Treasury Tokens'\nicon: https://github.com/Telos-Foundation/images/raw/master/ricardian_assets/eosio.contracts/icons/token.png#207ff68b0406eaa56618b08bda81d6a0954543f36adc328ab3065f31a5c5d654\n---\n\nTreasury Manager {{$action.account}} mints {{quantity}} to {{to}} account."
+        },
+        {
+            "name": "mutatemax",
+            "type": "mutatemax",
+            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Mutate Max Supply\nsummary: 'Mutate Treasury Max Supply'\nicon: https://github.com/Telos-Foundation/images/raw/master/ricardian_assets/eosio.contracts/icons/token.png#207ff68b0406eaa56618b08bda81d6a0954543f36adc328ab3065f31a5c5d654\n---\n\nTreasury Manager {{$action.account}} mutates the {{treasury_symbol}} treasury's max supply to {{new_max_supply}}."
+        },
+        {
+            "name": "newballot",
+            "type": "newballot",
+            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: New Treasury Ballot\nsummary: 'Create New Treasury Ballot'\nicon: https://github.com/Telos-Foundation/images/raw/master/ricardian_assets/eosio.contracts/icons/token.png#207ff68b0406eaa56618b08bda81d6a0954543f36adc328ab3065f31a5c5d654\n---\n\nVoter {{publisher}} creates the {{ballot_name}} ballot for the {{treasury_symbol}} treasury."
+        },
+        {
+            "name": "newtreasury",
+            "type": "newtreasury",
+            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Define New Treasury\nsummary: 'Define New Treasury'\nicon: https://github.com/Telos-Foundation/images/raw/master/ricardian_assets/eosio.contracts/icons/resource.png#3830f1ce8cb07f7757dbcf383b1ec1b11914ac34a1f9d8b065f07600fa9dac19\n---\n\n{{manager}} is defining a new treasury with a max supply of {{max_supply}} and an initial access method of {{access}}.\n\n## Initial Settings\n\nAll settings on the new treasury will be initialized to false."
+        },
+        {
+            "name": "openvoting",
+            "type": "openvoting",
+            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Open Ballot Voting\nsummary: 'Open Ballot For Voting'\nicon: https://github.com/Telos-Foundation/images/raw/master/ricardian_assets/eosio.contracts/icons/token.png#207ff68b0406eaa56618b08bda81d6a0954543f36adc328ab3065f31a5c5d654\n---\n\nBallot puboisher {{$action.account}} opens voting on {{ballot_name}} ballot until {{end_time}}."
+        },
+        {
+            "name": "postresults",
+            "type": "postresults",
+            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Post Light Ballot Results\nsummary: 'Post Light Ballot Results'\nicon: https://github.com/Telos-Foundation/images/raw/master/ricardian_assets/eosio.contracts/icons/token.png#207ff68b0406eaa56618b08bda81d6a0954543f36adc328ab3065f31a5c5d654\n---\n\nBallot publisher {{$action.account}} posts the results of the {{ballot_name}} light ballot."
+        },
+        {
+            "name": "rebalance",
+            "type": "rebalance",
+            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Rebalance Vote\nsummary: 'Rebalance Vote'\nicon: https://github.com/Telos-Foundation/images/raw/master/ricardian_assets/eosio.contracts/icons/voting.png#db28cd3db6e62d4509af3644ce7d377329482a14bb4bfaca2aa5f1400d8e8a84\n---\n\nWorker {{$action.account}} rebalances {{voter}}'s vote on the {{ballot_name}} ballot."
+        },
+        {
+            "name": "reclaim",
+            "type": "reclaim",
+            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Reclaim Tokens\nsummary: 'Reclaim Treasury Tokens from Voter'\nicon: https://github.com/Telos-Foundation/images/raw/master/ricardian_assets/eosio.contracts/icons/token.png#207ff68b0406eaa56618b08bda81d6a0954543f36adc328ab3065f31a5c5d654\n---\n\nTreasury manager {{$action.account}} reclaims {{quantity}} from {{voter}}."
+        },
+        {
+            "name": "refresh",
+            "type": "refresh",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "regcommittee",
+            "type": "regcommittee",
+            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Register New Committee\nsummary: 'Register New Committee'\nicon: https://github.com/Telos-Foundation/images/raw/master/ricardian_assets/eosio.contracts/icons/account.png#3d55a2fc3a5c20b456f5657faf666bc25ffd06f4836c5e8256f741149b0b294f\n---\n\nVoter {{$action.account}} registers the {{committee_name}} committee for the {{treasury_symbol}} treasury."
+        },
+        {
+            "name": "regvoter",
+            "type": "regvoter",
+            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Register Voter\nsummary: 'Register Voter'\nicon: https://github.com/Telos-Foundation/images/raw/master/ricardian_assets/eosio.contracts/icons/account.png#3d55a2fc3a5c20b456f5657faf666bc25ffd06f4836c5e8256f741149b0b294f\n---\n\nRegister the new voter {{$action.account}} to the {{treasury_symbol}} treasury."
+        },
+        {
+            "name": "removeseat",
+            "type": "removeseat",
+            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Remove Committee Seat\nsummary: 'Remove Committee Seat'\nicon: https://github.com/Telos-Foundation/images/raw/master/ricardian_assets/eosio.contracts/icons/account.png#3d55a2fc3a5c20b456f5657faf666bc25ffd06f4836c5e8256f741149b0b294f\n---\n\nCommittee updater {{$action.account}} removes the {{seat_name}} seat from the {{committee_name}} committee."
+        },
+        {
+            "name": "rmvoption",
+            "type": "rmvoption",
+            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Remove Ballot Option\nsummary: 'Remove Ballot Option'\nicon: https://github.com/Telos-Foundation/images/raw/master/ricardian_assets/eosio.contracts/icons/token.png#207ff68b0406eaa56618b08bda81d6a0954543f36adc328ab3065f31a5c5d654\n---\n\nBallot publisher {{$action.account}} removes the {{option_name}} option from the {{ballot_name}} ballot."
+        },
+        {
+            "name": "setunlocker",
+            "type": "setunlocker",
+            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Set Treasury Unlocker\nsummary: 'Set Treasury Unlocker Account and Permission'\nicon: https://github.com/Telos-Foundation/images/raw/master/ricardian_assets/eosio.contracts/icons/token.png#207ff68b0406eaa56618b08bda81d6a0954543f36adc328ab3065f31a5c5d654\n---\n\nTreasury Manager {{$action.account}} sets the {{treasury_symbol}} unlocker auth to {{new_unlock_acct}}@{{new_unlock_auth}}."
+        },
+        {
+            "name": "setupdater",
+            "type": "setupdater",
+            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Set Committee Updater\nsummary: 'Set Committee Updater'\nicon: https://github.com/Telos-Foundation/images/raw/master/ricardian_assets/eosio.contracts/icons/account.png#3d55a2fc3a5c20b456f5657faf666bc25ffd06f4836c5e8256f741149b0b294f\n---\n\nCommittee updater {{$action.account}} sets the updater to {{updater_acct}}@{{updater_auth}} for the {{committee_name}} committee."
+        },
+        {
+            "name": "setversion",
+            "type": "setversion",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "stake",
+            "type": "stake",
+            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Stake Tokens\nsummary: 'Stake Tokens'\nicon: https://github.com/Telos-Foundation/images/raw/master/ricardian_assets/eosio.contracts/icons/voting.png#db28cd3db6e62d4509af3644ce7d377329482a14bb4bfaca2aa5f1400d8e8a84\n---\n\nVoter {{$action.account}} stakes {{quantity}}."
+        },
+        {
+            "name": "toggle",
+            "type": "toggle",
+            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Toggle Treasury Setting\nsummary: 'Toggle Treasury Setting'\nicon: https://github.com/Telos-Foundation/images/raw/master/ricardian_assets/eosio.contracts/icons/resource.png#3830f1ce8cb07f7757dbcf383b1ec1b11914ac34a1f9d8b065f07600fa9dac19\n---\n\n{{$action.account}} toggles the treasury setting {{setting_name}} for the {{treasury_symbol}} treasury."
+        },
+        {
+            "name": "togglebal",
+            "type": "togglebal",
+            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Toggle Ballot Setting\nsummary: 'Toggle Ballot Setting'\nicon: https://github.com/Telos-Foundation/images/raw/master/ricardian_assets/eosio.contracts/icons/token.png#207ff68b0406eaa56618b08bda81d6a0954543f36adc328ab3065f31a5c5d654\n---\n\nBallot publisher {{$action.account}} toggles the {{setting_name}} on the {{ballot_name}} ballot."
+        },
+        {
+            "name": "transfer",
+            "type": "transfer",
+            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Transfer Tokens\nsummary: 'Transfer Treasury Tokens'\nicon: https://github.com/Telos-Foundation/images/raw/master/ricardian_assets/eosio.contracts/icons/transfer.png#5dfad0df72772ee1ccc155e670c1d124f5c5122f1d5027565df38b418042d1dd\n---\n\nVoter {{$action.account}} transfers {{quantity}} to {{to}}."
+        },
+        {
+            "name": "unarchive",
+            "type": "unarchive",
+            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Unarchive Ballot\nsummary: 'Unarchive Ballot'\nicon: https://github.com/Telos-Foundation/images/raw/master/ricardian_assets/eosio.contracts/icons/token.png#207ff68b0406eaa56618b08bda81d6a0954543f36adc328ab3065f31a5c5d654\n---\n\nBallot archiver {{$action.account}} unarchives the {{ballot_name}} ballot."
+        },
+        {
+            "name": "unlock",
+            "type": "unlock",
+            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Unlock Treasury Settings\nsummary: 'Unlock Treasury Settings'\nicon: https://github.com/Telos-Foundation/images/raw/master/ricardian_assets/eosio.contracts/icons/token.png#207ff68b0406eaa56618b08bda81d6a0954543f36adc328ab3065f31a5c5d654\n---\n\nTreasury Unlocker {{$action.account}} unlocks the {{treasury_symbol}} treasury."
+        },
+        {
+            "name": "unregvoter",
+            "type": "unregvoter",
+            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Unregister voter\nsummary: 'Unregister Voter'\nicon: https://github.com/Telos-Foundation/images/raw/master/ricardian_assets/eosio.contracts/icons/account.png#3d55a2fc3a5c20b456f5657faf666bc25ffd06f4836c5e8256f741149b0b294f\n---\n\nUnregister the {{$action.account}} voter from the {{treasury_symbol}} treasury."
+        },
+        {
+            "name": "unstake",
+            "type": "unstake",
+            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Unstake Tokens\nsummary: 'Unstake Tokens'\nicon: https://github.com/Telos-Foundation/images/raw/master/ricardian_assets/eosio.contracts/icons/voting.png#db28cd3db6e62d4509af3644ce7d377329482a14bb4bfaca2aa5f1400d8e8a84\n---\n\nVoter {{$action.account}} unstakes {{quantity}}."
+        },
+        {
+            "name": "unvoteall",
+            "type": "unvoteall",
+            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Unvote All Options\nsummary: 'Unvote All Options'\nicon: https://github.com/Telos-Foundation/images/raw/master/ricardian_assets/eosio.contracts/icons/voting.png#db28cd3db6e62d4509af3644ce7d377329482a14bb4bfaca2aa5f1400d8e8a84\n---\n\nVoter {{$action.account}} unvotes all options on their vote."
+        },
+        {
+            "name": "updatefee",
+            "type": "updatefee",
+            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Update Fee\nsummary: 'Update Platform Fee'\nicon: https://github.com/Telos-Foundation/images/raw/master/ricardian_assets/eosio.contracts/icons/admin.png#9bf1cec664863bd6aaac0f814b235f8799fb02c850e9aa5da34e8a004bd6518e\n---\n\nTrail Admin {{$action.account}} updates {{fee_name}} fee to {{fee_amount}}."
+        },
+        {
+            "name": "updatetime",
+            "type": "updatetime",
+            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Update Time Setting\nsummary: 'Update Platform Time Setting'\nicon: https://github.com/Telos-Foundation/images/raw/master/ricardian_assets/eosio.contracts/icons/admin.png#9bf1cec664863bd6aaac0f814b235f8799fb02c850e9aa5da34e8a004bd6518e\n---\n\nTrail Admin {{$action.account}} udpates the {{time_name}} time to {{length}} seconds."
+        },
+        {
+            "name": "withdraw",
+            "type": "withdraw",
+            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Withdraw TLOS\nsummary: 'Withdraw TLOS from Trail to Wallet'\nicon: https://github.com/Telos-Foundation/images/raw/master/ricardian_assets/eosio.contracts/icons/account.png#3d55a2fc3a5c20b456f5657faf666bc25ffd06f4836c5e8256f741149b0b294f\n---\n\nAccount {{$action.account}} withdraws {{quantity}} from the Trail platform."
+        }
+    ],
+    "tables": [
+        {
+            "name": "accounts",
+            "type": "account",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "archivals",
+            "type": "archival",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "ballots",
+            "type": "ballot",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "committees",
+            "type": "committee",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "config",
+            "type": "config",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "delegates",
+            "type": "delegate",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "featured",
+            "type": "featured_ballot",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "laborbuckets",
+            "type": "labor_bucket",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "labors",
+            "type": "labor",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "payrolls",
+            "type": "payroll",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "treasuries",
+            "type": "treasury",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "voters",
+            "type": "voter",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "votes",
+            "type": "vote",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        }
+    ],
+    "ricardian_clauses": [
+        {
+            "id": "Intent",
+            "body": "The intention of the authors and invoker of this smart contract is to ..."
+        },
+        {
+            "id": "Term",
+            "body": "This Contract expires at the conclusion of code execution."
+        },
+        {
+            "id": "Warranty",
+            "body": "{{ name }} shall uphold its Obligations under this Contract in a timely and workmanlike manner, using knowledge and recommendations for performing the services which meet generally acceptable standards set forth by Telos Blockchain Network Block Producers."
+        },
+        {
+            "id": "Default",
+            "body": "The occurrence of any of the following shall constitute a material default under this Contract:"
+        },
+        {
+            "id": "Remedies",
+            "body": "In addition to any and all other rights a party may have available according to law, if a party defaults by failing to substantially perform any provision, term or condition of this Contract, the other party may terminate the Contract by providing written notice to the defaulting party. This notice shall describe with sufficient detail the nature of the default. The party receiving such notice shall promptly be removed from being a Block Producer and this Contract shall be automatically terminated.\""
+        },
+        {
+            "id": "Force Majeure",
+            "body": "If performance of this Contract or any obligation under this Contract is prevented, restricted, or interfered with by causes beyond either party's reasonable control (\\\"Force Majeure\\\"), and if the party unable to carry out its obligations gives the other party prompt written notice of such event, then the obligations of the party invoking this provision shall be suspended to the extent necessary by such event. The term Force Majeure shall include, without limitation, acts of God, fire, explosion, vandalism, storm or other similar occurrence, orders or acts of military or civil authority, or by national emergencies, insurrections, riots, or wars, or strikes, lock-outs, work stoppages, or supplier failures. The excused party shall use reasonable efforts under the circumstances to avoid or remove such causes of non-performance and shall proceed to perform with reasonable dispatch whenever such causes are removed or ceased. An act or omission shall be deemed within the reasonable control of a party if committed, omitted, or caused by such party, or its employees, officers, agents, or affiliates.\""
+        },
+        {
+            "id": "Dispute Resolution",
+            "body": "Any controversies or disputes arising out of or relating to this Contract will be resolved by binding arbitration under Telos Blockchain Network Arbitration Rules and Procedures. The arbitrator's award will be final.\""
+        },
+        {
+            "id": "Entire Agreement",
+            "body": "This Contract contains the entire agreement of the parties, and there are no other promises or conditions in any other agreement whether oral or written concerning the subject matter of this Contract. This Contract supersedes any prior written or oral agreements between the parties, except for the Telos Blockchain Network Core Governance Documents\""
+        },
+        {
+            "id": "Severability",
+            "body": "If any provision of this Contract will be held to be invalid or unenforceable for any reason, the remaining provisions will continue to be valid and enforceable. If a court finds that any provision of this Contract is invalid or unenforceable, but that by limiting such provision it would become valid and enforceable, then such provision will be deemed to be written, construed, and enforced as so limited.\""
+        },
+        {
+            "id": "Governing Law",
+            "body": "This Contract shall be construed in accordance with the Telos Blockchain Network Core Governance Documents, previously referenced."
+        },
+        {
+            "id": "Notice",
+            "body": "Any notice or communication required or permitted under this Contract shall be sufficiently given if delivered to a verifiable email address or to such other email address as one party may have publicly furnished in writing, or published on a broadcast contract provided by this blockchain for purposes of providing notices of this type."
+        },
+        {
+            "id": "Waiver of Contractual Right",
+            "body": "The failure of either party to enforce any provision of this Contract shall not be construed as a waiver or limitation of that party's right to subsequently enforce and compel strict compliance with every provision of this Contract."
+        },
+        {
+            "id": "Arbitrator's Fees to Prevailing Party",
+            "body": "In any action arising hereunder or any separate action pertaining to the validity of this Agreement, both sides shall pay half the initial cost of arbitration, and the prevailing party shall be awarded reasonable arbitrator's fees and costs."
+        },
+        {
+            "id": "Construction and Interpretation",
+            "body": "The rule requiring construction or interpretation against the drafter is waived. The document shall be deemed as if it were drafted by both parties in a mutual effort.\""
+        },
+        {
+            "id": "In Witness Whereof",
+            "body": "IN WITNESS WHEREOF, the parties hereto have caused this Agreement to be executed by themselves or their duly authorized representatives as of the date of execution, and authorized as proven by the cryptographic signature on the transaction that invokes this contract."
+        }
+    ],
+    "variants": []
+}
