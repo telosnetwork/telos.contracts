@@ -387,4 +387,20 @@ BOOST_FIXTURE_TEST_CASE(multi_producer_pay, eosio_system_tester, * boost::unit_t
    }
 } FC_LOG_AND_RETHROW()
 
+BOOST_FIXTURE_TEST_CASE( ibc_new_account, eosio_system_tester ) try {
+
+    // fail if alice tries
+    BOOST_REQUIRE_EXCEPTION(
+        create_account_with_resources("ibc.testing"_n, "alice1111111"_n),
+        eosio_assert_message_exception,
+        eosio_assert_message_is("only eosio can create names that start with 'ibc.'")
+    );
+
+    // success if sudo account tries
+    BOOST_REQUIRE_EQUAL(
+        false,
+        create_account_with_resources("ibc.testing"_n, "eosio"_n)->except.has_value());
+
+} FC_LOG_AND_RETHROW()
+
 BOOST_AUTO_TEST_SUITE_END()
