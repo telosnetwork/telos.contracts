@@ -453,6 +453,14 @@ namespace eosiosystem {
                             ignore<authority> owner,
                             ignore<authority> active ) {
 
+      // BEGIN TELOS
+      if (!has_auth(_self))
+          check(
+              new_account_name.to_string().find("ibc.", 0, 4) != 0,
+              "only eosio can create names that start with 'ibc.'"
+          );
+      // END TELOS
+
       if( creator != get_self() ) {
          uint64_t tmp = new_account_name.value >> 4;
          bool has_dot = false;
