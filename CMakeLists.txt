@@ -25,6 +25,9 @@ option(SYSTEM_CONFIGURABLE_WASM_LIMITS
 option(SYSTEM_BLOCKCHAIN_PARAMETERS
        "Enables use of the host functions activated by the BLOCKCHAIN_PARAMETERS protocol feature" ON)
 
+option(BUILD_TESTS "Build unit tests" OFF)
+
+
 ExternalProject_Add(
   contracts_project
   SOURCE_DIR ${CMAKE_SOURCE_DIR}/contracts
@@ -33,18 +36,13 @@ ExternalProject_Add(
              -DCMAKE_TOOLCHAIN_FILE=${CDT_ROOT}/lib/cmake/cdt/CDTWasmToolchain.cmake
              -DSYSTEM_CONFIGURABLE_WASM_LIMITS=${SYSTEM_CONFIGURABLE_WASM_LIMITS}
              -DSYSTEM_BLOCKCHAIN_PARAMETERS=${SYSTEM_BLOCKCHAIN_PARAMETERS}
+             -DBUILD_TESTS=${BUILD_TESTS}
   UPDATE_COMMAND ""
   PATCH_COMMAND ""
   TEST_COMMAND ""
   INSTALL_COMMAND ""
   BUILD_ALWAYS 1)
 
-if(APPLE)
-  set(OPENSSL_ROOT "/usr/local/opt/openssl")
-elseif(UNIX)
-  set(OPENSSL_ROOT "/usr/include/openssl")
-endif()
-set(SECP256K1_ROOT "/usr/local")
 
 if(APPLE)
   set(OPENSSL_ROOT "/usr/local/opt/openssl")
@@ -53,7 +51,13 @@ elseif(UNIX)
 endif()
 set(SECP256K1_ROOT "/usr/local")
 
-option(BUILD_TESTS "Build unit tests" OFF)
+if(APPLE)
+  set(OPENSSL_ROOT "/usr/local/opt/openssl")
+elseif(UNIX)
+  set(OPENSSL_ROOT "/usr/include/openssl")
+endif()
+set(SECP256K1_ROOT "/usr/local")
+
 
 if(BUILD_TESTS)
   message(STATUS "Building unit tests.")

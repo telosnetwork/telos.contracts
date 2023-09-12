@@ -7,6 +7,7 @@ add_contract(
   ${CMAKE_CURRENT_SOURCE_DIR}/src/name_bidding.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/native.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/producer_pay.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/bpay_rate.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/powerup.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/rex.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/voting.cpp
@@ -19,6 +20,10 @@ endif()
 
 if(SYSTEM_BLOCKCHAIN_PARAMETERS)
   target_compile_definitions(eosio.system PUBLIC SYSTEM_BLOCKCHAIN_PARAMETERS)
+endif()
+
+if(BUILD_TESTS)
+    target_compile_definitions(eosio.system PUBLIC BUILD_TESTS=ON)
 endif()
 
 target_include_directories(eosio.system PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include

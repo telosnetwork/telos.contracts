@@ -8,6 +8,8 @@ option(SYSTEM_CONFIGURABLE_WASM_LIMITS
 option(SYSTEM_BLOCKCHAIN_PARAMETERS
        "Enables use of the host functions activated by the BLOCKCHAIN_PARAMETERS protocol feature" ON)
 
+option(BUILD_TESTS "Build unit tests" OFF)
+
 find_package(cdt)
 
 set(CDT_VERSION_MIN "3.0")
