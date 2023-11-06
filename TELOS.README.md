@@ -22,6 +22,14 @@ Down below an accounting off  all changes:
 ### `.github/workflows/ubuntu-2004.yml`
 - Changed contract development docker image, and run commands to use my version.
 
+### `contracts/eosio.system/include/eosio.system/bpay_rate.hpp`
+- Add file `bpay_rate.hpp`
+- Header with function to compute the bpay rate
+- 
+### `contracts/eosio.system/include/eosio.system/delphioracle.hpp`
+- Add file `delphioracle.hpp`
+- Communicate with delphioracle contract to be able to fetch the averages information
+
 ### `contracts/eosio.system/include/eosio.system/eosio.system.hpp`
 - Include cmath header
 - Add `producer_location_pair` type
@@ -33,6 +41,8 @@ Down below an accounting off  all changes:
 - Add `exrsrv,tf`, `telos.decide`, `works.decide` & `amend.decide` account names as constants
 - Add `unregreason`, `votebpout`, `setpayrates` & `distviarex` action declarations
 - Add auxiliary declarations for claimrewards, voting calculations and scheduling
+- Add `bpayrate` action used for testing purposes (only included when building the tests)
+- Add `get_last_30_days_tlosusd_average` to fetch from `delphioracle` the last 30 days average for `tlosusd`
 
 ### `contracts/eosio.system/include/eosio.system/native.hpp`
 - Add `producer_metric` struct
@@ -55,6 +65,9 @@ Down below an accounting off  all changes:
     - Call `claimrewards_snapshot` once per day
 - Hook our custom producer payment machinery in `claimrewards` action implementation
 - Add `claimrewards_snapshot` implementation
+- Edit `bpay_rate` computation, instead of using the global `bpay_rate` it computes it based on the supply and last 30 average
+- Add `bpayrate` action used for testing purposes (only included when building the tests)
+- Add `get_last_30_days_tlosusd_average` to fetch from `delphioracle` the last 30 days average for `tlosusd`
 
 ### `contracts/eosio.system/src/rex.cpp`
 - Remove voting requirements for staking
@@ -102,6 +115,7 @@ Down below an accounting off  all changes:
 
 ### `tests/telos.system_tests.cpp`
 - Add custom `producer_onblock_check`, `producer_pay`, `multi_producer_pay`
+- Add test for `bpay_rate` to check against the spreadsheet.
 
 ### `tests/test_contracts/old_versions/telos.contracts/eosio.msig/README.txt`
 - Add old msig contract with readme indicating commit and cdt used to compile

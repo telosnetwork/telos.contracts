@@ -1,7 +1,9 @@
 #include <eosio.system/eosio.system.hpp>
 #include <eosio.token/eosio.token.hpp>
 // TELOS BEGIN
+#include <eosio.system/delphioracle.hpp>
 #include "system_kick.cpp"
+#include <eosio.system/bpay_rate.hpp>
 #define MAX_PRODUCERS 42     // revised for TEDP 2 Phase 2, also set in system_rotation.cpp, change in both places
 // TELOS END
 
@@ -257,7 +259,9 @@ namespace eosiosystem {
 
         if (usecs_since_last_fill > 0 && _gstate.last_pervote_bucket_fill > time_point())
         {
-            double bpay_rate = double(_gpayrate.bpay_rate) / double(100000); //NOTE: both bpay_rate and divisor were int64s which evaluated to 0. The divisor must be a double to get percentage.
+            // TELOS BEGIN
+            double bpay_rate = compute_bpay_rate(get_last_30_days_tlosusd_average(), token_supply);
+            // TELOS END
             auto to_workers = static_cast<int64_t>((12 * double(_gpayrate.worker_amount) * double(usecs_since_last_fill)) / double(useconds_per_year));
             auto to_producers = static_cast<int64_t>((bpay_rate * double(token_supply.amount) * double(usecs_since_last_fill)) / double(useconds_per_year));
             auto new_tokens = to_workers + to_producers;
@@ -359,5 +363,30 @@ namespace eosiosystem {
                 });
         }
     }
+
+    // TELOS BEGIN
+    uint64_t system_contract::get_last_30_days_tlosusd_average() {
+        name delphioracle("delphioracle");
+        name tlosusd("tlosusd");
+
+        delphioracle::averagestable averages(delphioracle, tlosusd.value);
+        for (auto itr = averages.begin(); itr != averages.end(); ++itr) {
+            if (itr->type == delphioracle::averages::get_type(delphioracle::average_types::last_30_days)) {
+                return itr->value;
+            }
+        }
+
+        check(false, "Last 30 day average not found");
+        // Silence warning
+        return 0;
+    }
+
+    #ifdef BUILD_TESTS
+        void system_contract::bpayrate(uint64_t tlos_price, asset total_telos_supply) {
+            require_auth(get_self());
+            check(false, compute_bpay_rate(tlos_price, total_telos_supply));
+        }
+    #endif
+    // TELOS END
 
 } //namespace eosiosystem

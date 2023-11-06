@@ -403,4 +403,57 @@ BOOST_FIXTURE_TEST_CASE( ibc_new_account, eosio_system_tester ) try {
 
 } FC_LOG_AND_RETHROW()
 
+BOOST_FIXTURE_TEST_CASE(bpay_rate , eosio_system_tester ) try {
+
+    asset TLOS_TOTAL_SUPPLY = core_sym::from_string("420000000.0000");
+
+    auto bpay_rate = [&](uint64_t tlos_price, asset tlos_supply) {
+        return push_action(
+            config::system_account_name,
+                "bpayrate"_n,
+                mvo()("tlos_price", tlos_price)("total_telos_supply", tlos_supply)
+        );
+    };
+
+    BOOST_REQUIRE_EQUAL(
+        wasm_assert_code(8250),
+        bpay_rate(2, TLOS_TOTAL_SUPPLY)
+    );
+
+    BOOST_REQUIRE_EQUAL(
+        wasm_assert_code(1096),
+        bpay_rate(100, TLOS_TOTAL_SUPPLY)
+    );
+
+    BOOST_REQUIRE_EQUAL(
+        wasm_assert_code(1096),
+        bpay_rate(100, TLOS_TOTAL_SUPPLY)
+    );
+
+    BOOST_REQUIRE_EQUAL(
+        wasm_assert_code(766),
+        bpay_rate(200, TLOS_TOTAL_SUPPLY)
+    );
+
+
+    BOOST_REQUIRE_EQUAL(
+        wasm_assert_code(478),
+        bpay_rate(500, TLOS_TOTAL_SUPPLY)
+    );
+
+    BOOST_REQUIRE_EQUAL(
+        wasm_assert_code(334),
+        bpay_rate(1000, TLOS_TOTAL_SUPPLY)
+    );
+    BOOST_REQUIRE_EQUAL(
+        wasm_assert_code(146),
+        bpay_rate(5000, TLOS_TOTAL_SUPPLY)
+    );
+
+    BOOST_REQUIRE_EQUAL(
+        wasm_assert_code(102),
+        bpay_rate(10000, TLOS_TOTAL_SUPPLY)
+    );
+} FC_LOG_AND_RETHROW()
+
 BOOST_AUTO_TEST_SUITE_END()
