@@ -254,14 +254,25 @@ namespace eosiosystem {
 
         auto ct = current_time_point();
 
-        const asset token_supply = eosio::token::get_supply(token_account, core_symbol().code() );
         const auto usecs_since_last_fill = (ct - _gstate.last_pervote_bucket_fill).count();
 
         if (usecs_since_last_fill > 0 && _gstate.last_pervote_bucket_fill > time_point())
         {
-            double bpay_rate = double(_gpayrate.bpay_rate) / double(100000); //NOTE: both bpay_rate and divisor were int64s which evaluated to 0. The divisor must be a double to get percentage.
+            // Reads the delphi oracle TLOS/USD price
+            delphioracle::medianstable medians_table(delphi_oracle_account, "tlosusd"_n.value);
+            auto medians_timestamp_index = medians_table.get_index<"timestamp"_n>();
+
+            // Gets daily median TLOS price
+            uint64_t tlos_price = 0;
+            for (auto itr = medians_timestamp_index.rbegin(); itr != medians_timestamp_index.rend(); ++itr) {
+               if (itr->type == delphioracle::medians::get_type(median_types::day)) {
+                  tlos_price = itr->value / itr->request_count;
+                  break;
+               }
+            }
             auto to_workers = static_cast<int64_t>((12 * double(_gpayrate.worker_amount) * double(usecs_since_last_fill)) / double(useconds_per_year));
-            auto to_producers = static_cast<int64_t>((bpay_rate * double(token_supply.amount) * double(usecs_since_last_fill)) / double(useconds_per_year));
+            double bp_pay_per_month = std::min((double(378000) * std::pow(tlos_price/10000.0,-0.516)),double(882000)) * 10000;
+            auto to_producers = static_cast<int64_t>((bp_pay_per_month * 12 * double(usecs_since_last_fill)) / double(useconds_per_year));
             auto new_tokens = to_workers + to_producers;
 
             //NOTE: This line can cause failure if eosio.tedp doesn't have a balance emplacement
