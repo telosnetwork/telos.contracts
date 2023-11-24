@@ -877,6 +877,7 @@ namespace eosiosystem {
          static constexpr eosio::name decide_account{"telos.decide"_n};
          static constexpr eosio::name works_account{"works.decide"_n};
          static constexpr eosio::name amend_account{"amend.decide"_n};
+         static constexpr eosio::name delphi_oracle_account{"delphioracle"_n};
          // TELOS END
 
          system_contract( name s, name code, datastream<const char*> ds );
@@ -1737,6 +1738,7 @@ namespace eosiosystem {
          // TELOS BEGIN
          // defined in producer_pay.cpp
          void claimrewards_snapshot();
+         void pay();
 
 
          double inverse_vote_weight(double staked, double amountVotedProducers);

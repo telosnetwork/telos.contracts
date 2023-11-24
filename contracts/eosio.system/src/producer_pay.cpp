@@ -1,5 +1,7 @@
 #include <eosio.system/eosio.system.hpp>
 #include <eosio.token/eosio.token.hpp>
+#include <eosio.tedp/eosio.tedp.hpp>
+#include <delphioracle/delphioracle.hpp>
 // TELOS BEGIN
 #include "system_kick.cpp"
 #define MAX_PRODUCERS 42     // revised for TEDP 2 Phase 2, also set in system_rotation.cpp, change in both places
@@ -359,5 +361,93 @@ namespace eosiosystem {
                 });
         }
     }
+
+   void system_contract::pay() {
+      // Reads the payouts table
+      tedp::payout_table payouts(tedp_account, tedp_account.value);
+
+      // Reads the delphi oracle TLOS/USD price
+      delphioracle::medianstable medians_table(delphi_oracle_account, "tlosusd"_n.value);
+      auto medians_timestamp_index = medians_table.get_index<"timestamp"_n>();
+
+      // Gets daily median TLOS price
+      uint64_t tlos_price = 0;
+      for (auto itr = medians_timestamp_index.rbegin(); itr != medians_timestamp_index.rend(); ++itr) {
+         if (itr->type == delphioracle::medians::get_type(median_types::day)) {
+            tlos_price = itr->value / itr->request_count;
+            break;
+         }
+      }
+
+      uint64_t now_ms = current_time_point().sec_since_epoch();
+      bool payouts_made = false;
+      auto new_tokens = 0;
+
+      for (auto itr = payouts.begin(); itr != payouts.end(); itr++)
+      {
+         auto p = *itr;
+
+         uint64_t time_since_last_payout = now_ms - p.last_payout;
+
+         uint64_t payouts_due = time_since_last_payout / p.interval;
+
+         if (payouts_due == 0)
+            continue;
+
+         if (p.amount == 0)
+            continue;
+
+         uint64_t total_due = (payouts_due * p.amount) * 10000;
+         payouts_made = true;
+
+         if (p.to == REX_ACCOUNT)
+         {
+            uint64_t payout = total_due;
+            if(tlos_price >= 10000 && tlos_price < 20000) { // If TLOS daily close of $1.00, the payout will be decreased to 2/3
+               payout *= 2;
+               payout /= 3;
+            } else if(tlos_price > 20000) { // If TLOS daily close of $2.00, the payout will be decreased to 1/3
+               payout /= 3;
+            }
+            new_tokens += payout;
+         }
+         else
+         {
+            new_tokens += total_due;
+         }
+      }
+
+      // Check if any payouts are needed to be made
+      check(payouts_made, "No payouts are due");
+
+      // Gets the TEDP account balance
+      asset tedp_balance = eosio::token::get_balance(token_account, tedp_account, core_symbol().code());
+
+      // Calculates the amount of TLOS need to be issued
+      int64_t issue_tokens = 0;
+      if (tedp_balance.amount > 0) {
+         if (tedp_balance.amount < new_tokens) {
+            issue_tokens = new_tokens - tedp_balance.amount;
+         }
+      } else {
+         issue_tokens = new_tokens;
+      }
+      
+      // Issues TLOS if the TEDP account doesn't have sufficient balance
+      if (issue_tokens > 0) {
+         token::transfer_action transfer_act{ token_account, { get_self(), active_permission } };
+         token::issue_action issue_action{ token_account, { get_self(), active_permission }};
+         issue_action.send(get_self(), asset(issue_tokens, core_symbol()), "Issue new TLOS tokens");
+         transfer_act.send(get_self(), tedp_account, asset(issue_tokens, core_symbol()), "Transfer issued TLOS to TEDP account");
+      }
+
+      // Triggers pay action of TEDP account to distribute payouts
+      eosio::action(
+         eosio::permission_level{get_self(),active_permission},
+         tedp_account,
+         "pay"_n,
+         std::make_tuple()
+      ).send();
+   }
 
 } //namespace eosiosystem
