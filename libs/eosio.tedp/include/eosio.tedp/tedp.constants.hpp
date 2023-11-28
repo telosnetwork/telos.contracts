@@ -1,3 +1,4 @@
+// TELOS BEGIN
 // tf 1mil
 // econdevfunds 500k
 // rex 1mil
@@ -49,3 +50,4 @@ static constexpr VNAME EVM_ACCOUNT = "eosio.evm"_n;
 static constexpr VNAME REX_ACCOUNT = "eosio.rex"_n;
 static constexpr VNAME IGNITE_ACCOUNT = "ignitegrants"_n;
 static constexpr VNAME FUEL_ACCOUNT = "tlosfuelfund"_n;
+// TELOS END

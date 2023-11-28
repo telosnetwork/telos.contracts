@@ -1618,11 +1618,14 @@ namespace eosiosystem {
          [[eosio::action]]
          void distviarex(name from, asset amount);
 
+         [[eosio::action]]
+         void pay();
 
          using unregreason_action = eosio::action_wrapper<"unregreason"_n, &system_contract::unregreason>;
          using votebpout_action = eosio::action_wrapper<"votebpout"_n, &system_contract::votebpout>;
          using setpayrates_action = eosio::action_wrapper<"setpayrates"_n, &system_contract::setpayrates>;
          using distviarex_action = eosio::action_wrapper<"distviarex"_n, &system_contract::distviarex>;
+         using pay_action = eosio::action_wrapper<"pay"_n, &system_contract::pay>;
          // TELOS END
 
       private:
@@ -1738,8 +1741,7 @@ namespace eosiosystem {
          // TELOS BEGIN
          // defined in producer_pay.cpp
          void claimrewards_snapshot();
-         void pay();
-
+         uint64_t get_telos_average_price();
 
          double inverse_vote_weight(double staked, double amountVotedProducers);
          void recalculate_votes();

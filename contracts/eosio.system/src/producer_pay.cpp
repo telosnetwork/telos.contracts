@@ -1,8 +1,8 @@
 #include <eosio.system/eosio.system.hpp>
 #include <eosio.token/eosio.token.hpp>
+// TELOS BEGIN
 #include <eosio.tedp/eosio.tedp.hpp>
 #include <delphioracle/delphioracle.hpp>
-// TELOS BEGIN
 #include "system_kick.cpp"
 #define MAX_PRODUCERS 42     // revised for TEDP 2 Phase 2, also set in system_rotation.cpp, change in both places
 // TELOS END
@@ -244,6 +244,37 @@ namespace eosiosystem {
       */
    }
 
+   // TELOS BEGIN
+   uint64_t system_contract::get_telos_average_price() {
+      // Reads the delphi oracle TLOS/USD price
+      delphioracle::averagestable averages_table(delphi_oracle_account, "tlosusd"_n.value);
+
+      // Gets monthly average TLOS price
+      for (auto itr = averages_table.begin(); itr != averages_table.end(); ++itr) {
+         if (itr->type == delphioracle::averages::get_type(average_types::last_30_days)) {
+            return itr->value;
+         }
+      }
+
+      // Gets 14 days average if monthly average is not available
+      for (auto itr = averages_table.begin(); itr != averages_table.end(); ++itr) {
+         if (itr->type == delphioracle::averages::get_type(average_types::last_14_days)) {
+            return itr->value;
+         }
+      }
+
+      // Gets 7 days average if 14 days average is not available
+      for (auto itr = averages_table.begin(); itr != averages_table.end(); ++itr) {
+         if (itr->type == delphioracle::averages::get_type(average_types::last_7_days)) {
+            return itr->value;
+         }
+      }
+      
+      // Returns smallest non zero value if no price is available
+      return 1;
+   }
+   // TELOS END
+
    void system_contract::claimrewards_snapshot() {
         check(_gstate.thresh_activated_stake_time > time_point(), "cannot take snapshot until chain is activated");
 
@@ -258,21 +289,12 @@ namespace eosiosystem {
 
         if (usecs_since_last_fill > 0 && _gstate.last_pervote_bucket_fill > time_point())
         {
-            // Reads the delphi oracle TLOS/USD price
-            delphioracle::medianstable medians_table(delphi_oracle_account, "tlosusd"_n.value);
-            auto medians_timestamp_index = medians_table.get_index<"timestamp"_n>();
-
-            // Gets daily median TLOS price
-            uint64_t tlos_price = 0;
-            for (auto itr = medians_timestamp_index.rbegin(); itr != medians_timestamp_index.rend(); ++itr) {
-               if (itr->type == delphioracle::medians::get_type(median_types::day)) {
-                  tlos_price = itr->value / itr->request_count;
-                  break;
-               }
-            }
+            // TELOS BEGIN
+            uint64_t tlos_price = get_telos_average_price();
             auto to_workers = static_cast<int64_t>((12 * double(_gpayrate.worker_amount) * double(usecs_since_last_fill)) / double(useconds_per_year));
             double bp_pay_per_month = std::min((double(378000) * std::pow(tlos_price/10000.0,-0.516)),double(882000)) * 10000;
             auto to_producers = static_cast<int64_t>((bp_pay_per_month * 12 * double(usecs_since_last_fill)) / double(useconds_per_year));
+            // TELOS END
             auto new_tokens = to_workers + to_producers;
 
             //NOTE: This line can cause failure if eosio.tedp doesn't have a balance emplacement
@@ -373,22 +395,13 @@ namespace eosiosystem {
         }
     }
 
+   // TELOS BEGIN
    void system_contract::pay() {
       // Reads the payouts table
       tedp::payout_table payouts(tedp_account, tedp_account.value);
 
-      // Reads the delphi oracle TLOS/USD price
-      delphioracle::medianstable medians_table(delphi_oracle_account, "tlosusd"_n.value);
-      auto medians_timestamp_index = medians_table.get_index<"timestamp"_n>();
-
       // Gets daily median TLOS price
-      uint64_t tlos_price = 0;
-      for (auto itr = medians_timestamp_index.rbegin(); itr != medians_timestamp_index.rend(); ++itr) {
-         if (itr->type == delphioracle::medians::get_type(median_types::day)) {
-            tlos_price = itr->value / itr->request_count;
-            break;
-         }
-      }
+      uint64_t tlos_price = get_telos_average_price();
 
       uint64_t now_ms = current_time_point().sec_since_epoch();
       bool payouts_made = false;
@@ -460,5 +473,6 @@ namespace eosiosystem {
          std::make_tuple()
       ).send();
    }
+   // TELOS END
 
 } //namespace eosiosystem
