@@ -121,19 +121,43 @@ namespace eosiosystem {
    }
    // TELOS END
 
+
    void system_contract::update_elected_producers( const block_timestamp& block_time ) {
       _gstate.last_producer_schedule_update = block_time;
 
       auto idx = _producers.get_index<"prototalvote"_n>();
 
       // TELOS BEGIN
-      uint32_t totalActiveVotedProds = uint32_t(std::distance(idx.begin(), idx.end()));
-      totalActiveVotedProds = totalActiveVotedProds > MAX_PRODUCERS ? MAX_PRODUCERS : totalActiveVotedProds;
+
+      // this is the total number of producers
+      uint32_t total_active_voted_prods = uint32_t(std::distance(idx.begin(), idx.end()));
+
+      // consider the MAX_PRODUCERS + 30, this means you have to get within 30 spots of MAX_PRODUCERS
+      //   by vote before your stake can count
+      uint32_t prods_to_consider = total_active_voted_prods > MAX_PRODUCERS + 30 ? MAX_PRODUCERS + 30 : total_active_voted_prods;
+
+      total_active_voted_prods = total_active_voted_prods > MAX_PRODUCERS ? MAX_PRODUCERS : total_active_voted_prods;
+
+      std::vector< std::pair< producer_info, double > > scored_producers;
+      scored_producers.reserve(prods_to_consider);
+
+      for( auto it = idx.cbegin(); it != idx.cend() && scored_producers.size() < prods_to_consider /*TELOS*/ && 0 < it->total_votes && it->active(); ++it ) {
+         // TODO: lookup producer stake in another function, possibly reuse that function for the minimum stake enforcement
+         double score = it->total_votes;
+         score += producer_stake(it->owner);
+
+         scored_producers.emplace_back(
+               it, score
+            );
+      }
+
+      // TODO: sort scored_producers by stake
 
       std::vector< producer_location_pair > active_producers, top_producers;
-      active_producers.reserve(totalActiveVotedProds);
+      active_producers.reserve(total_active_voted_prods);
 
-      for( auto it = idx.cbegin(); it != idx.cend() && active_producers.size() < totalActiveVotedProds /*TELOS*/ && 0 < it->total_votes && it->active(); ++it ) {
+      // TODO: change this to iterate over scored_producers
+      for( auto it = idx.cbegin(); it != idx.cend() && active_producers.size() < total_active_voted_prods /*TELOS*/ && 0 < it->total_votes && it->active(); ++it ) {
          active_producers.emplace_back(
             eosio::producer_authority{
                .producer_name = it->owner,
@@ -190,6 +214,10 @@ namespace eosiosystem {
    }
 
    // TELOS BEGIN
+   double system_contract::producer_stake(eosio::name validator) {
+      return 0;
+   }
+
    /*
    * This function caculates the inverse weight voting. 
    * The maximum weighted vote will be reached if an account votes for the maximum number of registered producers (up to 30 in total).  

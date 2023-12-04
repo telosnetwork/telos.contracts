@@ -157,7 +157,8 @@ namespace eosiosystem {
    typedef eosio::singleton< "payrate"_n, payrates > payrate_singleton;
 
 
-   enum class kick_type {
+
+enum class kick_type {
       REACHED_TRESHOLD = 1,
       //  PREVENT_LIB_STOP_MOVING = 2,
       BPS_VOTING = 2
@@ -1738,8 +1739,8 @@ namespace eosiosystem {
          // defined in producer_pay.cpp
          void claimrewards_snapshot();
 
-
          double inverse_vote_weight(double staked, double amountVotedProducers);
+         double producer_stake(name producer);
          void recalculate_votes();
 
          //defined in system_kick.cpp
