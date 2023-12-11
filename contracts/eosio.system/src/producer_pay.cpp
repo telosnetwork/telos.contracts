@@ -405,7 +405,7 @@ namespace eosiosystem {
 
       uint64_t now_ms = current_time_point().sec_since_epoch();
       bool payouts_made = false;
-      auto new_tokens = 0;
+      int64_t new_tokens = 0;
 
       for (auto itr = payouts.begin(); itr != payouts.end(); itr++)
       {
