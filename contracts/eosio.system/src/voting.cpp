@@ -17,7 +17,6 @@
 #include <cmath>
 
 // TELOS BEGIN
-#include <boost/container/flat_map.hpp>
 #include "system_rotation.cpp"
 // TELOS END
 
@@ -346,7 +345,7 @@ namespace eosiosystem {
       }
 
       auto new_vote_weight = inverse_vote_weight((double)totalStaked, (double) producers.size());
-      boost::container::flat_map<name, std::pair< double, bool > > producer_deltas;
+      std::map<name, std::pair< double, bool > > producer_deltas;
 
       // print("\n Voter : ", voter->last_stake, " = ", voter->last_vote_weight, " = ", proxy, " = ", producers.size(), " = ", totalStaked, " = ", new_vote_weight);
 
@@ -557,7 +556,7 @@ namespace eosiosystem {
                 p.total_votes = 0;
             });
         }
-        boost::container::flat_map< name, bool> processed_proxies;
+        std::map< name, bool> processed_proxies;
         for (auto voter = _voters.begin(); voter != _voters.end(); ++voter) {
             if(voter->proxy && !processed_proxies[voter->proxy]){
                 auto proxy = _voters.find(voter->proxy.value);

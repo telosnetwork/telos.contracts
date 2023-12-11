@@ -1,6 +1,8 @@
 #include <eosio.system/eosio.system.hpp>
 #include <eosio.token/eosio.token.hpp>
 // TELOS BEGIN
+#include <eosio.tedp/eosio.tedp.hpp>
+#include <delphioracle/delphioracle.hpp>
 #include "system_kick.cpp"
 #define MAX_PRODUCERS 42     // revised for TEDP 2 Phase 2, also set in system_rotation.cpp, change in both places
 // TELOS END
@@ -242,6 +244,37 @@ namespace eosiosystem {
       */
    }
 
+   // TELOS BEGIN
+   uint64_t system_contract::get_telos_average_price() {
+      // Reads the delphi oracle TLOS/USD price
+      delphioracle::averagestable averages_table(delphi_oracle_account, "tlosusd"_n.value);
+
+      // Gets monthly average TLOS price
+      for (auto itr = averages_table.begin(); itr != averages_table.end(); ++itr) {
+         if (itr->type == delphioracle::averages::get_type(average_types::last_30_days)) {
+            return itr->value;
+         }
+      }
+
+      // Gets 14 days average if monthly average is not available
+      for (auto itr = averages_table.begin(); itr != averages_table.end(); ++itr) {
+         if (itr->type == delphioracle::averages::get_type(average_types::last_14_days)) {
+            return itr->value;
+         }
+      }
+
+      // Gets 7 days average if 14 days average is not available
+      for (auto itr = averages_table.begin(); itr != averages_table.end(); ++itr) {
+         if (itr->type == delphioracle::averages::get_type(average_types::last_7_days)) {
+            return itr->value;
+         }
+      }
+      
+      // Returns smallest non zero value if no price is available
+      return 1;
+   }
+   // TELOS END
+
    void system_contract::claimrewards_snapshot() {
         check(_gstate.thresh_activated_stake_time > time_point(), "cannot take snapshot until chain is activated");
 
@@ -252,14 +285,16 @@ namespace eosiosystem {
 
         auto ct = current_time_point();
 
-        const asset token_supply = eosio::token::get_supply(token_account, core_symbol().code() );
         const auto usecs_since_last_fill = (ct - _gstate.last_pervote_bucket_fill).count();
 
         if (usecs_since_last_fill > 0 && _gstate.last_pervote_bucket_fill > time_point())
         {
-            double bpay_rate = double(_gpayrate.bpay_rate) / double(100000); //NOTE: both bpay_rate and divisor were int64s which evaluated to 0. The divisor must be a double to get percentage.
+            // TELOS BEGIN
+            uint64_t tlos_price = get_telos_average_price();
             auto to_workers = static_cast<int64_t>((12 * double(_gpayrate.worker_amount) * double(usecs_since_last_fill)) / double(useconds_per_year));
-            auto to_producers = static_cast<int64_t>((bpay_rate * double(token_supply.amount) * double(usecs_since_last_fill)) / double(useconds_per_year));
+            double bp_pay_per_month = std::min((double(378000) * std::pow(tlos_price/10000.0,-0.516)),double(882000)) * 10000;
+            auto to_producers = static_cast<int64_t>((bp_pay_per_month * 12 * double(usecs_since_last_fill)) / double(useconds_per_year));
+            // TELOS END
             auto new_tokens = to_workers + to_producers;
 
             //NOTE: This line can cause failure if eosio.tedp doesn't have a balance emplacement
@@ -359,5 +394,85 @@ namespace eosiosystem {
                 });
         }
     }
+
+   // TELOS BEGIN
+   void system_contract::pay() {
+      // Reads the payouts table
+      tedp::payout_table payouts(tedp_account, tedp_account.value);
+
+      // Gets daily median TLOS price
+      uint64_t tlos_price = get_telos_average_price();
+
+      uint64_t now_ms = current_time_point().sec_since_epoch();
+      bool payouts_made = false;
+      int64_t new_tokens = 0;
+
+      for (auto itr = payouts.begin(); itr != payouts.end(); itr++)
+      {
+         auto p = *itr;
+
+         uint64_t time_since_last_payout = now_ms - p.last_payout;
+
+         uint64_t payouts_due = time_since_last_payout / p.interval;
+
+         if (payouts_due == 0)
+            continue;
+
+         if (p.amount == 0)
+            continue;
+
+         uint64_t total_due = (payouts_due * p.amount) * 10000;
+         payouts_made = true;
+
+         if (p.to == REX_ACCOUNT)
+         {
+            uint64_t payout = total_due;
+            if(tlos_price >= 10000 && tlos_price < 20000) { // If TLOS daily close of $1.00, the payout will be decreased to 2/3
+               payout *= 2;
+               payout /= 3;
+            } else if(tlos_price > 20000) { // If TLOS daily close of $2.00, the payout will be decreased to 1/3
+               payout /= 3;
+            }
+            new_tokens += payout;
+         }
+         else
+         {
+            new_tokens += total_due;
+         }
+      }
+
+      // Check if any payouts are needed to be made
+      check(payouts_made, "No payouts are due");
+
+      // Gets the TEDP account balance
+      asset tedp_balance = eosio::token::get_balance(token_account, tedp_account, core_symbol().code());
+
+      // Calculates the amount of TLOS need to be issued
+      int64_t issue_tokens = 0;
+      if (tedp_balance.amount > 0) {
+         if (tedp_balance.amount < new_tokens) {
+            issue_tokens = new_tokens - tedp_balance.amount;
+         }
+      } else {
+         issue_tokens = new_tokens;
+      }
+      
+      // Issues TLOS if the TEDP account doesn't have sufficient balance
+      if (issue_tokens > 0) {
+         token::transfer_action transfer_act{ token_account, { get_self(), active_permission } };
+         token::issue_action issue_action{ token_account, { get_self(), active_permission }};
+         issue_action.send(get_self(), asset(issue_tokens, core_symbol()), "Issue new TLOS tokens");
+         transfer_act.send(get_self(), tedp_account, asset(issue_tokens, core_symbol()), "Transfer issued TLOS to TEDP account");
+      }
+
+      // Triggers pay action of TEDP account to distribute payouts
+      eosio::action(
+         eosio::permission_level{get_self(),active_permission},
+         tedp_account,
+         "pay"_n,
+         std::make_tuple()
+      ).send();
+   }
+   // TELOS END
 
 } //namespace eosiosystem
