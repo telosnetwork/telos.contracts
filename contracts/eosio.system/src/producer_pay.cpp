@@ -292,7 +292,7 @@ namespace eosiosystem {
             // TELOS BEGIN
             uint64_t tlos_price = get_telos_average_price();
             auto to_workers = static_cast<int64_t>((12 * double(_gpayrate.worker_amount) * double(usecs_since_last_fill)) / double(useconds_per_year));
-            double bp_pay_per_month = std::min((double(378000) * std::pow(tlos_price/10000.0,-0.516)),double(882000)) * 10000;
+            double bp_pay_per_month = std::min((double(189000) * std::pow(tlos_price/10000.0,-0.516)),double(315000)) * 10000;
             auto to_producers = static_cast<int64_t>((bp_pay_per_month * 12 * double(usecs_since_last_fill)) / double(useconds_per_year));
             // TELOS END
             auto new_tokens = to_workers + to_producers;
