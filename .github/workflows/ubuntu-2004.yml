@@ -1,4 +1,4 @@
-name: Ubuntu 20.04
+name: Ubuntu 22.04
 on:
   push:
     branches:
@@ -6,28 +6,94 @@ on:
       - "release/*"
   pull_request:
     types: [assigned, opened, synchronize, reopened, labeled]
-env:
-  BUILDER_IMAGE: "guilledk/py-eosio:cdt-3.0.1"
+  workflow_dispatch:
+    inputs:
+      override-leap-dev:
+        description: Override leap-dev target
+        type: string
+      override-leap-dev-prerelease:
+        type: choice
+        description: Override leap-dev prelease
+        options:
+        - default
+        - true
+        - false
+      override-cdt:
+        description: 'Override cdt target'
+        type: string
+      override-cdt-prerelease:
+        type: choice
+        description: Override cdt prelease
+        options:
+        - default
+        - true
+        - false
+
+defaults:
+  run:
+    shell: bash
 jobs:
-  ubuntu-2004-build:
-    name: Ubuntu 20.04 | Build
-    runs-on: ubuntu-latest
+  ubuntu-2204-build:
+    name: Ubuntu 22.04 | Build
+    runs-on: ubuntu-22.04
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
+      - name: Setup leap-dev & cdt versions
+        id: versions
+        env:
+          GH_TOKEN: ${{secrets.GITHUB_TOKEN}}
+        run: |
+          echo leap-dev-target=5 >> $GITHUB_OUTPUT
+          echo leap-dev-prerelease=false >> $GITHUB_OUTPUT
+          echo cdt-target=4 >> $GITHUB_OUTPUT
+          echo cdt-prerelease=false >> $GITHUB_OUTPUT
+
+          if [[ "${{inputs.override-leap-dev}}" != "" ]]; then
+            echo leap-dev-target=${{inputs.override-leap-dev}} >> $GITHUB_OUTPUT
+          fi
+          if [[ "${{inputs.override-leap-dev-prerelease}}" == +(true|false) ]]; then
+            echo leap-dev-prerelease=${{inputs.override-leap-dev-prerelease}} >> $GITHUB_OUTPUT
+          fi
+          if [[ "${{inputs.override-cdt}}" != "" ]]; then
+            echo cdt-target=${{inputs.override-cdt}} >> $GITHUB_OUTPUT
+          fi
+          if [[ "${{inputs.override-cdt-prerelease}}" == +(true|false) ]]; then
+            echo cdt-prerelease=${{inputs.override-cdt-prerelease}} >> $GITHUB_OUTPUT
+          fi
+      - name: Download cdt
+        uses: AntelopeIO/asset-artifact-download-action@v3
+        with:
+          owner: AntelopeIO
+          repo: cdt
+          file: 'cdt_.*amd64.deb'
+          target: '${{steps.versions.outputs.cdt-target}}'
+          prereleases: ${{fromJSON(steps.versions.outputs.cdt-prerelease)}}
+          artifact-name: cdt_ubuntu_package_amd64
+          token: ${{github.token}}
+      - name: Download leap-dev
+        uses: AntelopeIO/asset-artifact-download-action@v3
+        with:
+          owner: AntelopeIO
+          repo: leap
+          file: 'leap-dev.*ubuntu22\.04_amd64.deb'
+          target: '${{steps.versions.outputs.leap-dev-target}}'
+          prereleases: ${{fromJSON(steps.versions.outputs.leap-dev-prerelease)}}
+          artifact-name: leap-dev-ubuntu22-amd64
+          container-package: experimental-binaries
+          token: ${{github.token}}
+      - name: Install packages
+        run: |
+          sudo apt install ./*.deb
+          sudo apt-get install cmake
+          rm ./*.deb
+      - uses: actions/checkout@v4
+        with:
+          path: src
       - name: Build
         run: |
-          set -e
-          export DOCKER="docker run --rm -v $(pwd):/root/target ${BUILDER_IMAGE}"
-          docker pull ${BUILDER_IMAGE}
-          echo ${DOCKER}
-          echo =====
-          mkdir build
-          ${DOCKER} bash -c "cd build && cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=yes .."
-          echo =====
-          ${DOCKER} bash -c "cd build && make -j $(nproc) VERBOSE=1"
-          echo =====
-          tar -pczf build.tar.gz build
+          cmake -S src -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=On -DSYSTEM_ENABLE_LEAP_VERSION_CHECK=Off -DSYSTEM_ENABLE_CDT_VERSION_CHECK=Off
+          cmake --build build -- -j $(nproc)
+          tar zcf build.tar.gz build
+          ctest --test-dir build/tests --output-on-failure -j $(nproc)
           echo =====
           mkdir built-contracts
           cp \
@@ -48,17 +114,17 @@ jobs:
       - name: Upload build
         uses: actions/upload-artifact@v1
         with:
-          name: ubuntu-2004-build
+          name: ubuntu-2204-build
           path: build.tar.gz
       - name: Upload built contracts
         uses: actions/upload-artifact@v1
         with:
           name: built-contracts
           path: built-contracts
-  ubuntu-2004-parallel-test:
-    name: Ubuntu 20.04 | Parallel Test
-    runs-on: ubuntu-latest
-    needs: ubuntu-2004-build
+  ubuntu-2204-parallel-test:
+    name: Ubuntu 22.04 | Parallel Test
+    runs-on: ubuntu-22.04
+    needs: ubuntu-2204-build
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -68,11 +134,11 @@ jobs:
       - name: Download build
         uses: actions/download-artifact@v1
         with:
-          name: ubuntu-2004-build
+          name: ubuntu-2204-build
       - name: Parallel Test
         run: |
           set -e
-          tar -xzf ubuntu-2004-build/build.tar.gz
+          tar -xzf ubuntu-2204-build/build.tar.gz
           export DOCKER="docker run --rm -v $(pwd):/root/target ${BUILDER_IMAGE}"
           docker pull ${BUILDER_IMAGE}
           ${DOCKER} bash -c 'cd build/tests && ctest -j $(nproc)'
