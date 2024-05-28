@@ -400,9 +400,6 @@ namespace eosiosystem {
       // Reads the payouts table
       tedp::payout_table payouts(tedp_account, tedp_account.value);
 
-      // Gets daily median TLOS price
-      uint64_t tlos_price = get_telos_average_price();
-
       uint64_t now_ms = current_time_point().sec_since_epoch();
       bool payouts_made = false;
       int64_t new_tokens = 0;
@@ -424,21 +421,7 @@ namespace eosiosystem {
          uint64_t total_due = (payouts_due * p.amount) * 10000;
          payouts_made = true;
 
-         if (p.to == REX_ACCOUNT)
-         {
-            uint64_t payout = total_due;
-            if(tlos_price >= 10000 && tlos_price < 20000) { // If TLOS daily close of $1.00, the payout will be decreased to 2/3
-               payout *= 2;
-               payout /= 3;
-            } else if(tlos_price > 20000) { // If TLOS daily close of $2.00, the payout will be decreased to 1/3
-               payout /= 3;
-            }
-            new_tokens += payout;
-         }
-         else
-         {
-            new_tokens += total_due;
-         }
+         new_tokens += total_due;
       }
 
       // Check if any payouts are needed to be made
