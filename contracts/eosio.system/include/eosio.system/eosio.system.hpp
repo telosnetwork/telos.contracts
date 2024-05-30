@@ -877,6 +877,7 @@ namespace eosiosystem {
          static constexpr eosio::name decide_account{"telos.decide"_n};
          static constexpr eosio::name works_account{"works.decide"_n};
          static constexpr eosio::name amend_account{"amend.decide"_n};
+         static constexpr eosio::name delphi_oracle_account{"delphioracle"_n};
          // TELOS END
 
          system_contract( name s, name code, datastream<const char*> ds );
@@ -1617,11 +1618,14 @@ namespace eosiosystem {
          [[eosio::action]]
          void distviarex(name from, asset amount);
 
+         [[eosio::action]]
+         void pay();
 
          using unregreason_action = eosio::action_wrapper<"unregreason"_n, &system_contract::unregreason>;
          using votebpout_action = eosio::action_wrapper<"votebpout"_n, &system_contract::votebpout>;
          using setpayrates_action = eosio::action_wrapper<"setpayrates"_n, &system_contract::setpayrates>;
          using distviarex_action = eosio::action_wrapper<"distviarex"_n, &system_contract::distviarex>;
+         using pay_action = eosio::action_wrapper<"pay"_n, &system_contract::pay>;
          // TELOS END
 
       private:
@@ -1737,7 +1741,7 @@ namespace eosiosystem {
          // TELOS BEGIN
          // defined in producer_pay.cpp
          void claimrewards_snapshot();
-
+         uint64_t get_telos_average_price();
 
          double inverse_vote_weight(double staked, double amountVotedProducers);
          void recalculate_votes();
