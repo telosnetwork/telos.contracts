@@ -27,34 +27,11 @@ jobs:
           echo =====
           ${DOCKER} bash -c "cd build && make -j $(nproc) VERBOSE=1"
           echo =====
-          tar -pczf build.tar.gz build
-          echo =====
-          mkdir built-contracts
-          cp \
-            build/contracts/eosio.bios/eosio.bios.abi \
-            build/contracts/eosio.bios/eosio.bios.wasm \
-            build/contracts/eosio.msig/eosio.msig.abi \
-            build/contracts/eosio.msig/eosio.msig.wasm \
-            build/contracts/eosio.system/.powerup/powup.results.abi \
-            build/contracts/eosio.system/.rex/rex.results.abi \
-            build/contracts/eosio.system/eosio.system.abi \
-            build/contracts/eosio.system/eosio.system.wasm \
-            build/contracts/eosio.token/eosio.token.abi \
-            build/contracts/eosio.token/eosio.token.wasm \
-            build/contracts/eosio.wrap/eosio.wrap.abi \
-            build/contracts/eosio.wrap/eosio.wrap.wasm \
-            built-contracts
-          ls -l built-contracts
       - name: Upload build
         uses: actions/upload-artifact@v4
         with:
           name: ubuntu-2404-build
-          path: build.tar.gz
-      - name: Upload built contracts
-        uses: actions/upload-artifact@v4
-        with:
-          name: built-contracts
-          path: built-contracts
+          path: build
   ubuntu-2404-parallel-test:
     name: Parallel Test
     runs-on: ubuntu-latest
@@ -72,7 +49,8 @@ jobs:
       - name: Parallel Test
         run: |
           set -e
-          tar -xzf ubuntu-2404-build/build.tar.gz
+          ls -la
+          unzip ubuntu-2404-build.zip
           export DOCKER="docker run --rm -v $(pwd):/root/target ${BUILDER_IMAGE}"
           docker pull ${BUILDER_IMAGE}
           ${DOCKER} bash -c 'cd build/tests && ctest -j $(nproc)'
