@@ -367,9 +367,11 @@ namespace eosiosystem {
             index++;
 
             if (index <= 21) {
-                pay_amount = (shareValue * int64_t(2));
+                // Applying tiered BP pay multiplier for active BPs (rank 1st until 21st) [1.2, 1.18, ... , 0.82, 0.8]
+                pay_amount = (shareValue * int64_t(2) * ((122-2*n)/100.0));
             } else if (index >= 22 && index <= MAX_PRODUCERS) {
-                pay_amount = shareValue;
+                // Applying tiered BP pay multiplier for standby BPs (rank 22nd until 42nd) [1.2, 1.18, ... , 0.82, 0.8]
+                pay_amount = shareValue * ((164-2*n)/100.0);
             } else 
                 break;
 
