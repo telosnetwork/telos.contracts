@@ -1,4 +1,4 @@
-name: Ubuntu 20.04
+name: Build contracts
 on:
   push:
     branches:
@@ -7,10 +7,10 @@ on:
   pull_request:
     types: [assigned, opened, synchronize, reopened, labeled]
 env:
-  BUILDER_IMAGE: "guilledk/py-eosio:cdt-3.0.1"
+  BUILDER_IMAGE: "guilledk/py-leap:cdt-4.0.0"
 jobs:
-  ubuntu-2004-build:
-    name: Ubuntu 20.04 | Build
+  ubuntu-2404-build:
+    name: Ubuntu 24.04 | Build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -46,19 +46,19 @@ jobs:
             built-contracts
           ls -l built-contracts
       - name: Upload build
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v4
         with:
-          name: ubuntu-2004-build
+          name: ubuntu-2404-build
           path: build.tar.gz
       - name: Upload built contracts
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v4
         with:
           name: built-contracts
           path: built-contracts
-  ubuntu-2004-parallel-test:
-    name: Ubuntu 20.04 | Parallel Test
+  ubuntu-2404-parallel-test:
+    name: Parallel Test
     runs-on: ubuntu-latest
-    needs: ubuntu-2004-build
+    needs: ubuntu-2404-build
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -66,13 +66,13 @@ jobs:
           submodules: recursive
           fetch-depth: 0
       - name: Download build
-        uses: actions/download-artifact@v1
+        uses: actions/download-artifact@v4
         with:
-          name: ubuntu-2004-build
+          name: ubuntu-2404-build
       - name: Parallel Test
         run: |
           set -e
-          tar -xzf ubuntu-2004-build/build.tar.gz
+          tar -xzf ubuntu-2404-build/build.tar.gz
           export DOCKER="docker run --rm -v $(pwd):/root/target ${BUILDER_IMAGE}"
           docker pull ${BUILDER_IMAGE}
           ${DOCKER} bash -c 'cd build/tests && ctest -j $(nproc)'
