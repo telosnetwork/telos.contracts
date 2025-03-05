@@ -25,16 +25,16 @@ using mvo = fc::mutable_variant_object;
 
 namespace eosio_system {
 
-auto dump_trace = [](transaction_trace_ptr trace_ptr) -> transaction_trace_ptr {
-   std::cout << std::endl << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << std::endl;
-   for(auto trace : trace_ptr->action_traces) {
-      std::cout << "action_name trace: " << trace.act.name.to_string() << std::endl;
-      //TODO: split by new line character, loop and indent output
-      std::cout << trace.console << std::endl << std::endl;
-   }
-   std::cout << std::endl << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" << std::endl << std::endl;
-   return trace_ptr;
-};
+// auto dump_trace = [](transaction_trace_ptr trace_ptr) -> transaction_trace_ptr {
+//    std::cout << std::endl << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << std::endl;
+//    for(auto trace : trace_ptr->action_traces) {
+//       std::cout << "action_name trace: " << trace.act.name.to_string() << std::endl;
+//       //TODO: split by new line character, loop and indent output
+//       std::cout << trace.console << std::endl << std::endl;
+//    }
+//    std::cout << std::endl << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" << std::endl << std::endl;
+//    return trace_ptr;
+// };
 
 class eosio_system_tester : public TESTER {
 public:
@@ -200,7 +200,7 @@ public:
       trx.actions.emplace_back(on_block_act);
       trx.sign( get_private_key( config::system_account_name, "active" ), control->get_chain_id()  );
       auto t = push_transaction(trx);
-      dump_trace(t);
+      // dump_trace(t);
       return t;
    }
    // TELOS END
