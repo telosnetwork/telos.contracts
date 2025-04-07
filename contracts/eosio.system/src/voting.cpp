@@ -190,17 +190,43 @@ namespace eosiosystem {
 
    // TELOS BEGIN
    /*
-   * This function caculates the inverse weight voting. 
-   * The maximum weighted vote will be reached if an account votes for the maximum number of registered producers (up to 30 in total).  
+   * This function caculates the inverse weight voting.
+   * The maximum weighted vote will be reached if an account votes for the maximum number of registered producers (up to 30 in total).
    */
-   double system_contract::inverse_vote_weight(double staked, double amountVotedProducers) {
-     if (amountVotedProducers == 0.0) {
+   double system_contract::inverse_vote_weight(double staked, double amount_voted_producers) {
+     if (amount_voted_producers == 0.0) {
        return 0;
      }
 
-     double percentVoted = amountVotedProducers / MAX_VOTE_PRODUCERS;
+     double percentVoted = amount_voted_producers / MAX_VOTE_PRODUCERS;
      double voteWeight = (sin(M_PI * percentVoted - M_PI_2) + 1.0) / 2.0;
      return (voteWeight * staked);
+   }
+
+   double system_contract::decay_vote_weight_multiplier(double weighted_vote) {
+      // TODO: read these from a singleton config table
+      auto decay_start_epoch = 1743739705;
+      auto decay_increase_step = 0.0000001;
+      auto decay_increase_interval_sec = 60;
+      auto sec_since_epoch = current_time_point().sec_since_epoch();
+
+      return apply_decay_multiplier(weighted_vote, sec_since_epoch, decay_start_epoch, decay_increase_interval_sec);
+   }
+
+   double system_contract::apply_decay_multiplier(double weighted_vote, uint32_t sec_since_epoch, uint64_t decay_start_epoch, uint64_t decay_increase_yearly) {
+      if (decay_start_epoch == 0 || sec_since_epoch <= decay_start_epoch) {
+         return weighted_vote;
+      }
+
+      const uint32_t SECONDS_PER_YEAR = 31536000;
+      uint64_t seconds_of_decay = sec_since_epoch - decay_start_epoch;
+
+      // decay_increase_yearly is now directly a percentage (e.g., 50 for 50%)
+      double decay_multiplier = 1.0 + (static_cast<double>(decay_increase_yearly) / 100.0) * (static_cast<double>(seconds_of_decay) / SECONDS_PER_YEAR);
+
+      double new_vote_weight = weighted_vote * decay_multiplier;
+
+      return new_vote_weight;
    }
    // TELOS END
 
@@ -344,7 +370,9 @@ namespace eosiosystem {
          _gstate.total_activated_stake += totalStaked - voter->last_stake;
       }
 
-      auto new_vote_weight = inverse_vote_weight((double)totalStaked, (double) producers.size());
+      auto inverse_weighted_vote = inverse_vote_weight((double)totalStaked, (double) producers.size());
+      auto new_vote_weight = decay_vote_weight_multiplier(inverse_weighted_vote);
+
       std::map<name, std::pair< double, bool > > producer_deltas;
 
       // print("\n Voter : ", voter->last_stake, " = ", voter->last_vote_weight, " = ", proxy, " = ", producers.size(), " = ", totalStaked, " = ", new_vote_weight);
@@ -353,7 +381,7 @@ namespace eosiosystem {
       if ( voter->last_stake > 0 ) {
 
          //if voter account has set proxy to another voter account
-         if( voter->proxy ) { 
+         if( voter->proxy ) {
             auto old_proxy = _voters.find( voter->proxy.value );
             check( old_proxy != _voters.end(), "old proxy not found" ); //data corruption
             _voters.modify( old_proxy, same_payer, [&]( auto& vp ) {
@@ -362,7 +390,7 @@ namespace eosiosystem {
 
             // propagate weight here only when switching proxies
             // otherwise propagate happens in the case below
-            if( proxy != voter->proxy ) {  
+            if( proxy != voter->proxy ) {
                _gstate.total_activated_stake += totalStaked - voter->last_stake;
                propagate_weight_change( *old_proxy );
             }
@@ -391,7 +419,7 @@ namespace eosiosystem {
       } else {
          if( new_vote_weight >= 0 ) {
             for( const auto& p : producers ) {
-               auto& d = producer_deltas[p]; 
+               auto& d = producer_deltas[p];
                d.first += new_vote_weight;
                d.second = true;
             }
@@ -523,7 +551,7 @@ namespace eosiosystem {
       if (voter.proxy) { // this part should never happen since the function is called only on proxies
          if(voter.last_stake != totalStake){
             auto &proxy = _voters.get(voter.proxy.value, "proxy not found"); // data corruption
-            _voters.modify(proxy, same_payer, [&](auto &p) { 
+            _voters.modify(proxy, same_payer, [&](auto &p) {
                p.proxied_vote_weight += totalStake - voter.last_stake;
             });
 
@@ -539,8 +567,8 @@ namespace eosiosystem {
          }
       }
 
-      _voters.modify(voter, same_payer, [&](auto &v) { 
-         v.last_vote_weight = new_weight; 
+      _voters.modify(voter, same_payer, [&](auto &v) {
+         v.last_vote_weight = new_weight;
          v.last_stake = totalStake;
       });
       // TELOS REPLACE END

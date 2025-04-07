@@ -1744,6 +1744,8 @@ namespace eosiosystem {
          uint64_t get_telos_average_price();
 
          double inverse_vote_weight(double staked, double amountVotedProducers);
+         double decay_vote_weight_multiplier(double weighted_vote);
+         double apply_decay_multiplier(double weighted_vote, uint32_t sec_since_epoch, uint64_t decay_start_epoch, uint64_t decay_increase_yearly);
          void recalculate_votes();
 
          //defined in system_kick.cpp
