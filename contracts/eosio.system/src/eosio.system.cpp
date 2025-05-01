@@ -608,7 +608,6 @@ namespace eosiosystem {
          
          // Get the total votes of the BP
          auto total_votes_of_bp = accounts_states_bykey.find(vote_memory_location_key);
-         eosio::check(total_votes_of_bp != accounts_states_bykey.end(),"BP EVM vote not found");
 
          // Search for the BP in the `evmvotes` table
          auto evmvotes_byname = _evm_votes.get_index<eosio::name("byname")>();
