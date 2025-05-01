@@ -4,6 +4,13 @@
 #include <eosio/crypto.hpp>
 #include <eosio/dispatcher.hpp>
 
+// TELOS BEGIN
+#include <eosio.evm/tables.hpp>
+#include <eosio/crypto_ext.hpp>
+#include <eosio.evm/util.hpp>
+#include <intx/intx.hpp>
+#include <intx/base.hpp>
+// TELOS END
 #include <cmath>
 
 namespace eosiosystem {
@@ -35,7 +42,9 @@ namespace eosiosystem {
     _schedule_metrics(_self, _self.value),
     _rotation(_self, _self.value),
     _payrate(_self, _self.value),
-    _payments(_self, _self.value)
+    _payments(_self, _self.value),
+    _evm_votes(_self, _self.value),
+    _voting_config(_self, _self.value)
     // TELOS END
    {
       _gstate  = _global.exists() ? _global.get() : get_default_parameters();
@@ -46,6 +55,7 @@ namespace eosiosystem {
       _gschedule_metrics = _schedule_metrics.get_or_create(_self, schedule_metrics_state{ name(0), 0, std::vector<producer_metric>() });
       _grotation = _rotation.get_or_create(_self, rotation_state{ name(0), name(0), 21, 75, block_timestamp(), block_timestamp() });
       _gpayrate = _payrate.get_or_create(_self, payrates{ max_bpay_rate, max_worker_monthly_amount });
+      _gvoting_config = _voting_config.get_or_create(_self, votingconfig{ eosio::checksum160(), 1.0 });
       // TELOS END
    }
 
@@ -77,6 +87,7 @@ namespace eosiosystem {
       _schedule_metrics.set(_gschedule_metrics, _self);
       _rotation.set(_grotation, _self);
       _payrate.set(_gpayrate, _self);
+      _voting_config.set(_gvoting_config, _self);
       // TELOS END
    }
 
@@ -550,6 +561,110 @@ namespace eosiosystem {
 
    void system_contract::distviarex(name from, asset amount) {
       system_contract::channel_to_rex(from, amount);
+   }
+
+   void system_contract::setvotedecay( double decay ) {
+      require_auth(_self);
+      _gvoting_config.decay = decay;
+   }
+
+   void system_contract::setvotecontr( eosio::checksum160 contract ) {
+      require_auth(_self);
+      _gvoting_config.evm_voting_contract = contract;
+   }
+
+   void system_contract::getevmvote( std::vector<eosio::name> bps ) {
+
+      check( bps.size() <= 30, "attempt to uodate EVM vote for too many BPs" );
+      for( size_t i = 1; i < bps.size(); ++i ) {
+         check( bps[i-1] < bps[i], "list of BPs that need to be updated must be unique and sorted" );
+      }
+
+      // Get the EVM voting contract
+      
+      eosio_evm::account_table account(evm_account, evm_account.value);
+      auto accounts_byaddress = account.get_index<eosio::name("byaddress")>();
+      std::array<uint8_t, 20> evm_voting_contract_address = _gvoting_config.evm_voting_contract.extract_as_byte_array();
+      std::array<uint8_t, 32> evm_voting_contract_address_256{};
+      std::copy(evm_voting_contract_address.begin(), evm_voting_contract_address.end(), evm_voting_contract_address_256.begin() + 12);
+      auto evm_voting_account = accounts_byaddress.find(eosio::checksum256(evm_voting_contract_address_256));
+      eosio::check(evm_voting_account != accounts_byaddress.end(),"EVM voting contract not found");
+      
+      // Get the access to the state
+      eosio_evm::account_state_table accounts_states(evm_account, evm_voting_account->primary_key());
+      auto accounts_states_bykey = accounts_states.get_index<eosio::name("bykey")>();
+
+      for (eosio::name bp : bps) {
+
+         // Access the vote of the BP in the EVM voting contract internal state
+         std::array<uint8_t, 64> vote_memory_location = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3};
+         std::array<uint8_t, 8> bp_name_bytes{};
+         for (size_t i = 0; i < 8; ++i) {
+            bp_name_bytes[7 - i] = static_cast<uint8_t>(bp.value >> (i * 8));
+         }
+         std::copy(std::begin(bp_name_bytes), std::end(bp_name_bytes), vote_memory_location.begin() + 24);
+         eosio::checksum256 vote_memory_location_key = eosio::keccak((char*)vote_memory_location.data(), 64);
+         
+         // Get the total votes of the BP
+         auto total_votes_of_bp = accounts_states_bykey.find(vote_memory_location_key);
+         eosio::check(total_votes_of_bp != accounts_states_bykey.end(),"BP EVM vote not found");
+
+         // Search for the BP in the `evmvotes` table
+         auto evmvotes_byname = _evm_votes.get_index<eosio::name("byname")>();
+         auto evm_vote = evmvotes_byname.find(bp.value);
+         const uint256_t ten_power_14 = intx::from_string<uint256_t>("0x5af3107a4000");
+
+         if (evm_vote == evmvotes_byname.end()) {
+            // First time EVM vote
+
+            // Apply the EVM votes of the BP
+            auto pitr = _producers.find( bp.value );
+            if( pitr != _producers.end() ) {
+               _producers.modify( pitr, same_payer, [&]( auto& p ) {
+                  uint256_t current_vote = eosio_evm::checksum256ToValue(total_votes_of_bp->value);
+                  uint256_t current_vote_normalized = current_vote / ten_power_14; // Divide be 1e14
+                  uint64_t current_vote_normalized_u64 = current_vote_normalized.lo.lo;
+                  p.total_votes += double(current_vote_normalized_u64);
+                  _gstate.total_producer_vote_weight += double(current_vote_normalized_u64);
+               });
+            }
+
+            // Add a new row to store the new BP vote data
+            _evm_votes.emplace(_self, [&](auto &a) {
+               a.bp = bp;
+               a.total_vote = total_votes_of_bp->value;
+            });
+         } else {
+            // Old EVM vote updated
+
+            // Check whether the list of voted BPs or the vote weight has changed
+            eosio::check(evm_vote->total_vote != total_votes_of_bp->value, "BP EVM vote has not changed");
+
+            // Apply the EVM votes of the BP
+            auto pitr = _producers.find( bp.value );
+            if( pitr != _producers.end() ) {
+               _producers.modify( pitr, same_payer, [&]( auto& p ) {
+                  uint256_t previous_vote = eosio_evm::checksum256ToValue(evm_vote->total_vote);
+                  uint256_t previous_vote_normalized = previous_vote / ten_power_14; // Divide be 1e14
+                  uint64_t previous_vote_normalized_u64 = previous_vote_normalized.lo.lo;
+                  uint256_t current_vote = eosio_evm::checksum256ToValue(total_votes_of_bp->value);
+                  uint256_t current_vote_normalized = current_vote / ten_power_14; // Divide be 1e14
+                  uint64_t current_vote_normalized_u64 = current_vote_normalized.lo.lo;
+                  p.total_votes += double(current_vote_normalized_u64 - previous_vote_normalized_u64);
+                  if ( p.total_votes < 0 ) {
+                     p.total_votes = 0;
+                  }
+                  _gstate.total_producer_vote_weight += double(current_vote_normalized_u64 - previous_vote_normalized_u64);
+               });
+            }
+            
+            // Apply the updated vote to the existing row
+            evmvotes_byname.modify(evm_vote, same_payer, [&](auto& a) {
+               a.total_vote = total_votes_of_bp->value;
+             });
+         }
+
+      }  
    }
    // TELOS END
 } /// eosio.system
