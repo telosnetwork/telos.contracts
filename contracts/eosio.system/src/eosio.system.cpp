@@ -595,6 +595,9 @@ namespace eosiosystem {
       eosio_evm::account_state_table accounts_states(evm_account, evm_voting_account->primary_key());
       auto accounts_states_bykey = accounts_states.get_index<eosio::name("bykey")>();
 
+      // Add a flag to make sure at least a single vote is changed
+      bool is_changed = false;
+
       for (eosio::name bp : bps) {
 
          // Access the vote of the BP in the EVM voting contract internal state
@@ -617,17 +620,18 @@ namespace eosiosystem {
          if (evm_vote == evmvotes_byname.end()) {
             // First time EVM vote
 
+            is_changed = true;
+
             // Apply the EVM votes of the BP
             auto pitr = _producers.find( bp.value );
-            if( pitr != _producers.end() ) {
-               _producers.modify( pitr, same_payer, [&]( auto& p ) {
-                  uint256_t current_vote = eosio_evm::checksum256ToValue(total_votes_of_bp->value);
-                  uint256_t current_vote_normalized = current_vote / ten_power_14; // Divide be 1e14
-                  uint64_t current_vote_normalized_u64 = current_vote_normalized.lo.lo;
-                  p.total_votes += double(current_vote_normalized_u64);
-                  _gstate.total_producer_vote_weight += double(current_vote_normalized_u64);
-               });
-            }
+            eosio::check( pitr != _producers.end(), "BP not found" );
+            _producers.modify( pitr, same_payer, [&]( auto& p ) {
+               uint256_t current_vote = eosio_evm::checksum256ToValue(total_votes_of_bp->value);
+               uint256_t current_vote_normalized = current_vote / ten_power_14; // Divide be 1e14
+               uint64_t current_vote_normalized_u64 = current_vote_normalized.lo.lo;
+               p.total_votes += double(current_vote_normalized_u64);
+               _gstate.total_producer_vote_weight += double(current_vote_normalized_u64);
+            });
 
             // Add a new row to store the new BP vote data
             _evm_votes.emplace(_self, [&](auto &a) {
@@ -638,25 +642,26 @@ namespace eosiosystem {
             // Old EVM vote updated
 
             // Check whether the list of voted BPs or the vote weight has changed
-            eosio::check(evm_vote->total_vote != total_votes_of_bp->value, "BP EVM vote has not changed");
+            if (!is_changed) {
+               is_changed = evm_vote->total_vote != total_votes_of_bp->value;
+            }            
 
             // Apply the EVM votes of the BP
             auto pitr = _producers.find( bp.value );
-            if( pitr != _producers.end() ) {
-               _producers.modify( pitr, same_payer, [&]( auto& p ) {
-                  uint256_t previous_vote = eosio_evm::checksum256ToValue(evm_vote->total_vote);
-                  uint256_t previous_vote_normalized = previous_vote / ten_power_14; // Divide be 1e14
-                  uint64_t previous_vote_normalized_u64 = previous_vote_normalized.lo.lo;
-                  uint256_t current_vote = eosio_evm::checksum256ToValue(total_votes_of_bp->value);
-                  uint256_t current_vote_normalized = current_vote / ten_power_14; // Divide be 1e14
-                  uint64_t current_vote_normalized_u64 = current_vote_normalized.lo.lo;
-                  p.total_votes += double(current_vote_normalized_u64 - previous_vote_normalized_u64);
-                  if ( p.total_votes < 0 ) {
-                     p.total_votes = 0;
-                  }
-                  _gstate.total_producer_vote_weight += double(current_vote_normalized_u64 - previous_vote_normalized_u64);
-               });
-            }
+            eosio::check( pitr != _producers.end(), "BP not found" );
+            _producers.modify( pitr, same_payer, [&]( auto& p ) {
+               uint256_t previous_vote = eosio_evm::checksum256ToValue(evm_vote->total_vote);
+               uint256_t previous_vote_normalized = previous_vote / ten_power_14; // Divide be 1e14
+               uint64_t previous_vote_normalized_u64 = previous_vote_normalized.lo.lo;
+               uint256_t current_vote = eosio_evm::checksum256ToValue(total_votes_of_bp->value);
+               uint256_t current_vote_normalized = current_vote / ten_power_14; // Divide be 1e14
+               uint64_t current_vote_normalized_u64 = current_vote_normalized.lo.lo;
+               p.total_votes += double(current_vote_normalized_u64 - previous_vote_normalized_u64);
+               if ( p.total_votes < 0 ) {
+                  p.total_votes = 0;
+               }
+               _gstate.total_producer_vote_weight += double(current_vote_normalized_u64 - previous_vote_normalized_u64);
+            });
             
             // Apply the updated vote to the existing row
             evmvotes_byname.modify(evm_vote, same_payer, [&](auto& a) {
@@ -665,6 +670,8 @@ namespace eosiosystem {
          }
 
       }  
+
+      eosio::check(is_changed, "None of the BPs EVM votes has been changed");
    }
    void system_contract::setbpevmstat( eosio::name bp ) {
       auto pitr = _producers.find( bp.value );
