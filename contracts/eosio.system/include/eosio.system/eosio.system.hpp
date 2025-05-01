@@ -1666,6 +1666,9 @@ namespace eosiosystem {
          [[eosio::action]]
          void getevmvote( std::vector<eosio::name> bps );
 
+         [[eosio::action]]
+         void setbpevmstat( eosio::name bp );
+
          using unregreason_action = eosio::action_wrapper<"unregreason"_n, &system_contract::unregreason>;
          using votebpout_action = eosio::action_wrapper<"votebpout"_n, &system_contract::votebpout>;
          using setpayrates_action = eosio::action_wrapper<"setpayrates"_n, &system_contract::setpayrates>;
@@ -1674,6 +1677,7 @@ namespace eosiosystem {
          using setvotedecay_action = eosio::action_wrapper<"setvotedecay"_n, &system_contract::setvotedecay>;
          using setvotecontr_action = eosio::action_wrapper<"setvotecontr"_n, &system_contract::setvotecontr>;
          using getevmvote_action = eosio::action_wrapper<"getevmvote"_n, &system_contract::getevmvote>;
+         using setbpevmstat_action = eosio::action_wrapper<"setbpevmstat"_n, &system_contract::setbpevmstat>;
          // TELOS END
 
       private:

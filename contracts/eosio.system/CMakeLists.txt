@@ -27,7 +27,8 @@ target_include_directories(eosio.system PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/inclu
                                                ${CMAKE_CURRENT_SOURCE_DIR}/../../libs/eosio.tedp/include
                                                ${CMAKE_CURRENT_SOURCE_DIR}/../../libs/delphioracle/include
                                                ${CMAKE_CURRENT_SOURCE_DIR}/../../libs/eosio.evm/include
-                                               ${CMAKE_CURRENT_SOURCE_DIR}/../../libs/intx/include)
+                                               ${CMAKE_CURRENT_SOURCE_DIR}/../../libs/intx/include
+                                               ${CMAKE_CURRENT_SOURCE_DIR}/../../libs/rlp/include)
                                                #// TELOS END
 
 set_target_properties(eosio.system PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")

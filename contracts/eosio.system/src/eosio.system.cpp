@@ -10,6 +10,7 @@
 #include <eosio.evm/util.hpp>
 #include <intx/intx.hpp>
 #include <intx/base.hpp>
+#include <rlp/rlp.hpp>
 // TELOS END
 #include <cmath>
 
@@ -665,6 +666,83 @@ namespace eosiosystem {
          }
 
       }  
+   }
+   void system_contract::setbpevmstat( eosio::name bp ) {
+      auto pitr = _producers.find( bp.value );
+      eosio::check(pitr != _producers.end(), "BP not found");
+
+      // Get the EVM voting contract
+      eosio_evm::account_table account(evm_account, evm_account.value);
+      auto accounts_byaddress = account.get_index<eosio::name("byaddress")>();
+      std::array<uint8_t, 20> evm_voting_contract_address = _gvoting_config.evm_voting_contract.extract_as_byte_array();
+      std::array<uint8_t, 32> evm_voting_contract_address_256{};
+      std::copy(evm_voting_contract_address.begin(), evm_voting_contract_address.end(), evm_voting_contract_address_256.begin() + 12);
+      auto evm_voting_account = accounts_byaddress.find(eosio::checksum256(evm_voting_contract_address_256));
+      eosio::check(evm_voting_account != accounts_byaddress.end(),"EVM voting contract not found");
+
+      // Get the access to the state
+      eosio_evm::account_state_table accounts_states(evm_account, evm_voting_account->primary_key());
+      auto accounts_states_bykey = accounts_states.get_index<eosio::name("bykey")>();
+
+      // Access the status of the BP in the EVM voting contract internal state
+      std::array<uint8_t, 64> bp_status_location = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4};
+      std::array<uint8_t, 8> bp_name_bytes{};
+      for (size_t i = 0; i < 8; ++i) {
+         bp_name_bytes[7 - i] = static_cast<uint8_t>(bp.value >> (i * 8));
+      }
+      std::copy(std::begin(bp_name_bytes), std::end(bp_name_bytes), bp_status_location.begin() + 24);
+      eosio::checksum256 bp_status_location_key = eosio::keccak((char*)bp_status_location.data(), 64);
+      
+      // Get the status of the BP
+      auto status_of_bp = accounts_states_bykey.find(bp_status_location_key);
+      // Get status of BP in EVM
+      bool bp_status_in_evm = status_of_bp->value.extract_as_byte_array()[31];
+
+      eosio::check(pitr->active() != bp_status_in_evm, "The status of BP is not changed");
+
+      // Create a EVM TX for to update the status of BP in EVM
+      std::array<uint8_t, 36> tx_data{};
+      // Fill the 4-byte checksum of function
+      if (pitr->active()) {
+         // Call registerBP 0x159071ec
+         tx_data[0] = 21;
+         tx_data[1] = 144;
+         tx_data[2] = 113;
+         tx_data[3] = 236;
+      } else {
+         // Call unregisterBP 0xab2e2ac4
+         tx_data[0] = 171;
+         tx_data[1] = 46;
+         tx_data[2] = 42;
+         tx_data[3] = 196;
+      }
+      std::copy(std::begin(bp_name_bytes), std::end(bp_name_bytes), tx_data.begin() + 28);
+      // Get eosio EVM address nonce
+      auto accounts_byaccount = account.get_index<eosio::name("byaccount")>();
+      auto eosio_account = accounts_byaccount.find(get_self().value);
+      std::optional<eosio::checksum160> eosio_account_address = eosio_account->address;
+      eosio::check(eosio_account != accounts_byaccount.end(),"eosio EVM address not found");
+
+      // REGISTER 159071ec UNREGISTER ab2e2ac4
+      auto tx_hex = rlp::encode(
+         uint256_t(eosio_account->nonce), // Nonce
+         uint256_t(0), // Gas price
+         uint256_t(100000), // Gas limit
+         evm_voting_contract_address, // To
+         uint256_t(0), // Value
+         tx_data, // Data
+         uint8_t(0), // V
+         uint256_t(0), // R
+         uint256_t(0) // S
+      );
+
+      eosio::action(
+         eosio::permission_level{get_self(),active_permission},
+         evm_account,
+         "raw"_n,
+         std::make_tuple(evm_account, tx_hex, false, eosio_account_address)
+      ).send();
+
    }
    // TELOS END
 } /// eosio.system
