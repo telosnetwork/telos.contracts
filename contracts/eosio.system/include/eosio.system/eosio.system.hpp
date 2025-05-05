@@ -454,6 +454,10 @@ namespace eosiosystem {
       uint32_t            reserved2 = 0;
       eosio::asset        reserved3;
 
+      // TELOS BEGIN
+      eosio::binary_extension<bool> self_stake_boost = false;
+      // TELOS END
+
       uint64_t primary_key()const { return owner.value; }
 
       enum class flags1_fields : uint32_t {
@@ -462,8 +466,42 @@ namespace eosiosystem {
          cpu_managed = 4
       };
 
-      // explicit serialization macro is not necessary, used here only to improve compilation time
-      EOSLIB_SERIALIZE( voter_info, (owner)(proxy)(producers)(staked)(last_stake)(last_vote_weight)(proxied_vote_weight)(is_proxy)(flags1)(reserved2)(reserved3) )
+      // TELOS BEGIN
+      template<typename DataStream>
+      friend DataStream& operator << ( DataStream& ds, const voter_info& v ) {
+         ds << v.owner
+            << v.proxy
+            << v.producers
+            << v.staked
+            << v.last_stake
+            << v.last_vote_weight
+            << v.proxied_vote_weight
+            << v.is_proxy
+            << v.flags1
+            << v.reserved2
+            << v.reserved3;
+
+         if( !v.self_stake_boost.has_value() ) return ds;
+
+         return ds << v.self_stake_boost;
+      }
+
+      template<typename DataStream>
+      friend DataStream& operator >> ( DataStream& ds, voter_info& v ) {
+         return ds >> v.owner
+                   >> v.proxy
+                   >> v.producers
+                   >> v.staked
+                   >> v.last_stake
+                   >> v.last_vote_weight
+                   >> v.proxied_vote_weight
+                   >> v.is_proxy
+                   >> v.flags1
+                   >> v.reserved2
+                   >> v.reserved3
+                   >> v.self_stake_boost;
+      }
+      // TELOS END
    };
 
 
