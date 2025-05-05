@@ -349,6 +349,13 @@ namespace eosiosystem {
 
       // print("\n Voter : ", voter->last_stake, " = ", voter->last_vote_weight, " = ", proxy, " = ", producers.size(), " = ", totalStaked, " = ", new_vote_weight);
 
+      bool self_stake_boost;
+      if (voter->self_stake_boost.has_value() && voter->self_stake_boost.value() == true) {
+         self_stake_boost = true;
+      } else {
+         self_stake_boost = false;
+      }
+
       //Voter from second vote
       if ( voter->last_stake > 0 ) {
 
@@ -371,6 +378,9 @@ namespace eosiosystem {
                auto& d = producer_deltas[p];
                d.first -= voter->last_vote_weight;
                d.second = false;
+               if (self_stake_boost && p == voter_name) {
+                  d.first -= 10*voter->last_vote_weight;
+               }
             }
          }
       }
@@ -394,6 +404,12 @@ namespace eosiosystem {
                auto& d = producer_deltas[p]; 
                d.first += new_vote_weight;
                d.second = true;
+               if (p == voter_name) {
+                  if (!self_stake_boost) {
+                     self_stake_boost = true;
+                  }
+                  d.first += 10*new_vote_weight;
+               }
             }
          }
       }
@@ -424,6 +440,7 @@ namespace eosiosystem {
          av.last_stake = int64_t(totalStaked);
          av.producers = producers;
          av.proxy     = proxy;
+         av.self_stake_boost = self_stake_boost;
       });
       // TELOS END
    }
