@@ -10,6 +10,8 @@
 #include <eosio.system/eosio.system.hpp>
 #include <eosio.token/eosio.token.hpp>
 
+#include <intx/intx.hpp>
+
 #include <type_traits>
 #include <limits>
 #include <set>
@@ -27,6 +29,7 @@ namespace eosiosystem {
    using eosio::indexed_by;
    using eosio::microseconds;
    using eosio::singleton;
+   using intx::uint256;
 
    void system_contract::register_producer( const name& producer, const eosio::block_signing_authority& producer_authority, const std::string& url, uint16_t location ) {
       auto prod = _producers.find( producer.value );
@@ -204,30 +207,58 @@ namespace eosiosystem {
    }
 
    double system_contract::decay_vote_weight_multiplier(double weighted_vote) {
-      // TODO: read these from a singleton config table
-      auto decay_start_epoch = 1743739705;
-      auto decay_increase_step = 0.0000001;
-      auto decay_increase_interval_sec = 60;
       auto sec_since_epoch = current_time_point().sec_since_epoch();
-
-      return apply_decay_multiplier(weighted_vote, sec_since_epoch, decay_start_epoch, decay_increase_interval_sec);
+      return apply_decay_multiplier(
+         weighted_vote,
+         sec_since_epoch,
+         _gvoting_config.decay_start_epoch,
+         _gvoting_config.decay_increase_yearly
+      );
    }
 
-   double system_contract::apply_decay_multiplier(double weighted_vote, uint32_t sec_since_epoch, uint64_t decay_start_epoch, uint64_t decay_increase_yearly) {
-      if (decay_start_epoch == 0 || sec_since_epoch <= decay_start_epoch) {
-         return weighted_vote;
-      }
+   // helper: 256-bit → double without __floatuntitf
+   double system_contract::uint256_to_double(uint256 x)
+   {
+      const uint64_t* w = intx::as_words(x);        // little-endian 4×u64
+      constexpr double TWO64 = 18446744073709551616.0;   // 2⁶⁴ (exact)
+      double d = 0.0;
+      for (int i = 3; i >= 0; --i)                  // most-sig → least-sig
+         d = d * TWO64 + static_cast<double>(w[i]);
+      return d;
+   }
 
-      const uint32_t SECONDS_PER_YEAR = 31536000;
+   double system_contract::apply_decay_multiplier(
+      double        weighted_vote,
+      uint32_t      sec_since_epoch,
+      uint64_t      decay_start_epoch,
+      uint64_t      decay_increase_yearly_pct   // e.g. 5e17 for 50 %
+   ) {
+      constexpr uint64_t SECONDS_PER_YEAR     = 31'536'000ULL;              // 365 d
+      const     uint256 DECAY_PRECISION       = uint256{1'000'000'000'000'000'000ULL}; // 1e18
+      constexpr uint64_t PERCENT_DENOMINATOR  = 100ULL;                     // 100 %
+
+      if (decay_start_epoch == 0 || sec_since_epoch <= decay_start_epoch)
+         return weighted_vote;
+
       uint64_t seconds_of_decay = sec_since_epoch - decay_start_epoch;
 
-      // decay_increase_yearly is now directly a percentage (e.g., 50 for 50%)
-      double decay_multiplier = 1.0 + (static_cast<double>(decay_increase_yearly) / 100.0) * (static_cast<double>(seconds_of_decay) / SECONDS_PER_YEAR);
+      /* 1 ▸ percent → 1 × 10¹⁸ fixed-point (≤ 1e20, well inside 256 bits) */
+      uint256 yearly_rate_scaled =
+         uint256{decay_increase_yearly_pct} * DECAY_PRECISION / PERCENT_DENOMINATOR;
 
-      double new_vote_weight = weighted_vote * decay_multiplier;
+      /* 2 ▸ increment = rate × t / year (still fixed-point) */
+      uint256 increment_fp =
+         (yearly_rate_scaled * uint256{seconds_of_decay}) / SECONDS_PER_YEAR;
 
-      return new_vote_weight;
+      uint256 decay_multiplier_fp = DECAY_PRECISION + increment_fp;
+
+      /* 3 ▸ one final cast to IEEE-754 */
+      double multiplier = uint256_to_double(decay_multiplier_fp) /
+                          uint256_to_double(DECAY_PRECISION);
+
+      return weighted_vote * multiplier;
    }
+
    // TELOS END
 
    double system_contract::update_total_votepay_share( const time_point& ct,

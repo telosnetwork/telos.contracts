@@ -17,6 +17,7 @@
 #include <type_traits>
 
 // TELOS BEGIN
+#include <intx/intx.hpp>
 #include <cmath>
 // TELOS END
 #ifdef CHANNEL_RAM_AND_NAMEBID_FEES_TO_REX
@@ -45,6 +46,7 @@ namespace eosiosystem {
    using eosio::unsigned_int;
    // TELOS
    using producer_location_pair = std::pair<eosio::producer_authority, uint16_t>;
+   using intx::uint256;
 
    inline constexpr int64_t powerup_frac = 1'000'000'000'000'000ll;  // 1.0 = 10^15
 
@@ -531,8 +533,9 @@ namespace eosiosystem {
    // TELOS BEGIN
    struct[[ eosio::table("votingconfig"), eosio::contract("eosio.system") ]] votingconfig {
       eosio::checksum160 evm_voting_contract;
-      double decay;
-      EOSLIB_SERIALIZE(votingconfig, (evm_voting_contract)(decay))
+      uint64_t decay_start_epoch;
+      uint64_t decay_increase_yearly;
+      EOSLIB_SERIALIZE(votingconfig, (evm_voting_contract)(decay_start_epoch)(decay_increase_yearly))
    };
    // TELOS END
 
@@ -1696,7 +1699,7 @@ namespace eosiosystem {
          void pay();
 
          [[eosio::action]]
-         void setvotedecay( double decay );
+         void setvotedecay( uint64_t decay_start_epoch, uint64_t decay_increase_yearly );
 
          [[eosio::action]]
          void setvotecontr( eosio::checksum160 contract );
@@ -1836,6 +1839,7 @@ namespace eosiosystem {
          double inverse_vote_weight(double staked, double amountVotedProducers);
          double decay_vote_weight_multiplier(double weighted_vote);
          double apply_decay_multiplier(double weighted_vote, uint32_t sec_since_epoch, uint64_t decay_start_epoch, uint64_t decay_increase_yearly);
+         double uint256_to_double(uint256 value);
          void recalculate_votes();
 
          //defined in system_kick.cpp

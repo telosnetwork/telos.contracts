@@ -56,7 +56,7 @@ namespace eosiosystem {
       _gschedule_metrics = _schedule_metrics.get_or_create(_self, schedule_metrics_state{ name(0), 0, std::vector<producer_metric>() });
       _grotation = _rotation.get_or_create(_self, rotation_state{ name(0), name(0), 21, 75, block_timestamp(), block_timestamp() });
       _gpayrate = _payrate.get_or_create(_self, payrates{ max_bpay_rate, max_worker_monthly_amount });
-      _gvoting_config = _voting_config.get_or_create(_self, votingconfig{ eosio::checksum160(), 1.0 });
+      _gvoting_config = _voting_config.get_or_create(_self, votingconfig{ eosio::checksum160(), 0, 0 });
       // TELOS END
    }
 
@@ -564,9 +564,56 @@ namespace eosiosystem {
       system_contract::channel_to_rex(from, amount);
    }
 
-   void system_contract::setvotedecay( double decay ) {
+   void system_contract::setvotedecay( uint64_t decay_start_epoch, uint64_t decay_increase_yearly ) {
       require_auth(_self);
-      _gvoting_config.decay = decay;
+      _gvoting_config.decay_start_epoch = decay_start_epoch;
+      _gvoting_config.decay_increase_yearly = decay_increase_yearly;
+
+      // Create a EVM TX for to update the status of BP in EVM
+      std::array<uint8_t, 68> tx_data{};
+      // Fill the 4-byte checksum of function 0x5d32ff31
+      //    setDecayParameters(uint256 _decayStartEpoch, uint256 _decayIncreaseYearly)
+      tx_data[0] = 0x5d;
+      tx_data[1] = 0x32;
+      tx_data[2] = 0xff;
+      tx_data[3] = 0x31;
+
+      // helper – write an uint64 into the last 8 bytes of a 32-byte word
+      auto write_u64_be = [](uint8_t* word, uint64_t value) {
+         for (int i = 0; i < 8; ++i)         // write from the right
+            word[31 - i] = static_cast<uint8_t>(value >> (i * 8));
+      };
+
+      write_u64_be(tx_data.data() + 4,  decay_start_epoch);
+      write_u64_be(tx_data.data() + 36, decay_increase_yearly);
+
+      // Get eosio EVM address nonce
+      eosio_evm::account_table account(evm_account, evm_account.value);
+      std::array<uint8_t, 20> evm_voting_contract_address = _gvoting_config.evm_voting_contract.extract_as_byte_array();
+      auto accounts_byaccount = account.get_index<eosio::name("byaccount")>();
+      auto eosio_account = accounts_byaccount.find(get_self().value);
+      std::optional<eosio::checksum160> eosio_account_address = eosio_account->address;
+      eosio::check(eosio_account != accounts_byaccount.end(),"eosio EVM address not found");
+
+      // REGISTER 159071ec UNREGISTER ab2e2ac4
+      auto tx_hex = rlp::encode(
+         uint256_t(eosio_account->nonce), // Nonce
+         uint256_t(0), // Gas price
+         uint256_t(100000), // Gas limit
+         evm_voting_contract_address, // To
+         uint256_t(0), // Value
+         tx_data, // Data
+         uint8_t(0), // V
+         uint256_t(0), // R
+         uint256_t(0) // S
+      );
+
+      eosio::action(
+         eosio::permission_level{get_self(),active_permission},
+         evm_account,
+         "raw"_n,
+         std::make_tuple(evm_account, tx_hex, false, eosio_account_address)
+      ).send();
    }
 
    void system_contract::setvotecontr( eosio::checksum160 contract ) {
