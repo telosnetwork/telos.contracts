@@ -584,8 +584,9 @@ namespace eosiosystem {
             word[31 - i] = static_cast<uint8_t>(value >> (i * 8));
       };
 
+      uint64_t decay_increase_scaled = decay_increase_yearly * 10000000000000000ULL; // 10^16
       write_u64_be(tx_data.data() + 4,  decay_start_epoch);
-      write_u64_be(tx_data.data() + 36, decay_increase_yearly);
+      write_u64_be(tx_data.data() + 36, decay_increase_scaled);
 
       // Get eosio EVM address nonce
       eosio_evm::account_table account(evm_account, evm_account.value);
