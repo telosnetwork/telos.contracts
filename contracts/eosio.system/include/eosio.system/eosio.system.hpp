@@ -457,7 +457,7 @@ namespace eosiosystem {
       eosio::asset        reserved3;
 
       // TELOS BEGIN
-      eosio::binary_extension<bool> self_stake_boost = false;
+      eosio::binary_extension<uint32_t> self_stake_boost = 0;
       // TELOS END
 
       uint64_t primary_key()const { return owner.value; }

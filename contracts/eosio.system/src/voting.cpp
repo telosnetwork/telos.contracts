@@ -408,11 +408,11 @@ namespace eosiosystem {
 
       // print("\n Voter : ", voter->last_stake, " = ", voter->last_vote_weight, " = ", proxy, " = ", producers.size(), " = ", totalStaked, " = ", new_vote_weight);
 
-      bool self_stake_boost;
-      if (voter->self_stake_boost.has_value() && voter->self_stake_boost.value() == true) {
-         self_stake_boost = true;
+      uint32_t self_stake_boost;
+      if (voter->self_stake_boost.has_value()) {
+         self_stake_boost = voter->self_stake_boost.value();
       } else {
-         self_stake_boost = false;
+         self_stake_boost = 0;
       }
 
       //Voter from second vote
@@ -437,8 +437,9 @@ namespace eosiosystem {
                auto& d = producer_deltas[p];
                d.first -= voter->last_vote_weight;
                d.second = false;
-               if (self_stake_boost && p == voter_name) {
-                  d.first -= 10*voter->last_vote_weight;
+               if (p == voter_name) {
+                  d.first -= self_stake_boost*voter->last_vote_weight;
+                  self_stake_boost = 0;
                }
             }
          }
@@ -464,10 +465,9 @@ namespace eosiosystem {
                d.first += new_vote_weight;
                d.second = true;
                if (p == voter_name) {
-                  if (!self_stake_boost) {
-                     self_stake_boost = true;
-                  }
-                  d.first += 10*new_vote_weight;
+                  // TODO: self stake boost multiplier should be retrieved from the votingconfig table
+                  self_stake_boost = 10;
+                  d.first += self_stake_boost*new_vote_weight;
                }
             }
          }
