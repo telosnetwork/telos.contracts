@@ -457,7 +457,7 @@ namespace eosiosystem {
       eosio::asset        reserved3;
 
       // TELOS BEGIN
-      eosio::binary_extension<uint32_t> self_stake_boost = 0;
+      eosio::binary_extension<uint64_t> self_stake_boost = 0;
       // TELOS END
 
       uint64_t primary_key()const { return owner.value; }
@@ -535,7 +535,8 @@ namespace eosiosystem {
       eosio::checksum160 evm_voting_contract;
       uint64_t decay_start_epoch;
       uint64_t decay_increase_yearly;
-      EOSLIB_SERIALIZE(votingconfig, (evm_voting_contract)(decay_start_epoch)(decay_increase_yearly))
+      uint64_t self_stake_boost_multiplier;
+      EOSLIB_SERIALIZE(votingconfig, (evm_voting_contract)(decay_start_epoch)(decay_increase_yearly)(self_stake_boost_multiplier))
    };
    // TELOS END
 
@@ -1710,6 +1711,9 @@ namespace eosiosystem {
          [[eosio::action]]
          void setbpevmstat( eosio::name bp );
 
+         [[eosio::action]]
+         void setselfstake( uint64_t self_stake_boost_multiplier );
+
          using unregreason_action = eosio::action_wrapper<"unregreason"_n, &system_contract::unregreason>;
          using votebpout_action = eosio::action_wrapper<"votebpout"_n, &system_contract::votebpout>;
          using setpayrates_action = eosio::action_wrapper<"setpayrates"_n, &system_contract::setpayrates>;
@@ -1719,6 +1723,7 @@ namespace eosiosystem {
          using setvotecontr_action = eosio::action_wrapper<"setvotecontr"_n, &system_contract::setvotecontr>;
          using getevmvote_action = eosio::action_wrapper<"getevmvote"_n, &system_contract::getevmvote>;
          using setbpevmstat_action = eosio::action_wrapper<"setbpevmstat"_n, &system_contract::setbpevmstat>;
+         using setselfstake_action = eosio::action_wrapper<"setselfstake"_n, &system_contract::setselfstake>;
          // TELOS END
 
       private:

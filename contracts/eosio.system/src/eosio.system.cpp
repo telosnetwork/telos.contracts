@@ -56,7 +56,7 @@ namespace eosiosystem {
       _gschedule_metrics = _schedule_metrics.get_or_create(_self, schedule_metrics_state{ name(0), 0, std::vector<producer_metric>() });
       _grotation = _rotation.get_or_create(_self, rotation_state{ name(0), name(0), 21, 75, block_timestamp(), block_timestamp() });
       _gpayrate = _payrate.get_or_create(_self, payrates{ max_bpay_rate, max_worker_monthly_amount });
-      _gvoting_config = _voting_config.get_or_create(_self, votingconfig{ eosio::checksum160(), 0, 0 });
+      _gvoting_config = _voting_config.get_or_create(_self, votingconfig{ eosio::checksum160(), 0, 0, 0 });
       // TELOS END
    }
 
@@ -797,6 +797,11 @@ namespace eosiosystem {
          std::make_tuple(evm_account, tx_hex, false, eosio_account_address)
       ).send();
 
+   }
+      
+   void system_contract::setselfstake( uint64_t self_stake_boost_multiplier ) {
+      require_auth(_self);
+      _gvoting_config.self_stake_boost_multiplier = self_stake_boost_multiplier;
    }
    // TELOS END
 } /// eosio.system

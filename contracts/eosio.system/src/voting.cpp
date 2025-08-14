@@ -438,7 +438,7 @@ namespace eosiosystem {
                d.first -= voter->last_vote_weight;
                d.second = false;
                if (p == voter_name) {
-                  d.first -= self_stake_boost*voter->last_vote_weight;
+                  d.first -= (self_stake_boost/100.0)*voter->last_vote_weight;
                   self_stake_boost = 0;
                }
             }
@@ -465,9 +465,8 @@ namespace eosiosystem {
                d.first += new_vote_weight;
                d.second = true;
                if (p == voter_name) {
-                  // TODO: self stake boost multiplier should be retrieved from the votingconfig table
-                  self_stake_boost = 10;
-                  d.first += self_stake_boost*new_vote_weight;
+                  self_stake_boost = _gvoting_config.self_stake_boost_multiplier;
+                  d.first += (self_stake_boost/100.0)*new_vote_weight;
                }
             }
          }
