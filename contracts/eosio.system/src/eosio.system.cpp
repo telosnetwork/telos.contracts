@@ -566,6 +566,7 @@ namespace eosiosystem {
 
    void system_contract::setvotedecay( uint64_t decay_start_epoch, uint64_t decay_increase_yearly ) {
       require_auth(_self);
+      eosio::check(_gvoting_config.evm_voting_contract != eosio::checksum160(), "EVM voting contract not set");
       _gvoting_config.decay_start_epoch = decay_start_epoch;
       _gvoting_config.decay_increase_yearly = decay_increase_yearly;
 
@@ -623,6 +624,8 @@ namespace eosiosystem {
    }
 
    void system_contract::getevmvote( std::vector<eosio::name> bps ) {
+
+      eosio::check(_gvoting_config.evm_voting_contract != eosio::checksum160(), "EVM voting contract not set");
 
       check( bps.size() <= 30, "attempt to uodate EVM vote for too many BPs" );
       for( size_t i = 1; i < bps.size(); ++i ) {
@@ -722,6 +725,9 @@ namespace eosiosystem {
       eosio::check(is_changed, "None of the BPs EVM votes has been changed");
    }
    void system_contract::setbpevmstat( eosio::name bp ) {
+
+      eosio::check(_gvoting_config.evm_voting_contract != eosio::checksum160(), "EVM voting contract not set");
+
       auto pitr = _producers.find( bp.value );
       eosio::check(pitr != _producers.end(), "BP not found");
 
