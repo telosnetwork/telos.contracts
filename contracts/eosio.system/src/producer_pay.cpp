@@ -351,11 +351,27 @@ namespace eosiosystem {
                 break;
         }
 
-        // if we don't have standbys (21 active or less), don't attempt to calculate for standbys, just do total activecount X 2
-        // if we have standbys, do 42 shares for the top 21 plus 1 share per standby, so 42 plus the total activecount minus 21
-        uint32_t sharecount = activecount <= 21 ? (activecount * 2) : (42 + (activecount - 21));
+        // the multiplier is applied to the shares, and the shares are then multiplied by the share value
+        // the share value is the total amount of the perblock bucket divided by the sum of the multipliers
+        // the sum of the multipliers is the sum of the multipliers for the active producers and the standby producers
+        // The multipliers for the active producers are 1.2, 1.18, ... , 0.82, 0.8 each multiplied by 2, and for the standby producers are 1.2, 1.18, ... , 0.82, 0.8 each multiplied by 1
+        // The multipliers forms a arithmetic sequence with a common difference of -0.02
+        // The sum of arithmetic sequence is given by n/2 * (2 * first term + (n-1) * common difference)
+        // If activecount <= 21, then the sum of the multipliers is given by (activecount)/2 * (2 * 1.2 + (activecount-1) * -0.02) * 2
+        // If activecount > 21, then the sum of the multipliers is given by 42 + ((activecount-21)/2) * (2 * 1.2 + (activecount-22) * -0.02)
+        // 42 is the sum of the multipliers for the first 21 active producers
+        // The sum_of_multipliers are as follows:
+        // activecount = 1: 2.4
+        // activecount = 2: 4.8
+        // activecount = 3: 7.2
+        // ...
+        // activecount = 21: 42
+        // activecount = 22: 43.2
+        // ...
+        // activecount = 42: 63
+        double sum_of_multipliers = activecount <= 21 ? (((activecount)/2)*(2*1.2-(activecount-1)*0.02) * 2) : (42 + ((activecount-21)/2)*(2*1.2-(activecount-22)*0.02));
 
-        auto shareValue = (_gstate.perblock_bucket / sharecount);
+        auto shareValue = (_gstate.perblock_bucket / sum_of_multipliers);
         int32_t index = 0;
 
         for (const auto &prod : sortedprods) {
