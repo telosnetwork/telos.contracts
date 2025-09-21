@@ -2,7 +2,7 @@
 
 #include "eosio.system_tester.hpp"
 
-#define MAX_PRODUCERS 42
+#define MAX_PRODUCERS 35
 
 using namespace eosio_system;
 
