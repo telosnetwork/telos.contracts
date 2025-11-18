@@ -1,0 +1,30 @@
+name: Build contracts
+on:
+  push:
+    branches:
+      - main
+      - "release/*"
+  pull_request:
+    types: [assigned, opened, synchronize, reopened, labeled]
+env:
+  BUILDER_IMAGE: "guilledk/py-leap:cdt-4.0.0"
+jobs:
+  ubuntu-2404-build:
+    name: Ubuntu 24.04 | Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Build
+        run: |
+          set -e
+          export DOCKER="docker run --rm -v $(pwd):/root/target ${BUILDER_IMAGE}"
+          docker pull ${BUILDER_IMAGE}
+          echo ${DOCKER}
+          echo =====
+          mkdir build
+          ${DOCKER} bash -c "cd build && cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=yes .."
+          echo =====
+          ${DOCKER} bash -c "cd build && make -j $(nproc) VERBOSE=1"
+          echo =====
+          ${DOCKER} bash -c 'cd build/tests && ctest -j $(nproc)'
