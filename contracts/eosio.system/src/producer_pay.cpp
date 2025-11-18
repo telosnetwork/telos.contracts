@@ -362,14 +362,17 @@ namespace eosiosystem {
         // 42 is the sum of the multipliers for the first 21 active producers
         // The sum_of_multipliers are as follows:
         // activecount = 1: 2.4
-        // activecount = 2: 4.8
-        // activecount = 3: 7.2
+        // activecount = 2: 4.76
+        // activecount = 3: 7.08
         // ...
         // activecount = 21: 42
         // activecount = 22: 43.2
         // ...
         // activecount = 42: 63
-        double sum_of_multipliers = activecount <= 21 ? (((activecount)/2)*(2*1.2-(activecount-1)*0.02) * 2) : (42 + ((activecount-21)/2)*(2*1.2-(activecount-22)*0.02));
+        // Use double division to avoid integer truncation for odd counts
+        double sum_of_multipliers = activecount <= 21 
+            ? ((activecount / 2.0) * (2.0 * 1.2 - (activecount - 1) * 0.02) * 2.0) 
+            : (42.0 + ((activecount - 21) / 2.0) * (2.0 * 1.2 - (activecount - 22) * 0.02));
 
         auto shareValue = (_gstate.perblock_bucket / sum_of_multipliers);
         int32_t index = 0;
