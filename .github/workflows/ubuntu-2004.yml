@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Build
         run: |
           set -e
@@ -46,12 +46,12 @@ jobs:
             built-contracts
           ls -l built-contracts
       - name: Upload build
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v4
         with:
           name: ubuntu-2004-build
           path: build.tar.gz
       - name: Upload built contracts
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v4
         with:
           name: built-contracts
           path: built-contracts
@@ -61,12 +61,12 @@ jobs:
     needs: ubuntu-2004-build
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           submodules: recursive
           fetch-depth: 0
       - name: Download build
-        uses: actions/download-artifact@v1
+        uses: actions/download-artifact@v4
         with:
           name: ubuntu-2004-build
       - name: Parallel Test

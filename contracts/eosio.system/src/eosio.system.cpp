@@ -11,6 +11,7 @@
 #include <intx/intx.hpp>
 #include <intx/base.hpp>
 #include <rlp/rlp.hpp>
+#include <limits>
 // TELOS END
 #include <cmath>
 
@@ -18,6 +19,22 @@ namespace eosiosystem {
 
    using eosio::current_time_point;
    using eosio::token;
+
+   // TELOS BEGIN - Constants for EVM voting integration
+   namespace evm_voting_constants {
+      // EVM storage slot indices for voting contract state
+      constexpr uint8_t VOTE_STORAGE_SLOT = 3;  // Storage slot for BP vote data
+      constexpr uint8_t STATUS_STORAGE_SLOT = 4; // Storage slot for BP status data
+      
+      // EVM transaction parameters
+      constexpr uint64_t DEFAULT_GAS_LIMIT = 100000ULL; // Default gas limit for EVM transactions
+      
+      // Function selectors (first 4 bytes of keccak256(function signature))
+      constexpr uint8_t SET_DECAY_PARAMS_SELECTOR[4] = {0x5d, 0x32, 0xff, 0x31}; // setDecayParameters
+      constexpr uint8_t REGISTER_BP_SELECTOR[4] = {21, 144, 113, 236}; // registerBP (0x159071ec)
+      constexpr uint8_t UNREGISTER_BP_SELECTOR[4] = {171, 46, 42, 196}; // unregisterBP (0xab2e2ac4)
+   }
+   // TELOS END
 
    double get_continuous_rate(int64_t annual_rate) {
       return std::log1p(double(annual_rate)/double(100*inflation_precision));
@@ -567,17 +584,22 @@ namespace eosiosystem {
    void system_contract::setvotedecay( uint64_t decay_start_epoch, uint64_t decay_increase_yearly ) {
       require_auth(_self);
       eosio::check(_gvoting_config.evm_voting_contract != eosio::checksum160(), "EVM voting contract not set");
+      
+      // Validate decay_start_epoch (0 means disabled, otherwise should be reasonable)
+      // Note: We allow past epochs to support historical data or retroactive settings
+      
+      // Validate decay_increase_yearly is within reasonable bounds (0-100%)
+      eosio::check(decay_increase_yearly <= 100, "decay_increase_yearly must be <= 100 (100%)");
+      
       _gvoting_config.decay_start_epoch = decay_start_epoch;
       _gvoting_config.decay_increase_yearly = decay_increase_yearly;
 
       // Create a EVM TX for to update the status of BP in EVM
       std::array<uint8_t, 68> tx_data{};
-      // Fill the 4-byte checksum of function 0x5d32ff31
-      //    setDecayParameters(uint256 _decayStartEpoch, uint256 _decayIncreaseYearly)
-      tx_data[0] = 0x5d;
-      tx_data[1] = 0x32;
-      tx_data[2] = 0xff;
-      tx_data[3] = 0x31;
+      // Fill the 4-byte function selector for setDecayParameters(uint256, uint256)
+      std::copy(std::begin(evm_voting_constants::SET_DECAY_PARAMS_SELECTOR), 
+                std::end(evm_voting_constants::SET_DECAY_PARAMS_SELECTOR), 
+                tx_data.begin());
 
       // helper – write an uint64 into the last 8 bytes of a 32-byte word
       auto write_u64_be = [](uint8_t* word, uint64_t value) {
@@ -585,7 +607,11 @@ namespace eosiosystem {
             word[31 - i] = static_cast<uint8_t>(value >> (i * 8));
       };
 
-      uint64_t decay_increase_scaled = decay_increase_yearly * 10000000000000000ULL; // 10^16
+      // Check for overflow: decay_increase_yearly * 10^16 must fit in uint64_t
+      constexpr uint64_t SCALE_FACTOR = 10000000000000000ULL; // 10^16
+      eosio::check(decay_increase_yearly <= (std::numeric_limits<uint64_t>::max() / SCALE_FACTOR), 
+                   "decay_increase_yearly too large, would cause overflow");
+      uint64_t decay_increase_scaled = decay_increase_yearly * SCALE_FACTOR;
       write_u64_be(tx_data.data() + 4,  decay_start_epoch);
       write_u64_be(tx_data.data() + 36, decay_increase_scaled);
 
@@ -597,11 +623,11 @@ namespace eosiosystem {
       std::optional<eosio::checksum160> eosio_account_address = eosio_account->address;
       eosio::check(eosio_account != accounts_byaccount.end(),"eosio EVM address not found");
 
-      // REGISTER 159071ec UNREGISTER ab2e2ac4
+      // Encode EVM transaction
       auto tx_hex = rlp::encode(
          uint256_t(eosio_account->nonce), // Nonce
          uint256_t(0), // Gas price
-         uint256_t(100000), // Gas limit
+         uint256_t(evm_voting_constants::DEFAULT_GAS_LIMIT), // Gas limit
          evm_voting_contract_address, // To
          uint256_t(0), // Value
          tx_data, // Data
@@ -627,7 +653,7 @@ namespace eosiosystem {
 
       eosio::check(_gvoting_config.evm_voting_contract != eosio::checksum160(), "EVM voting contract not set");
 
-      check( bps.size() <= 30, "attempt to uodate EVM vote for too many BPs" );
+      check( bps.size() <= 30, "attempt to update EVM vote for too many BPs" );
       for( size_t i = 1; i < bps.size(); ++i ) {
          check( bps[i-1] < bps[i], "list of BPs that need to be updated must be unique and sorted" );
       }
@@ -652,7 +678,9 @@ namespace eosiosystem {
       for (eosio::name bp : bps) {
 
          // Access the vote of the BP in the EVM voting contract internal state
-         std::array<uint8_t, 64> vote_memory_location = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3};
+         // Memory location: 32 bytes of zeros + 32 bytes with storage slot index at position 63
+         std::array<uint8_t, 64> vote_memory_location = {};
+         vote_memory_location[63] = evm_voting_constants::VOTE_STORAGE_SLOT;
          std::array<uint8_t, 8> bp_name_bytes{};
          for (size_t i = 0; i < 8; ++i) {
             bp_name_bytes[7 - i] = static_cast<uint8_t>(bp.value >> (i * 8));
@@ -662,6 +690,7 @@ namespace eosiosystem {
          
          // Get the total votes of the BP
          auto total_votes_of_bp = accounts_states_bykey.find(vote_memory_location_key);
+         eosio::check(total_votes_of_bp != accounts_states_bykey.end(), "BP vote not found in EVM state");
 
          // Search for the BP in the `evmvotes` table
          auto evmvotes_byname = _evm_votes.get_index<eosio::name("byname")>();
@@ -678,7 +707,7 @@ namespace eosiosystem {
             eosio::check( pitr != _producers.end(), "BP not found" );
             _producers.modify( pitr, same_payer, [&]( auto& p ) {
                uint256_t current_vote = eosio_evm::checksum256ToValue(total_votes_of_bp->value);
-               uint256_t current_vote_normalized = current_vote / ten_power_14; // Divide be 1e14
+               uint256_t current_vote_normalized = current_vote / ten_power_14; // Divide by 1e14
                uint64_t current_vote_normalized_u64 = current_vote_normalized.lo.lo;
                p.total_votes += double(current_vote_normalized_u64);
                _gstate.total_producer_vote_weight += double(current_vote_normalized_u64);
@@ -702,16 +731,20 @@ namespace eosiosystem {
             eosio::check( pitr != _producers.end(), "BP not found" );
             _producers.modify( pitr, same_payer, [&]( auto& p ) {
                uint256_t previous_vote = eosio_evm::checksum256ToValue(evm_vote->total_vote);
-               uint256_t previous_vote_normalized = previous_vote / ten_power_14; // Divide be 1e14
+               uint256_t previous_vote_normalized = previous_vote / ten_power_14; // Divide by 1e14
                uint64_t previous_vote_normalized_u64 = previous_vote_normalized.lo.lo;
                uint256_t current_vote = eosio_evm::checksum256ToValue(total_votes_of_bp->value);
-               uint256_t current_vote_normalized = current_vote / ten_power_14; // Divide be 1e14
+               uint256_t current_vote_normalized = current_vote / ten_power_14; // Divide by 1e14
                uint64_t current_vote_normalized_u64 = current_vote_normalized.lo.lo;
-               p.total_votes += double(current_vote_normalized_u64 - previous_vote_normalized_u64);
+               double vote_delta = double(current_vote_normalized_u64 - previous_vote_normalized_u64);
+               p.total_votes += vote_delta;
                if ( p.total_votes < 0 ) {
                   p.total_votes = 0;
                }
-               _gstate.total_producer_vote_weight += double(current_vote_normalized_u64 - previous_vote_normalized_u64);
+               _gstate.total_producer_vote_weight += vote_delta;
+               if ( _gstate.total_producer_vote_weight < 0 ) {
+                  _gstate.total_producer_vote_weight = 0;
+               }
             });
             
             // Apply the updated vote to the existing row
@@ -745,7 +778,9 @@ namespace eosiosystem {
       auto accounts_states_bykey = accounts_states.get_index<eosio::name("bykey")>();
 
       // Access the status of the BP in the EVM voting contract internal state
-      std::array<uint8_t, 64> bp_status_location = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4};
+      // Memory location: 32 bytes of zeros + 32 bytes with storage slot index at position 63
+      std::array<uint8_t, 64> bp_status_location = {};
+      bp_status_location[63] = evm_voting_constants::STATUS_STORAGE_SLOT;
       std::array<uint8_t, 8> bp_name_bytes{};
       for (size_t i = 0; i < 8; ++i) {
          bp_name_bytes[7 - i] = static_cast<uint8_t>(bp.value >> (i * 8));
@@ -755,6 +790,7 @@ namespace eosiosystem {
       
       // Get the status of the BP
       auto status_of_bp = accounts_states_bykey.find(bp_status_location_key);
+      eosio::check(status_of_bp != accounts_states_bykey.end(), "BP status not found in EVM state");
       // Get status of BP in EVM
       bool bp_status_in_evm = status_of_bp->value.extract_as_byte_array()[31];
 
@@ -762,19 +798,17 @@ namespace eosiosystem {
 
       // Create a EVM TX for to update the status of BP in EVM
       std::array<uint8_t, 36> tx_data{};
-      // Fill the 4-byte checksum of function
+      // Fill the 4-byte function selector
       if (pitr->active()) {
-         // Call registerBP 0x159071ec
-         tx_data[0] = 21;
-         tx_data[1] = 144;
-         tx_data[2] = 113;
-         tx_data[3] = 236;
+         // Call registerBP
+         std::copy(std::begin(evm_voting_constants::REGISTER_BP_SELECTOR), 
+                   std::end(evm_voting_constants::REGISTER_BP_SELECTOR), 
+                   tx_data.begin());
       } else {
-         // Call unregisterBP 0xab2e2ac4
-         tx_data[0] = 171;
-         tx_data[1] = 46;
-         tx_data[2] = 42;
-         tx_data[3] = 196;
+         // Call unregisterBP
+         std::copy(std::begin(evm_voting_constants::UNREGISTER_BP_SELECTOR), 
+                   std::end(evm_voting_constants::UNREGISTER_BP_SELECTOR), 
+                   tx_data.begin());
       }
       std::copy(std::begin(bp_name_bytes), std::end(bp_name_bytes), tx_data.begin() + 28);
       // Get eosio EVM address nonce
@@ -783,11 +817,11 @@ namespace eosiosystem {
       std::optional<eosio::checksum160> eosio_account_address = eosio_account->address;
       eosio::check(eosio_account != accounts_byaccount.end(),"eosio EVM address not found");
 
-      // REGISTER 159071ec UNREGISTER ab2e2ac4
+      // Encode EVM transaction
       auto tx_hex = rlp::encode(
          uint256_t(eosio_account->nonce), // Nonce
          uint256_t(0), // Gas price
-         uint256_t(100000), // Gas limit
+         uint256_t(evm_voting_constants::DEFAULT_GAS_LIMIT), // Gas limit
          evm_voting_contract_address, // To
          uint256_t(0), // Value
          tx_data, // Data
@@ -807,6 +841,7 @@ namespace eosiosystem {
       
    void system_contract::setselfstake( uint64_t self_stake_boost_multiplier ) {
       require_auth(_self);
+      eosio::check(self_stake_boost_multiplier <= 1000, "self_stake_boost_multiplier must be <= 1000");
       _gvoting_config.self_stake_boost_multiplier = self_stake_boost_multiplier;
    }
    // TELOS END
