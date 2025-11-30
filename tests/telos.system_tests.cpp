@@ -1,4 +1,5 @@
 #include <boost/test/unit_test.hpp>
+#include <cmath>
 
 #include "eosio.system_tester.hpp"
 
@@ -198,9 +199,12 @@ BOOST_FIXTURE_TEST_CASE(producer_pay, eosio_system_tester, * boost::unit_test::t
       auto usecs_between_fills = claim_time - initial_claim_time;
       int32_t secs_between_fills = usecs_between_fills / 1000000;
 
-      const double bpay_rate_percent = bpay_rate / double(100000);
+      // Replicate contract's dynamic price-based calculation
+      // In test environment, TLOS price defaults to 1 (matches contract fallback when oracle data unavailable)
+      uint64_t tlos_price = 1;  // Default price (matches contract's get_telos_average_price() fallback)
       auto to_workers = static_cast<int64_t>((12 * double(worker_amount) * double(usecs_between_fills)) / double(usecs_per_year));
-      auto to_producers = static_cast<int64_t>((bpay_rate_percent * double(initial_supply.get_amount()) * double(usecs_between_fills)) / double(usecs_per_year));
+      double bp_pay_per_month = std::min((double(378000) * std::pow(tlos_price/10000.0,-0.516)),double(882000)) * 10000;
+      auto to_producers = static_cast<int64_t>((bp_pay_per_month * 12 * double(usecs_between_fills)) / double(usecs_per_year));
 
       prod = get_producer_info("defproducera");
       asset to_bpay = asset(to_producers, symbol{CORE_SYM});
@@ -216,7 +220,11 @@ BOOST_FIXTURE_TEST_CASE(producer_pay, eosio_system_tester, * boost::unit_test::t
       BOOST_REQUIRE_EQUAL(supply, initial_supply);
       BOOST_REQUIRE_EQUAL(get_balance("exrsrv.tf"_n), initial_tedp_balance - new_tokens);
       const asset payment = get_payment_info("defproducera"_n)["pay"].as<asset>();
-      BOOST_REQUIRE_EQUAL(payment, to_bpay);
+      // Allow small tolerance (1 unit = 0.0001 TLOS) for floating point rounding differences
+      int64_t diff = payment.get_amount() - to_bpay.get_amount();
+      BOOST_REQUIRE_MESSAGE(diff >= -1 && diff <= 1, 
+                            "Payment amount differs from expected by more than 1 unit. Payment: " + 
+                            payment.to_string() + ", Expected: " + to_bpay.to_string());
       const asset initial_prod_balance = get_balance("defproducera"_n);
       push_action("defproducera"_n, "claimrewards"_n, mvo()("owner", "defproducera"));
 
@@ -317,9 +325,12 @@ BOOST_FIXTURE_TEST_CASE(multi_producer_pay, eosio_system_tester, * boost::unit_t
       auto usecs_between_fills = claim_time - initial_claim_time;
       int32_t secs_between_fills = usecs_between_fills / 1000000;
 
-      const double bpay_rate_percent = bpay_rate / double(100000);
+      // Replicate contract's dynamic price-based calculation
+      // In test environment, TLOS price defaults to 1 (matches contract fallback when oracle data unavailable)
+      uint64_t tlos_price = 1;  // Default price (matches contract's get_telos_average_price() fallback)
       auto to_workers = static_cast<int64_t>((12 * double(worker_amount) * double(usecs_between_fills)) / double(usecs_per_year));
-      auto to_producers = static_cast<int64_t>((bpay_rate_percent * double(initial_supply.get_amount()) * double(usecs_between_fills)) / double(usecs_per_year));
+      double bp_pay_per_month = std::min((double(378000) * std::pow(tlos_price/10000.0,-0.516)),double(882000)) * 10000;
+      auto to_producers = static_cast<int64_t>((bp_pay_per_month * 12 * double(usecs_between_fills)) / double(usecs_per_year));
 
       asset to_bpay = asset(to_producers, symbol{CORE_SYM});
       asset to_wps = asset(to_workers, symbol{CORE_SYM});
