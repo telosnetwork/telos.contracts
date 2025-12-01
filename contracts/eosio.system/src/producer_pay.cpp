@@ -4,7 +4,7 @@
 #include <eosio.tedp/eosio.tedp.hpp>
 #include <delphioracle/delphioracle.hpp>
 #include "system_kick.cpp"
-#define MAX_PRODUCERS 42     // revised for TEDP 2 Phase 2, also set in system_rotation.cpp, change in both places
+#define MAX_PRODUCERS 35     // revised for TEDP 2 Phase 2, also set in system_rotation.cpp, change in both places
 // TELOS END
 
 namespace eosiosystem {
@@ -368,7 +368,7 @@ namespace eosiosystem {
         // activecount = 21: 42
         // activecount = 22: 43.2
         // ...
-        // activecount = 42: 63
+        // activecount = 35: 56.98
         // Use double division to avoid integer truncation for odd counts
         double sum_of_multipliers = activecount <= 21 
             ? ((activecount / 2.0) * (2.0 * 1.2 - (activecount - 1) * 0.02) * 2.0) 
@@ -389,7 +389,7 @@ namespace eosiosystem {
                 // Applying tiered BP pay multiplier for active BPs (rank 1st until 21st) [1.2, 1.18, ... , 0.82, 0.8] multiplied by 2
                 pay_amount = (shareValue * int64_t(2) * ((122-2*index)/100.0));
             } else if (index >= 22 && index <= MAX_PRODUCERS) {
-                // Applying tiered BP pay multiplier for standby BPs (rank 22nd until 42nd) [1.2, 1.18, ... , 0.82, 0.8] multiplied by 1
+                // Applying tiered BP pay multiplier for standby BPs (rank 22nd until 35th) [1.2, 1.18, ... , 0.96, 0.94] multiplied by 1
                 pay_amount = shareValue * ((164-2*index)/100.0);
             } else 
                 break;
