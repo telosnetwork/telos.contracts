@@ -203,7 +203,7 @@ BOOST_FIXTURE_TEST_CASE(producer_pay, eosio_system_tester, * boost::unit_test::t
       // In test environment, TLOS price defaults to 1 (matches contract fallback when oracle data unavailable)
       uint64_t tlos_price = 1;  // Default price (matches contract's get_telos_average_price() fallback)
       auto to_workers = static_cast<int64_t>((12 * double(worker_amount) * double(usecs_between_fills)) / double(usecs_per_year));
-      double bp_pay_per_month = std::min((double(378000) * std::pow(tlos_price/10000.0,-0.516)),double(882000)) * 10000;
+      double bp_pay_per_month = std::min((double(189000) * std::pow(tlos_price/10000.0,-0.516)),double(315000)) * 10000;
       auto to_producers = static_cast<int64_t>((bp_pay_per_month * 12 * double(usecs_between_fills)) / double(usecs_per_year));
 
       prod = get_producer_info("defproducera");
@@ -329,7 +329,7 @@ BOOST_FIXTURE_TEST_CASE(multi_producer_pay, eosio_system_tester, * boost::unit_t
       // In test environment, TLOS price defaults to 1 (matches contract fallback when oracle data unavailable)
       uint64_t tlos_price = 1;  // Default price (matches contract's get_telos_average_price() fallback)
       auto to_workers = static_cast<int64_t>((12 * double(worker_amount) * double(usecs_between_fills)) / double(usecs_per_year));
-      double bp_pay_per_month = std::min((double(378000) * std::pow(tlos_price/10000.0,-0.516)),double(882000)) * 10000;
+      double bp_pay_per_month = std::min((double(189000) * std::pow(tlos_price/10000.0,-0.516)),double(315000)) * 10000;
       auto to_producers = static_cast<int64_t>((bp_pay_per_month * 12 * double(usecs_between_fills)) / double(usecs_per_year));
 
       asset to_bpay = asset(to_producers, symbol{CORE_SYM});
@@ -348,34 +348,47 @@ BOOST_FIXTURE_TEST_CASE(multi_producer_pay, eosio_system_tester, * boost::unit_t
          BOOST_REQUIRE(!prod_info.is_null());
       }
 
-      uint32_t sharecount = 0;
-      i = 0;
+      // Count active producers (matching contract logic)
+      uint32_t activecount = 0;
       for (const auto &prod : producer_infos) {
-         if (prod["is_active"].as<bool>()) {
-               if (i < 21) {
-                  sharecount += 2;
-               } else if (i >= 21 && i <= MAX_PRODUCERS) {
-                  sharecount++;
-               } else
-                  break;
+         if (prod["is_active"].as<bool>() && activecount < MAX_PRODUCERS) {
+            activecount++;
+         } else {
+            break;
          }
-         i++;
       }
 
-      auto shareValue = to_producers / sharecount;
+      // Calculate sum_of_multipliers using contract's formula
+      double sum_of_multipliers = activecount <= 21 
+         ? ((activecount / 2.0) * (2.0 * 1.2 - (activecount - 1) * 0.02) * 2.0) 
+         : (42.0 + ((activecount - 21) / 2.0) * (2.0 * 1.2 - (activecount - 22) * 0.02));
+
+      // Calculate shareValue using perblock_bucket (which equals to_producers after snapshot)
+      auto shareValue = to_producers / sum_of_multipliers;
 
       int producer_count = 0;
+      int32_t index = 0;
       for(const auto &prod : producer_infos) {
          //std::cout << producer_count << std::endl;
          //std::cout << "producer_info: " << prod << std::endl;
-         if(producer_count < producer_amount) {
+         if(producer_count < producer_amount && prod["is_active"].as<bool>()) {
+            index++;
             BOOST_REQUIRE_EQUAL(0, prod["unpaid_blocks"].as<uint32_t>());
             const asset balance = get_balance(prod["owner"].as<name>());
             const fc::variant payout_info = get_payment_info(prod["owner"].as<name>());
             BOOST_REQUIRE(!payout_info.is_null());
             const asset payment = payout_info["pay"].as<asset>();
 
-            BOOST_REQUIRE_EQUAL(payment, asset(shareValue * ((producer_count < 21) ? 2 : 1), symbol{CORE_SYM}));
+            // Calculate expected payment using contract's tiered multiplier formula
+            int64_t expected_pay = 0;
+            if (index <= 21) {
+               // Active BPs: shareValue * 2 * ((122-2*index)/100.0)
+               expected_pay = static_cast<int64_t>(shareValue * 2.0 * ((122.0 - 2.0 * index) / 100.0));
+            } else if (index >= 22 && index <= MAX_PRODUCERS) {
+               // Standby BPs: shareValue * ((164-2*index)/100.0)
+               expected_pay = static_cast<int64_t>(shareValue * ((164.0 - 2.0 * index) / 100.0));
+            }
+            BOOST_REQUIRE_EQUAL(payment, asset(expected_pay, symbol{CORE_SYM}));
             push_action(prod["owner"].as<name>(), "claimrewards"_n, mvo()("owner", prod["owner"].as<name>()));
             BOOST_REQUIRE_EQUAL(get_balance(prod["owner"].as<name>()), balance + payment);
             BOOST_REQUIRE_EQUAL(claim_time, microseconds_since_epoch_of_iso_string( prod["last_claim_time"] ));
