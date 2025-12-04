@@ -374,7 +374,7 @@ namespace eosiosystem {
             ? ((activecount / 2.0) * (2.0 * 1.2 - (activecount - 1) * 0.02) * 2.0) 
             : (42.0 + ((activecount - 21) / 2.0) * (2.0 * 1.2 - (activecount - 22) * 0.02));
 
-        auto shareValue = (_gstate.perblock_bucket / sum_of_multipliers);
+        double shareValue = (double(_gstate.perblock_bucket) / sum_of_multipliers);
         int32_t index = 0;
 
         for (const auto &prod : sortedprods) {
@@ -387,10 +387,10 @@ namespace eosiosystem {
 
             if (index <= 21) {
                 // Applying tiered BP pay multiplier for active BPs (rank 1st until 21st) [1.2, 1.18, ... , 0.82, 0.8] multiplied by 2
-                pay_amount = (shareValue * int64_t(2) * ((122-2*index)/100.0));
+                pay_amount = static_cast<int64_t>(shareValue * 2.0 * ((122.0 - 2.0 * index) / 100.0));
             } else if (index >= 22 && index <= MAX_PRODUCERS) {
                 // Applying tiered BP pay multiplier for standby BPs (rank 22nd until 35th) [1.2, 1.18, ... , 0.96, 0.94] multiplied by 1
-                pay_amount = shareValue * ((164-2*index)/100.0);
+                pay_amount = static_cast<int64_t>(shareValue * ((164.0 - 2.0 * index) / 100.0));
             } else 
                 break;
 
