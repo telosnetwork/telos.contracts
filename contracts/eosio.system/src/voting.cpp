@@ -127,6 +127,7 @@ namespace eosiosystem {
       _gstate.last_producer_schedule_update = block_time;
 
       auto idx = _producers.get_index<"prototalvote"_n>();
+      bool is_savanna = is_savanna_consensus();
 
       // TELOS BEGIN
       uint32_t totalActiveVotedProds = uint32_t(std::distance(idx.begin(), idx.end()));
@@ -136,6 +137,10 @@ namespace eosiosystem {
       active_producers.reserve(totalActiveVotedProds);
 
       for( auto it = idx.cbegin(); it != idx.cend() && active_producers.size() < totalActiveVotedProds /*TELOS*/ && 0 < it->total_votes && it->active(); ++it ) {
+         if( is_savanna && !has_active_finalizer_key(it->owner) ) {
+            continue;
+         }
+
          active_producers.emplace_back(
             eosio::producer_authority{
                .producer_name = it->owner,
@@ -181,6 +186,10 @@ namespace eosiosystem {
         _gschedule_metrics.producers_metric = psm;
 
         _gstate.last_producer_schedule_size = static_cast<decltype(_gstate.last_producer_schedule_size)>(top_producers.size());
+      }
+
+      if( is_savanna ) {
+         set_proposed_finalizers( get_finalizers_for_producers(top_producers) );
       }
       // TELOS END
    }

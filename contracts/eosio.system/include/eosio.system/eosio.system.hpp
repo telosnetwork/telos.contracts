@@ -7,6 +7,7 @@
 #include <eosio/singleton.hpp>
 #include <eosio/system.hpp>
 #include <eosio/time.hpp>
+#include <eosio/instant_finality.hpp>
 
 #include <eosio.system/exchange_state.hpp>
 #include <eosio.system/native.hpp>
@@ -426,6 +427,75 @@ namespace eosiosystem {
       // explicit serialization macro is not necessary, used here only to improve compilation time
       EOSLIB_SERIALIZE( producer_info2, (owner)(votepay_share)(last_votepay_share_update) )
    };
+
+   // finalizer_key_info stores information about a finalizer key.
+   struct [[eosio::table("finkeys"), eosio::contract("eosio.system")]] finalizer_key_info {
+      uint64_t          id;                   // automatically generated ID for the key in the table
+      name              finalizer_name;       // name of the finalizer owning the key
+      std::string       finalizer_key;        // finalizer key in base64url format
+      std::vector<char> finalizer_key_binary; // finalizer key in binary format in Affine little endian non-montgomery g1
+
+      uint64_t          primary_key() const { return id; }
+      uint64_t          by_fin_name() const { return finalizer_name.value; }
+      eosio::checksum256 by_fin_key() const { return eosio::sha256(finalizer_key_binary.data(), finalizer_key_binary.size()); }
+
+      bool is_active(uint64_t finalizer_active_key_id) const { return id == finalizer_active_key_id; }
+   };
+
+   typedef eosio::multi_index<
+      "finkeys"_n, finalizer_key_info,
+      indexed_by<"byfinname"_n, const_mem_fun<finalizer_key_info, uint64_t, &finalizer_key_info::by_fin_name>>,
+      indexed_by<"byfinkey"_n, const_mem_fun<finalizer_key_info, eosio::checksum256, &finalizer_key_info::by_fin_key>>
+   > finalizer_keys_table;
+
+   // finalizer_info stores information about a finalizer.
+   struct [[eosio::table("finalizers"), eosio::contract("eosio.system")]] finalizer_info {
+      name              finalizer_name;           // finalizer's name
+      uint64_t          active_key_id;            // finalizer's active finalizer key's id in finalizer_keys_table
+      std::vector<char> active_key_binary;        // active finalizer key in binary format
+      uint32_t          finalizer_key_count = 0;  // number of finalizer keys registered by this finalizer
+
+      uint64_t primary_key() const { return finalizer_name.value; }
+   };
+
+   typedef eosio::multi_index< "finalizers"_n, finalizer_info > finalizers_table;
+
+   // finalizer_auth_info stores a finalizer's key id and its finalizer authority.
+   struct finalizer_auth_info {
+      finalizer_auth_info() = default;
+      explicit finalizer_auth_info(const finalizer_info& finalizer);
+
+      uint64_t                   key_id;
+      eosio::finalizer_authority fin_authority;
+
+      bool operator==(const finalizer_auth_info& other) const {
+         return key_id == other.key_id &&
+                fin_authority.public_key == other.fin_authority.public_key;
+      }
+
+      EOSLIB_SERIALIZE( finalizer_auth_info, (key_id)(fin_authority) )
+   };
+
+   // A single entry storing information about last proposed finalizers.
+   struct [[eosio::table("lastpropfins"), eosio::contract("eosio.system")]] last_prop_finalizers_info {
+      std::vector<finalizer_auth_info> last_proposed_finalizers; // sorted by ascending finalizer key id
+
+      uint64_t primary_key() const { return 0; }
+
+      EOSLIB_SERIALIZE( last_prop_finalizers_info, (last_proposed_finalizers) )
+   };
+
+   typedef eosio::multi_index< "lastpropfins"_n, last_prop_finalizers_info > last_prop_fins_table;
+
+   // A single entry storing next available finalizer key_id so IDs are never reused.
+   struct [[eosio::table("finkeyidgen"), eosio::contract("eosio.system")]] fin_key_id_generator_info {
+      uint64_t next_finalizer_key_id = 0;
+      uint64_t primary_key() const { return 0; }
+
+      EOSLIB_SERIALIZE( fin_key_id_generator_info, (next_finalizer_key_id) )
+   };
+
+   typedef eosio::multi_index< "finkeyidgen"_n, fin_key_id_generator_info > fin_key_id_gen_table;
 
    // Voter info. Voter info stores information about the voter:
    // - `owner` the voter
@@ -903,6 +973,11 @@ namespace eosiosystem {
          voters_table             _voters;
          producers_table          _producers;
          producers_table2         _producers2;
+         finalizer_keys_table     _finalizer_keys;
+         finalizers_table         _finalizers;
+         last_prop_fins_table     _last_prop_finalizers;
+         std::optional<std::vector<finalizer_auth_info>> _last_prop_finalizers_cached;
+         fin_key_id_gen_table     _fin_key_id_generator;
          global_state_singleton   _global;
          global_state2_singleton  _global2;
          global_state3_singleton  _global3;
@@ -1411,9 +1486,46 @@ namespace eosiosystem {
           *
           * Deactivate the block producer with account name `producer`.
           * @param producer - the block producer account to unregister.
-          */
+         */
          [[eosio::action]]
          void unregprod( const name& producer );
+
+         /**
+          * Permanently transition to Savanna consensus by establishing the first finalizer policy.
+          *
+          * @pre Requires authority of the system contract.
+          * @pre The current Telos producer schedule must have active finalizer keys.
+          */
+         [[eosio::action]]
+         void switchtosvnn();
+
+         /**
+          * Register a BLS finalizer key for a registered producer.
+          *
+          * @param finalizer_name - producer account registering the finalizer key.
+          * @param finalizer_key - public finalizer key in base64url format.
+          * @param proof_of_possession - proof of possession signature in base64url format.
+          */
+         [[eosio::action]]
+         void regfinkey( const name& finalizer_name, const std::string& finalizer_key, const std::string& proof_of_possession );
+
+         /**
+          * Activate a registered finalizer key.
+          *
+          * @param finalizer_name - producer account activating the finalizer key.
+          * @param finalizer_key - registered public finalizer key.
+          */
+         [[eosio::action]]
+         void actfinkey( const name& finalizer_name, const std::string& finalizer_key );
+
+         /**
+          * Delete a registered finalizer key.
+          *
+          * @param finalizer_name - producer account deleting the finalizer key.
+          * @param finalizer_key - registered public finalizer key.
+          */
+         [[eosio::action]]
+         void delfinkey( const name& finalizer_name, const std::string& finalizer_key );
 
          /**
           * Set ram action sets the ram supply.
@@ -1789,10 +1901,20 @@ namespace eosiosystem {
          void update_votes( const name& voter, const name& proxy, const std::vector<name>& producers, bool voting );
          void propagate_weight_change( const voter_info& voter );
          double update_producer_votepay_share( const producers_table2::const_iterator& prod_itr,
-                                               const time_point& ct,
-                                               double shares_rate, bool reset_to_zero = false );
+                                                const time_point& ct,
+                                                double shares_rate, bool reset_to_zero = false );
          double update_total_votepay_share( const time_point& ct,
                                             double additional_shares_delta = 0.0, double shares_rate_delta = 0.0 );
+
+         // defined in finalizer_key.cpp
+         bool is_savanna_consensus();
+         bool has_active_finalizer_key( const name& producer ) const;
+         void set_proposed_finalizers( std::vector<finalizer_auth_info> finalizers );
+         const std::vector<finalizer_auth_info>& get_last_proposed_finalizers();
+         uint64_t get_next_finalizer_key_id();
+         finalizers_table::const_iterator get_finalizer_itr( const name& finalizer_name ) const;
+         std::vector<finalizer_auth_info> get_finalizers_for_producers( const std::vector<producer_location_pair>& producers ) const;
+         std::vector<producer_location_pair> get_last_scheduled_producers() const;
 
          template <auto system_contract::*...Ptrs>
          class registration {
