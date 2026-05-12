@@ -134,6 +134,25 @@ namespace eosiosystem {
       return proposed_finalizers;
    }
 
+   bool system_contract::active_schedule_matches_last_scheduled_producers( const std::vector<name>& active_schedule ) const {
+      if( active_schedule.size() != _gschedule_metrics.producers_metric.size() ) {
+         return false;
+      }
+
+      std::vector<name> sorted_active_schedule = active_schedule;
+      std::vector<name> sorted_scheduled_producers;
+      sorted_scheduled_producers.reserve(_gschedule_metrics.producers_metric.size());
+
+      for( const auto& metric: _gschedule_metrics.producers_metric ) {
+         sorted_scheduled_producers.emplace_back(metric.bp_name);
+      }
+
+      std::sort(sorted_active_schedule.begin(), sorted_active_schedule.end());
+      std::sort(sorted_scheduled_producers.begin(), sorted_scheduled_producers.end());
+
+      return sorted_active_schedule == sorted_scheduled_producers;
+   }
+
    std::vector<producer_location_pair> system_contract::get_last_scheduled_producers() const {
       std::vector<producer_location_pair> scheduled_producers;
       scheduled_producers.reserve(_gschedule_metrics.producers_metric.size());
@@ -164,6 +183,12 @@ namespace eosiosystem {
       const auto scheduled_producers = get_last_scheduled_producers();
       check( scheduled_producers.size() == _gstate.last_producer_schedule_size,
              "Telos scheduled producer metrics do not match last producer schedule size" );
+
+      const auto active_schedule = eosio::get_active_producers();
+      check( active_schedule.size() == _gstate.last_producer_schedule_size,
+             "active producer schedule size does not match last producer schedule size" );
+      check( active_schedule_matches_last_scheduled_producers(active_schedule),
+             "active producer schedule does not match Telos scheduled producer metrics" );
 
       auto proposed_finalizers = get_finalizers_for_producers(scheduled_producers);
       check( proposed_finalizers.size() == _gstate.last_producer_schedule_size,

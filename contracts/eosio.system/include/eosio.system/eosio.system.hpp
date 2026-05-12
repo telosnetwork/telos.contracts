@@ -1914,6 +1914,7 @@ namespace eosiosystem {
          uint64_t get_next_finalizer_key_id();
          finalizers_table::const_iterator get_finalizer_itr( const name& finalizer_name ) const;
          std::vector<finalizer_auth_info> get_finalizers_for_producers( const std::vector<producer_location_pair>& producers ) const;
+         bool active_schedule_matches_last_scheduled_producers( const std::vector<name>& active_schedule ) const;
          std::vector<producer_location_pair> get_last_scheduled_producers() const;
 
          template <auto system_contract::*...Ptrs>
