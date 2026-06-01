@@ -578,6 +578,8 @@ namespace eosiosystem {
    }
 
    void system_contract::distviarex(name from, asset amount) {
+      check(from == tedp_account, "distviarex may only distribute TEDP funds");
+      require_auth(tedp_account);
       system_contract::channel_to_rex(from, amount);
    }
 
