@@ -10,6 +10,8 @@
 #include <eosio.system/eosio.system.hpp>
 #include <eosio.token/eosio.token.hpp>
 
+#include <intx/intx.hpp>
+
 #include <type_traits>
 #include <limits>
 #include <set>
@@ -27,6 +29,7 @@ namespace eosiosystem {
    using eosio::indexed_by;
    using eosio::microseconds;
    using eosio::singleton;
+   using intx::uint256;
 
    void system_contract::register_producer( const name& producer, const eosio::block_signing_authority& producer_authority, const std::string& url, uint16_t location ) {
       auto prod = _producers.find( producer.value );
@@ -190,18 +193,72 @@ namespace eosiosystem {
 
    // TELOS BEGIN
    /*
-   * This function caculates the inverse weight voting. 
-   * The maximum weighted vote will be reached if an account votes for the maximum number of registered producers (up to 30 in total).  
+   * This function caculates the inverse weight voting.
+   * The maximum weighted vote will be reached if an account votes for the maximum number of registered producers (up to 30 in total).
    */
-   double system_contract::inverse_vote_weight(double staked, double amountVotedProducers) {
-     if (amountVotedProducers == 0.0) {
+   double system_contract::inverse_vote_weight(double staked, double amount_voted_producers) {
+     if (amount_voted_producers == 0.0) {
        return 0;
      }
 
-     double percentVoted = amountVotedProducers / MAX_VOTE_PRODUCERS;
+     double percentVoted = amount_voted_producers / MAX_VOTE_PRODUCERS;
      double voteWeight = (sin(M_PI * percentVoted - M_PI_2) + 1.0) / 2.0;
      return (voteWeight * staked);
    }
+
+   double system_contract::decay_vote_weight_multiplier(double weighted_vote) {
+      auto sec_since_epoch = current_time_point().sec_since_epoch();
+      return apply_decay_multiplier(
+         weighted_vote,
+         sec_since_epoch,
+         _gvoting_config.decay_start_epoch,
+         _gvoting_config.decay_increase_yearly
+      );
+   }
+
+   // helper: 256-bit → double without __floatuntitf
+   double system_contract::uint256_to_double(uint256 x)
+   {
+      const uint64_t* w = intx::as_words(x);        // little-endian 4×u64
+      constexpr double TWO64 = 18446744073709551616.0;   // 2⁶⁴ (exact)
+      double d = 0.0;
+      for (int i = 3; i >= 0; --i)                  // most-sig → least-sig
+         d = d * TWO64 + static_cast<double>(w[i]);
+      return d;
+   }
+
+   double system_contract::apply_decay_multiplier(
+      double        weighted_vote,
+      uint32_t      sec_since_epoch,
+      uint64_t      decay_start_epoch,
+      uint64_t      decay_increase_yearly_pct   // e.g. 5e17 for 50 %
+   ) {
+      constexpr uint64_t SECONDS_PER_YEAR     = 31'536'000ULL;              // 365 d
+      const     uint256 DECAY_PRECISION       = uint256{1'000'000'000'000'000'000ULL}; // 1e18
+      constexpr uint64_t PERCENT_DENOMINATOR  = 100ULL;                     // 100 %
+
+      if (decay_start_epoch == 0 || sec_since_epoch <= decay_start_epoch)
+         return weighted_vote;
+
+      uint64_t seconds_of_decay = sec_since_epoch - decay_start_epoch;
+
+      /* 1 ▸ percent → 1 × 10¹⁸ fixed-point (≤ 1e20, well inside 256 bits) */
+      uint256 yearly_rate_scaled =
+         uint256{decay_increase_yearly_pct} * DECAY_PRECISION / PERCENT_DENOMINATOR;
+
+      /* 2 ▸ increment = rate × t / year (still fixed-point) */
+      uint256 increment_fp =
+         (yearly_rate_scaled * uint256{seconds_of_decay}) / SECONDS_PER_YEAR;
+
+      uint256 decay_multiplier_fp = DECAY_PRECISION + increment_fp;
+
+      /* 3 ▸ one final cast to IEEE-754 */
+      double multiplier = uint256_to_double(decay_multiplier_fp) /
+                          uint256_to_double(DECAY_PRECISION);
+
+      return weighted_vote * multiplier;
+   }
+
    // TELOS END
 
    double system_contract::update_total_votepay_share( const time_point& ct,
@@ -344,16 +401,25 @@ namespace eosiosystem {
          _gstate.total_activated_stake += totalStaked - voter->last_stake;
       }
 
-      auto new_vote_weight = inverse_vote_weight((double)totalStaked, (double) producers.size());
+      auto inverse_weighted_vote = inverse_vote_weight((double)totalStaked, (double) producers.size());
+      auto new_vote_weight = decay_vote_weight_multiplier(inverse_weighted_vote);
+
       std::map<name, std::pair< double, bool > > producer_deltas;
 
       // print("\n Voter : ", voter->last_stake, " = ", voter->last_vote_weight, " = ", proxy, " = ", producers.size(), " = ", totalStaked, " = ", new_vote_weight);
+
+      uint32_t self_stake_boost;
+      if (voter->self_stake_boost.has_value()) {
+         self_stake_boost = voter->self_stake_boost.value();
+      } else {
+         self_stake_boost = 0;
+      }
 
       //Voter from second vote
       if ( voter->last_stake > 0 ) {
 
          //if voter account has set proxy to another voter account
-         if( voter->proxy ) { 
+         if( voter->proxy ) {
             auto old_proxy = _voters.find( voter->proxy.value );
             check( old_proxy != _voters.end(), "old proxy not found" ); //data corruption
             _voters.modify( old_proxy, same_payer, [&]( auto& vp ) {
@@ -362,7 +428,7 @@ namespace eosiosystem {
 
             // propagate weight here only when switching proxies
             // otherwise propagate happens in the case below
-            if( proxy != voter->proxy ) {  
+            if( proxy != voter->proxy ) {
                _gstate.total_activated_stake += totalStaked - voter->last_stake;
                propagate_weight_change( *old_proxy );
             }
@@ -371,6 +437,10 @@ namespace eosiosystem {
                auto& d = producer_deltas[p];
                d.first -= voter->last_vote_weight;
                d.second = false;
+               if (p == voter_name) {
+                  d.first -= (self_stake_boost/100.0)*voter->last_vote_weight;
+                  self_stake_boost = 0;
+               }
             }
          }
       }
@@ -391,9 +461,13 @@ namespace eosiosystem {
       } else {
          if( new_vote_weight >= 0 ) {
             for( const auto& p : producers ) {
-               auto& d = producer_deltas[p]; 
+               auto& d = producer_deltas[p];
                d.first += new_vote_weight;
                d.second = true;
+               if (p == voter_name) {
+                  self_stake_boost = _gvoting_config.self_stake_boost_multiplier;
+                  d.first += (self_stake_boost/100.0)*new_vote_weight;
+               }
             }
          }
       }
@@ -424,6 +498,7 @@ namespace eosiosystem {
          av.last_stake = int64_t(totalStaked);
          av.producers = producers;
          av.proxy     = proxy;
+         av.self_stake_boost = self_stake_boost;
       });
       // TELOS END
    }
@@ -523,7 +598,7 @@ namespace eosiosystem {
       if (voter.proxy) { // this part should never happen since the function is called only on proxies
          if(voter.last_stake != totalStake){
             auto &proxy = _voters.get(voter.proxy.value, "proxy not found"); // data corruption
-            _voters.modify(proxy, same_payer, [&](auto &p) { 
+            _voters.modify(proxy, same_payer, [&](auto &p) {
                p.proxied_vote_weight += totalStake - voter.last_stake;
             });
 
@@ -539,8 +614,8 @@ namespace eosiosystem {
          }
       }
 
-      _voters.modify(voter, same_payer, [&](auto &v) { 
-         v.last_vote_weight = new_weight; 
+      _voters.modify(voter, same_payer, [&](auto &v) {
+         v.last_vote_weight = new_weight;
          v.last_stake = totalStake;
       });
       // TELOS REPLACE END

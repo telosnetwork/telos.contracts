@@ -4,7 +4,7 @@
 #include <eosio.tedp/eosio.tedp.hpp>
 #include <delphioracle/delphioracle.hpp>
 #include "system_kick.cpp"
-#define MAX_PRODUCERS 42     // revised for TEDP 2 Phase 2, also set in system_rotation.cpp, change in both places
+#define MAX_PRODUCERS 35     // revised for TEDP 2 Phase 2, also set in system_rotation.cpp, change in both places
 // TELOS END
 
 namespace eosiosystem {
@@ -292,7 +292,7 @@ namespace eosiosystem {
             // TELOS BEGIN
             uint64_t tlos_price = get_telos_average_price();
             auto to_workers = static_cast<int64_t>((12 * double(_gpayrate.worker_amount) * double(usecs_since_last_fill)) / double(useconds_per_year));
-            double bp_pay_per_month = std::min((double(378000) * std::pow(tlos_price/10000.0,-0.516)),double(882000)) * 10000;
+            double bp_pay_per_month = std::min((double(189000) * std::pow(tlos_price/10000.0,-0.516)),double(315000)) * 10000;
             auto to_producers = static_cast<int64_t>((bp_pay_per_month * 12 * double(usecs_since_last_fill)) / double(useconds_per_year));
             // TELOS END
             auto new_tokens = to_workers + to_producers;
@@ -351,11 +351,30 @@ namespace eosiosystem {
                 break;
         }
 
-        // if we don't have standbys (21 active or less), don't attempt to calculate for standbys, just do total activecount X 2
-        // if we have standbys, do 42 shares for the top 21 plus 1 share per standby, so 42 plus the total activecount minus 21
-        uint32_t sharecount = activecount <= 21 ? (activecount * 2) : (42 + (activecount - 21));
+        // the multiplier is applied to the shares, and the shares are then multiplied by the share value
+        // the share value is the total amount of the perblock bucket divided by the sum of the multipliers
+        // the sum of the multipliers is the sum of the multipliers for the active producers and the standby producers
+        // The multipliers for the active producers are 1.2, 1.18, ... , 0.82, 0.8 each multiplied by 2, and for the standby producers are 1.2, 1.18, ... , 0.82, 0.8 each multiplied by 1
+        // The multipliers forms a arithmetic sequence with a common difference of -0.02
+        // The sum of arithmetic sequence is given by n/2 * (2 * first term + (n-1) * common difference)
+        // If activecount <= 21, then the sum of the multipliers is given by (activecount)/2 * (2 * 1.2 + (activecount-1) * -0.02) * 2
+        // If activecount > 21, then the sum of the multipliers is given by 42 + ((activecount-21)/2) * (2 * 1.2 + (activecount-22) * -0.02)
+        // 42 is the sum of the multipliers for the first 21 active producers
+        // The sum_of_multipliers are as follows:
+        // activecount = 1: 2.4
+        // activecount = 2: 4.76
+        // activecount = 3: 7.08
+        // ...
+        // activecount = 21: 42
+        // activecount = 22: 43.2
+        // ...
+        // activecount = 35: 56.98
+        // Use double division to avoid integer truncation for odd counts
+        double sum_of_multipliers = activecount <= 21 
+            ? ((activecount / 2.0) * (2.0 * 1.2 - (activecount - 1) * 0.02) * 2.0) 
+            : (42.0 + ((activecount - 21) / 2.0) * (2.0 * 1.2 - (activecount - 22) * 0.02));
 
-        auto shareValue = (_gstate.perblock_bucket / sharecount);
+        double shareValue = (double(_gstate.perblock_bucket) / sum_of_multipliers);
         int32_t index = 0;
 
         for (const auto &prod : sortedprods) {
@@ -367,9 +386,11 @@ namespace eosiosystem {
             index++;
 
             if (index <= 21) {
-                pay_amount = (shareValue * int64_t(2));
+                // Applying tiered BP pay multiplier for active BPs (rank 1st until 21st) [1.2, 1.18, ... , 0.82, 0.8] multiplied by 2
+                pay_amount = static_cast<int64_t>(shareValue * 2.0 * ((122.0 - 2.0 * index) / 100.0));
             } else if (index >= 22 && index <= MAX_PRODUCERS) {
-                pay_amount = shareValue;
+                // Applying tiered BP pay multiplier for standby BPs (rank 22nd until 35th) [1.2, 1.18, ... , 0.96, 0.94] multiplied by 1
+                pay_amount = static_cast<int64_t>(shareValue * ((164.0 - 2.0 * index) / 100.0));
             } else 
                 break;
 
@@ -400,9 +421,6 @@ namespace eosiosystem {
       // Reads the payouts table
       tedp::payout_table payouts(tedp_account, tedp_account.value);
 
-      // Gets daily median TLOS price
-      uint64_t tlos_price = get_telos_average_price();
-
       uint64_t now_ms = current_time_point().sec_since_epoch();
       bool payouts_made = false;
       int64_t new_tokens = 0;
@@ -424,21 +442,7 @@ namespace eosiosystem {
          uint64_t total_due = (payouts_due * p.amount) * 10000;
          payouts_made = true;
 
-         if (p.to == REX_ACCOUNT)
-         {
-            uint64_t payout = total_due;
-            if(tlos_price >= 10000 && tlos_price < 20000) { // If TLOS daily close of $1.00, the payout will be decreased to 2/3
-               payout *= 2;
-               payout /= 3;
-            } else if(tlos_price > 20000) { // If TLOS daily close of $2.00, the payout will be decreased to 1/3
-               payout /= 3;
-            }
-            new_tokens += payout;
-         }
-         else
-         {
-            new_tokens += total_due;
-         }
+         new_tokens += total_due;
       }
 
       // Check if any payouts are needed to be made

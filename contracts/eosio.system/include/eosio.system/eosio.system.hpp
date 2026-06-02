@@ -17,6 +17,7 @@
 #include <type_traits>
 
 // TELOS BEGIN
+#include <intx/intx.hpp>
 #include <cmath>
 // TELOS END
 #ifdef CHANNEL_RAM_AND_NAMEBID_FEES_TO_REX
@@ -45,6 +46,7 @@ namespace eosiosystem {
    using eosio::unsigned_int;
    // TELOS
    using producer_location_pair = std::pair<eosio::producer_authority, uint16_t>;
+   using intx::uint256;
 
    inline constexpr int64_t powerup_frac = 1'000'000'000'000'000ll;  // 1.0 = 10^15
 
@@ -454,6 +456,10 @@ namespace eosiosystem {
       uint32_t            reserved2 = 0;
       eosio::asset        reserved3;
 
+      // TELOS BEGIN
+      eosio::binary_extension<uint64_t> self_stake_boost = 0;
+      // TELOS END
+
       uint64_t primary_key()const { return owner.value; }
 
       enum class flags1_fields : uint32_t {
@@ -462,13 +468,81 @@ namespace eosiosystem {
          cpu_managed = 4
       };
 
-      // explicit serialization macro is not necessary, used here only to improve compilation time
-      EOSLIB_SERIALIZE( voter_info, (owner)(proxy)(producers)(staked)(last_stake)(last_vote_weight)(proxied_vote_weight)(is_proxy)(flags1)(reserved2)(reserved3) )
+      // TELOS BEGIN
+      template<typename DataStream>
+      friend DataStream& operator << ( DataStream& ds, const voter_info& v ) {
+         ds << v.owner
+            << v.proxy
+            << v.producers
+            << v.staked
+            << v.last_stake
+            << v.last_vote_weight
+            << v.proxied_vote_weight
+            << v.is_proxy
+            << v.flags1
+            << v.reserved2
+            << v.reserved3;
+
+         if( !v.self_stake_boost.has_value() ) return ds;
+
+         return ds << v.self_stake_boost;
+      }
+
+      template<typename DataStream>
+      friend DataStream& operator >> ( DataStream& ds, voter_info& v ) {
+         return ds >> v.owner
+                   >> v.proxy
+                   >> v.producers
+                   >> v.staked
+                   >> v.last_stake
+                   >> v.last_vote_weight
+                   >> v.proxied_vote_weight
+                   >> v.is_proxy
+                   >> v.flags1
+                   >> v.reserved2
+                   >> v.reserved3
+                   >> v.self_stake_boost;
+      }
+      // TELOS END
    };
 
 
    typedef eosio::multi_index< "voters"_n, voter_info >  voters_table;
 
+   // TELOS BEGIN
+   // EVM Vote info. EVM Vote info stores information about the EVM vote:
+   // - `bp` the bp name
+   // - `total_vote` the total vote of the bp
+   struct [[eosio::table, eosio::contract("eosio.system")]] evm_vote_info {
+      eosio::name         bp;         /// bp name
+      eosio::checksum256  total_vote; /// the total vote of the bp
+
+      uint64_t primary_key()const { return bp.value; }
+
+      // explicit serialization macro is not necessary, used here only to improve compilation time
+      EOSLIB_SERIALIZE( evm_vote_info, (bp)(total_vote) )
+   };
+   // TELOS END
+
+   // TELOS BEGIN
+   typedef eosio::multi_index< "evmvotes"_n, evm_vote_info,
+                               indexed_by<"byname"_n, const_mem_fun<evm_vote_info, uint64_t, &evm_vote_info::primary_key>  >
+                             > evm_votes_table;
+   // TELOS END
+
+   // TELOS BEGIN
+   struct[[ eosio::table("votingconfig"), eosio::contract("eosio.system") ]] votingconfig {
+      eosio::checksum160 evm_voting_contract;
+      uint64_t decay_start_epoch;
+      uint64_t decay_increase_yearly;
+      uint64_t self_stake_boost_multiplier;
+      EOSLIB_SERIALIZE(votingconfig, (evm_voting_contract)(decay_start_epoch)(decay_increase_yearly)(self_stake_boost_multiplier))
+   };
+   // TELOS END
+
+   // TELOS BEGIN
+   typedef eosio::singleton< "votingconfig"_n, votingconfig > votingconfig_singleton;
+   // TELOS END
 
    typedef eosio::multi_index< "producers"_n, producer_info,
                                indexed_by<"prototalvote"_n, const_mem_fun<producer_info, double, &producer_info::by_votes>  >
@@ -853,6 +927,9 @@ namespace eosiosystem {
          payrate_singleton           _payrate;
          payrates                    _gpayrate;
          payments_table              _payments;
+         evm_votes_table             _evm_votes;
+         votingconfig_singleton      _voting_config;
+         votingconfig                _gvoting_config;
          // TELOS END
 
       public:
@@ -878,6 +955,7 @@ namespace eosiosystem {
          static constexpr eosio::name works_account{"works.decide"_n};
          static constexpr eosio::name amend_account{"amend.decide"_n};
          static constexpr eosio::name delphi_oracle_account{"delphioracle"_n};
+         static constexpr eosio::name evm_account{"eosio.evm"_n};
          // TELOS END
 
          system_contract( name s, name code, datastream<const char*> ds );
@@ -1621,11 +1699,31 @@ namespace eosiosystem {
          [[eosio::action]]
          void pay();
 
+         [[eosio::action]]
+         void setvotedecay( uint64_t decay_start_epoch, uint64_t decay_increase_yearly );
+
+         [[eosio::action]]
+         void setvotecontr( eosio::checksum160 contract );
+
+         [[eosio::action]]
+         void getevmvote( std::vector<eosio::name> bps );
+
+         [[eosio::action]]
+         void setbpevmstat( eosio::name bp );
+
+         [[eosio::action]]
+         void setselfstake( uint64_t self_stake_boost_multiplier );
+
          using unregreason_action = eosio::action_wrapper<"unregreason"_n, &system_contract::unregreason>;
          using votebpout_action = eosio::action_wrapper<"votebpout"_n, &system_contract::votebpout>;
          using setpayrates_action = eosio::action_wrapper<"setpayrates"_n, &system_contract::setpayrates>;
          using distviarex_action = eosio::action_wrapper<"distviarex"_n, &system_contract::distviarex>;
          using pay_action = eosio::action_wrapper<"pay"_n, &system_contract::pay>;
+         using setvotedecay_action = eosio::action_wrapper<"setvotedecay"_n, &system_contract::setvotedecay>;
+         using setvotecontr_action = eosio::action_wrapper<"setvotecontr"_n, &system_contract::setvotecontr>;
+         using getevmvote_action = eosio::action_wrapper<"getevmvote"_n, &system_contract::getevmvote>;
+         using setbpevmstat_action = eosio::action_wrapper<"setbpevmstat"_n, &system_contract::setbpevmstat>;
+         using setselfstake_action = eosio::action_wrapper<"setselfstake"_n, &system_contract::setselfstake>;
          // TELOS END
 
       private:
@@ -1744,6 +1842,9 @@ namespace eosiosystem {
          uint64_t get_telos_average_price();
 
          double inverse_vote_weight(double staked, double amountVotedProducers);
+         double decay_vote_weight_multiplier(double weighted_vote);
+         double apply_decay_multiplier(double weighted_vote, uint32_t sec_since_epoch, uint64_t decay_start_epoch, uint64_t decay_increase_yearly);
+         double uint256_to_double(uint256 value);
          void recalculate_votes();
 
          //defined in system_kick.cpp

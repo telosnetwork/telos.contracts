@@ -1,0 +1,30 @@
+name: Build contracts
+on:
+  push:
+    branches:
+      - main
+      - "release/*"
+  pull_request:
+    types: [assigned, opened, synchronize, reopened, labeled]
+env:
+  BUILDER_IMAGE: "apm2006/leap:v3.2.5-cdt4.0.1"
+jobs:
+  ubuntu-2404-build:
+    name: Ubuntu 22.04 | Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Build
+        run: |
+          set -e
+          export DOCKER="docker run --rm -v $(pwd):/root/target ${BUILDER_IMAGE}"
+          docker pull ${BUILDER_IMAGE}
+          echo ${DOCKER}
+          echo =====
+          mkdir build
+          ${DOCKER} bash -c "cd build && cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=yes -Dleap_DIR=/opt/leap/build/lib/cmake/leap .."
+          echo =====
+          ${DOCKER} bash -c "cd build && make -j $(nproc) VERBOSE=1"
+          echo =====
+          ${DOCKER} bash -c 'cd build/tests && ctest -j $(nproc)'
