@@ -63,7 +63,6 @@ void system_contract::update_missed_blocks_per_rotation() {
                                         uint32_t(active_schedule_size)) &&
         max_kick_bps > 0) {
       _producers.modify(pitr, same_payer, [&](auto &p) {
-        p.lifetime_missed_blocks += p.missed_blocks_per_rotation;
         p.kick(kick_type::REACHED_TRESHOLD);
       });
       max_kick_bps--;

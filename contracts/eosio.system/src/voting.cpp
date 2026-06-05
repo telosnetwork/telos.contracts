@@ -127,6 +127,7 @@ namespace eosiosystem {
       _gstate.last_producer_schedule_update = block_time;
 
       auto idx = _producers.get_index<"prototalvote"_n>();
+      bool is_savanna = is_savanna_consensus();
 
       // TELOS BEGIN
       uint32_t totalActiveVotedProds = uint32_t(std::distance(idx.begin(), idx.end()));
@@ -136,6 +137,10 @@ namespace eosiosystem {
       active_producers.reserve(totalActiveVotedProds);
 
       for( auto it = idx.cbegin(); it != idx.cend() && active_producers.size() < totalActiveVotedProds /*TELOS*/ && 0 < it->total_votes && it->active(); ++it ) {
+         if( is_savanna && !has_active_finalizer_key(it->owner) ) {
+            continue;
+         }
+
          active_producers.emplace_back(
             eosio::producer_authority{
                .producer_name = it->owner,
@@ -164,23 +169,43 @@ namespace eosiosystem {
          producers.push_back( std::move(item.first) );
 
       // TELOS BEGIN
+      auto schedule_metrics_changed = [&]() {
+         if( _gschedule_metrics.producers_metric.size() != top_producers.size() ) {
+            return true;
+         }
+
+         for( size_t i = 0; i < top_producers.size(); ++i ) {
+            if( _gschedule_metrics.producers_metric[i].bp_name != top_producers[i].first.producer_name ) {
+               return true;
+            }
+         }
+
+         return false;
+      };
+
       auto schedule_version = set_proposed_producers(producers);
       if (schedule_version >= 0) {
         print("\n**new schedule was proposed**");
 
         _gstate.last_proposed_schedule_update = block_time;
 
-        _gschedule_metrics.producers_metric.erase( _gschedule_metrics.producers_metric.begin(), _gschedule_metrics.producers_metric.end());
+        if( schedule_metrics_changed() ) {
+          _gschedule_metrics.producers_metric.erase( _gschedule_metrics.producers_metric.begin(), _gschedule_metrics.producers_metric.end());
 
-        std::vector<producer_metric> psm;
-        std::for_each(top_producers.begin(), top_producers.end(), [&psm](auto &tp) {
-          auto bp_name = tp.first.producer_name;
-          psm.emplace_back(producer_metric{ bp_name, 12 });
-        });
+          std::vector<producer_metric> psm;
+          std::for_each(top_producers.begin(), top_producers.end(), [&psm](auto &tp) {
+            auto bp_name = tp.first.producer_name;
+            psm.emplace_back(producer_metric{ bp_name, 12 });
+          });
 
-        _gschedule_metrics.producers_metric = psm;
+          _gschedule_metrics.producers_metric = psm;
+        }
 
         _gstate.last_producer_schedule_size = static_cast<decltype(_gstate.last_producer_schedule_size)>(top_producers.size());
+      }
+
+      if( is_savanna ) {
+         set_proposed_finalizers( get_finalizers_for_producers(top_producers) );
       }
       // TELOS END
    }
