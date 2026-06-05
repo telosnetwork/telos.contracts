@@ -8,7 +8,6 @@
 #include <sstream>
 #include <fc/log/logger.hpp>
 #include <eosio/chain/exceptions.hpp>
-#include <Runtime/Runtime.h>
 
 #include "eosio.system_tester.hpp"
 struct _abi_hash {
@@ -207,6 +206,7 @@ BOOST_FIXTURE_TEST_CASE( stake_unstake, eosio_system_tester ) try {
    //after 3 days funds should be released
    produce_block( fc::hours(1) );
    produce_blocks(1);
+   BOOST_REQUIRE_EQUAL( success(), refund( "alice1111111"_n ) );
    BOOST_REQUIRE_EQUAL( core_sym::from_string("1000.0000"), get_balance( "alice1111111" ) );
    BOOST_REQUIRE_EQUAL( init_eosio_stake_balance, get_balance( "eosio.stake"_n ) );
 
@@ -236,6 +236,7 @@ BOOST_FIXTURE_TEST_CASE( stake_unstake, eosio_system_tester ) try {
    //after 3 days funds should be released
    produce_block( fc::hours(1) );
    produce_blocks(1);
+   BOOST_REQUIRE_EQUAL( success(), refund( "alice1111111"_n ) );
 
    REQUIRE_MATCHING_OBJECT( voter( "alice1111111", core_sym::from_string("0.0000") ), get_voter_info( "alice1111111" ) );
    produce_blocks(1);
@@ -285,6 +286,7 @@ BOOST_FIXTURE_TEST_CASE( stake_unstake_with_transfer, eosio_system_tester ) try 
    produce_block( fc::hours(1) );
    produce_blocks(1);
 
+   BOOST_REQUIRE_EQUAL( success(), refund( "alice1111111"_n ) );
    BOOST_REQUIRE_EQUAL( core_sym::from_string("1300.0000"), get_balance( "alice1111111" ) );
 
    //stake should be equal to what was staked in constructor, voting power should be 0
@@ -355,6 +357,7 @@ BOOST_FIXTURE_TEST_CASE( stake_while_pending_refund, eosio_system_tester ) try {
    produce_block( fc::hours(1) );
    produce_blocks(1);
 
+   BOOST_REQUIRE_EQUAL( success(), refund( "alice1111111"_n ) );
    BOOST_REQUIRE_EQUAL( core_sym::from_string("1300.0000"), get_balance( "alice1111111" ) );
 
    //stake should be equal to what was staked in constructor, voting power should be 0
@@ -631,6 +634,7 @@ BOOST_FIXTURE_TEST_CASE( adding_stake_partial_unstake, eosio_system_tester ) try
    BOOST_REQUIRE_EQUAL( core_sym::from_string("550.0000"), get_balance( "alice1111111" ) );
    produce_block( fc::days(1) );
    produce_blocks(1);
+   BOOST_REQUIRE_EQUAL( success(), refund( "alice1111111"_n ) );
    BOOST_REQUIRE_EQUAL( core_sym::from_string("850.0000"), get_balance( "alice1111111" ) );
 
 } FC_LOG_AND_RETHROW()
@@ -1120,6 +1124,7 @@ BOOST_FIXTURE_TEST_CASE( vote_for_producer, eosio_system_tester, * boost::unit_t
    //carol1111111 should receive funds in 3 days
    produce_block( fc::days(3) );
    produce_block();
+   BOOST_REQUIRE_EQUAL( success(), refund( "carol1111111"_n ) );
    BOOST_REQUIRE_EQUAL( core_sym::from_string("3000.0000"), get_balance( "carol1111111" ) );
 
 } FC_LOG_AND_RETHROW()
@@ -2880,7 +2885,7 @@ BOOST_FIXTURE_TEST_CASE(producers_upgrade_system_contract, eosio_system_tester) 
    );
 
    transaction_trace_ptr trace;
-   control->applied_transaction.connect(
+   control->applied_transaction().connect(
    [&]( std::tuple<const transaction_trace_ptr&, const packed_transaction_ptr&> p ) {
       trace = std::get<0>(p);
    } );
@@ -3238,7 +3243,7 @@ BOOST_FIXTURE_TEST_CASE( elect_producers /*_and_parameters*/, eosio_system_teste
    activate_network();
    // TELOS END
    produce_blocks(250);
-   auto producer_keys = control->head_block_state()->active_schedule.producers;
+   auto producer_keys = control->head_block_state_legacy()->active_schedule.producers;
    BOOST_REQUIRE_EQUAL( 1, producer_keys.size() );
    BOOST_REQUIRE_EQUAL( name("defproducer1"), producer_keys[0].producer_name );
 
@@ -3254,7 +3259,7 @@ BOOST_FIXTURE_TEST_CASE( elect_producers /*_and_parameters*/, eosio_system_teste
    BOOST_REQUIRE_EQUAL( success(), vote( "bob111111111"_n, { "defproducer2"_n } ) );
    ilog(".");
    produce_blocks(250);
-   producer_keys = control->head_block_state()->active_schedule.producers;
+   producer_keys = control->head_block_state_legacy()->active_schedule.producers;
    BOOST_REQUIRE_EQUAL( 2, producer_keys.size() );
    BOOST_REQUIRE_EQUAL( name("defproducer1"), producer_keys[0].producer_name );
    BOOST_REQUIRE_EQUAL( name("defproducer2"), producer_keys[1].producer_name );
@@ -3265,7 +3270,7 @@ BOOST_FIXTURE_TEST_CASE( elect_producers /*_and_parameters*/, eosio_system_teste
    // elect 3 producers
    BOOST_REQUIRE_EQUAL( success(), vote( "bob111111111"_n, { "defproducer2"_n, "defproducer3"_n } ) );
    produce_blocks(250);
-   producer_keys = control->head_block_state()->active_schedule.producers;
+   producer_keys = control->head_block_state_legacy()->active_schedule.producers;
    BOOST_REQUIRE_EQUAL( 3, producer_keys.size() );
    BOOST_REQUIRE_EQUAL( name("defproducer1"), producer_keys[0].producer_name );
    BOOST_REQUIRE_EQUAL( name("defproducer2"), producer_keys[1].producer_name );
@@ -3276,7 +3281,7 @@ BOOST_FIXTURE_TEST_CASE( elect_producers /*_and_parameters*/, eosio_system_teste
    // try to go back to 2 producers and fail
    BOOST_REQUIRE_EQUAL( success(), vote( "bob111111111"_n, { "defproducer3"_n } ) );
    produce_blocks(250);
-   producer_keys = control->head_block_state()->active_schedule.producers;
+   producer_keys = control->head_block_state_legacy()->active_schedule.producers;
    BOOST_REQUIRE_EQUAL( 3, producer_keys.size() );
 
    // The test below is invalid now, producer schedule is not updated if there are
@@ -3393,6 +3398,7 @@ BOOST_FIXTURE_TEST_CASE( multiple_namebids, eosio_system_tester ) try {
       const asset initial_names_balance = get_balance("eosio.names"_n);
       BOOST_REQUIRE_EQUAL( success(),
                            bidname( "alice", "prefb", core_sym::from_string("1.1001") ) );
+      BOOST_REQUIRE_EQUAL( success(), bidrefund( "bob"_n, "prefb"_n ) );
       BOOST_REQUIRE_EQUAL( core_sym::from_string( "9997.9997" ), get_balance("bob") );
       BOOST_REQUIRE_EQUAL( core_sym::from_string( "9998.8999" ), get_balance("alice") );
       BOOST_REQUIRE_EQUAL( initial_names_balance + core_sym::from_string("0.1001"), get_balance("eosio.names"_n) );
@@ -3404,6 +3410,7 @@ BOOST_FIXTURE_TEST_CASE( multiple_namebids, eosio_system_tester ) try {
       BOOST_REQUIRE_EQUAL( core_sym::from_string( "10000.0000" ), get_balance("david") );
       BOOST_REQUIRE_EQUAL( success(),
                            bidname( "david", "prefd", core_sym::from_string("1.9900") ) );
+      BOOST_REQUIRE_EQUAL( success(), bidrefund( "carl"_n, "prefd"_n ) );
       BOOST_REQUIRE_EQUAL( core_sym::from_string( "9999.0000" ), get_balance("carl") );
       BOOST_REQUIRE_EQUAL( core_sym::from_string( "9998.0100" ), get_balance("david") );
    }
@@ -3687,7 +3694,7 @@ BOOST_FIXTURE_TEST_CASE( setparams, eosio_system_tester ) try {
    }
 
    transaction_trace_ptr trace;
-   control->applied_transaction.connect(
+   control->applied_transaction().connect(
    [&]( std::tuple<const transaction_trace_ptr&, const packed_transaction_ptr&> p ) {
       trace = std::get<0>(p);
    } );
@@ -3777,7 +3784,7 @@ BOOST_FIXTURE_TEST_CASE( wasmcfg, eosio_system_tester ) try {
    }
 
    transaction_trace_ptr trace;
-   control->applied_transaction.connect(
+   control->applied_transaction().connect(
    [&]( std::tuple<const transaction_trace_ptr&, const packed_transaction_ptr&> p ) {
       trace = std::get<0>(p);
    } );
@@ -4871,6 +4878,7 @@ BOOST_FIXTURE_TEST_CASE( ramfee_namebid_to_rex, eosio_system_tester ) try {
    BOOST_REQUIRE_EQUAL( success(),                        bidname( carol, "rndmbid"_n, core_sym::from_string("23.7000") ) );
    BOOST_REQUIRE_EQUAL( core_sym::from_string("23.7000"), get_balance( "eosio.names"_n ) );
    BOOST_REQUIRE_EQUAL( success(),                        bidname( alice, "rndmbid"_n, core_sym::from_string("29.3500") ) );
+   BOOST_REQUIRE_EQUAL( success(),                        bidrefund( carol, "rndmbid"_n ) );
    BOOST_REQUIRE_EQUAL( core_sym::from_string("29.3500"), get_balance( "eosio.names"_n ));
 
    produce_block( fc::hours(24) );
