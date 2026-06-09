@@ -1,5 +1,6 @@
 #include <boost/test/unit_test.hpp>
 #include <cmath>
+#include <set>
 
 #include "eosio.system_tester.hpp"
 
@@ -125,6 +126,61 @@ BOOST_FIXTURE_TEST_CASE(producer_onblock_check, eosio_system_tester) try {
 
    BOOST_CHECK_EQUAL( success(), unstake( "producvotera", core_sym::from_string("50.0000"), core_sym::from_string("50.0000") ) );
 
+} FC_LOG_AND_RETHROW()
+
+BOOST_FIXTURE_TEST_CASE(rotation_clears_when_standby_moves_into_top_21, eosio_system_tester) try {
+   const asset large_asset = core_sym::from_string("80.0000");
+   create_account_with_resources( "rotvoter1111"_n, config::system_account_name, core_sym::from_string("1.0000"), false, large_asset, large_asset );
+
+   std::vector<account_name> producer_names;
+   producer_names.reserve(22);
+   const std::string root("rprod");
+   for(uint8_t i = 0; i < 22; i++) {
+      producer_names.emplace_back(root + toBase31(i));
+   }
+
+   setup_producer_accounts(producer_names);
+   for (const auto& p: producer_names) {
+      BOOST_REQUIRE_EQUAL(success(), regproducer(p));
+   }
+
+   transfer(config::system_account_name, "rotvoter1111"_n, core_sym::from_string("400000000.0000"), config::system_account_name);
+   BOOST_REQUIRE_EQUAL(success(), stake("rotvoter1111"_n, core_sym::from_string("150000000.0000"), core_sym::from_string("150000000.0000")));
+   BOOST_REQUIRE_EQUAL(success(), vote("rotvoter1111"_n, producer_names));
+
+   activate_network();
+   produce_blocks(250);
+
+   auto rotation = get_rotation_state();
+   const name bp_out = rotation["bp_currently_out"].as<name>();
+   const name sbp_in = rotation["sbp_currently_in"].as<name>();
+   BOOST_REQUIRE_NE(name(0), bp_out);
+   BOOST_REQUIRE_NE(name(0), sbp_in);
+
+   name removed_producer = name(0);
+   for (const auto& p: producer_names) {
+      if (p != bp_out && p != sbp_in) {
+         removed_producer = p;
+         break;
+      }
+   }
+   BOOST_REQUIRE_NE(name(0), removed_producer);
+   BOOST_REQUIRE_EQUAL(success(), push_action(removed_producer, "unregprod"_n, mvo()("producer", removed_producer)));
+
+   produce_block(fc::minutes(2));
+   produce_blocks(1);
+
+   rotation = get_rotation_state();
+   BOOST_REQUIRE_EQUAL(name(0), rotation["bp_currently_out"].as<name>());
+   BOOST_REQUIRE_EQUAL(name(0), rotation["sbp_currently_in"].as<name>());
+
+   const auto active_schedule = control->head_block_state()->active_schedule.producers;
+   std::set<name> scheduled_producers;
+   for (const auto& producer: active_schedule) {
+      scheduled_producers.insert(producer.producer_name);
+   }
+
+   BOOST_REQUIRE_EQUAL(active_schedule.size(), scheduled_producers.size());
 } FC_LOG_AND_RETHROW()
 
 BOOST_FIXTURE_TEST_CASE(producer_pay, eosio_system_tester, * boost::unit_test::tolerance(1e-10)) try {
