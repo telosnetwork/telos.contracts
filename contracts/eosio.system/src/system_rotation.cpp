@@ -100,6 +100,17 @@ std::vector<producer_location_pair> system_contract::check_rotation_state( std::
       std::vector<producer_location_pair>::iterator it_bp = prods.end();
       std::vector<producer_location_pair>::iterator it_sbp = prods.end();
 
+      auto clear_rotation = [&]() {
+        set_bps_rotation(name(0), name(0));
+        it_bp = prods.end();
+        it_sbp = prods.end();
+
+        if(total_active_voted_prods <= TOP_PRODUCERS) {
+          _grotation.bp_out_index = TOP_PRODUCERS;
+          _grotation.sbp_in_index = MAX_PRODUCERS+1;
+        }
+      };
+
       if (_grotation.next_rotation_time <= block_time) {
 
         if (total_active_voted_prods > TOP_PRODUCERS) {
@@ -113,13 +124,17 @@ std::vector<producer_location_pair> system_contract::check_rotation_state( std::
           it_sbp = prods.begin() + int32_t(_grotation.sbp_in_index);
 
           set_bps_rotation(bp_name, sbp_name);
-        } 
+        } else {
+          clear_rotation();
+        }
 
         update_rotation_time(block_time);
         restart_missed_blocks_per_rotation(prods);
       }
       else {
-        if(_grotation.bp_currently_out != name(0) && _grotation.sbp_currently_in != name(0)) {
+        if(total_active_voted_prods <= TOP_PRODUCERS) {
+          clear_rotation();
+        } else if(_grotation.bp_currently_out != name(0) && _grotation.sbp_currently_in != name(0)) {
           auto bp_name = _grotation.bp_currently_out;
           it_bp = std::find_if(prods.begin(), prods.end(), [&bp_name](const producer_location_pair &g) {
             return g.first.producer_name == bp_name; 
@@ -133,17 +148,9 @@ std::vector<producer_location_pair> system_contract::check_rotation_state( std::
           auto _sbp_index = std::distance(prods.begin(), it_sbp);
 
           if(it_bp == prods.end() || it_sbp == prods.end()) {
-              set_bps_rotation(name(0), name(0));
-
-            if(total_active_voted_prods < TOP_PRODUCERS) {
-              _grotation.bp_out_index = TOP_PRODUCERS;
-              _grotation.sbp_in_index = MAX_PRODUCERS+1;
-            }
-          } else if (total_active_voted_prods > TOP_PRODUCERS && 
-                    (!is_in_range(_bp_index, 0, TOP_PRODUCERS) || !is_in_range(_sbp_index, TOP_PRODUCERS, MAX_PRODUCERS))) {
-              set_bps_rotation(name(0), name(0));
-              it_bp = prods.end();
-              it_sbp = prods.end();
+              clear_rotation();
+          } else if (!is_in_range(_bp_index, 0, TOP_PRODUCERS) || !is_in_range(_sbp_index, TOP_PRODUCERS, MAX_PRODUCERS)) {
+              clear_rotation();
           }
         }
     }
