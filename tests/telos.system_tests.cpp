@@ -174,7 +174,7 @@ BOOST_FIXTURE_TEST_CASE(rotation_clears_when_standby_moves_into_top_21, eosio_sy
    BOOST_REQUIRE_EQUAL(name(0), rotation["bp_currently_out"].as<name>());
    BOOST_REQUIRE_EQUAL(name(0), rotation["sbp_currently_in"].as<name>());
 
-   const auto active_schedule = control->head_block_state()->active_schedule.producers;
+   const auto active_schedule = control->head_block_state_legacy()->active_schedule.producers;
    std::set<name> scheduled_producers;
    for (const auto& producer: active_schedule) {
       scheduled_producers.insert(producer.producer_name);
