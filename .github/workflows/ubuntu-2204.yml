@@ -10,7 +10,8 @@ on:
 env:
   CDT_VERSION: "4.1.1"
   CDT_DEB_SHA256: "d946e6b64f297442d19e486401aa49f956080b07a1fa6335f29976106175b588"
-  TELOSZERO_REF: "teloszero-v1.2.2"
+  # Commit SHA of tag teloszero-v1.2.2 (tags are mutable; pin the commit)
+  TELOSZERO_REF: "fcb9f5fc627619a8b06cd6b871c462b1d70d3aa4"
   EXPECTED_EOSIO_SYSTEM_ABI_SHA256: "5545f53b6b2e407acb45c6d14e283866c451d8e47c567baeb74284a55c93c9e1"
   EXPECTED_EOSIO_SYSTEM_WASM_SHA256: "c9e1cf99636e489479d6b39f63489c9b22d60b9367842290ce2e102a648cbbbb"
 jobs:
@@ -58,12 +59,21 @@ jobs:
         run: |
           set -euo pipefail
           ctest --test-dir build/tests --output-on-failure -j "$(nproc)"
-      - name: Assert release artifact hashes
+      - name: Report build artifact hashes
         run: |
           set -euo pipefail
           abi_hash="$(sha256sum build/contracts/eosio.system/eosio.system.abi | awk '{print $1}')"
           wasm_hash="$(sha256sum build/contracts/eosio.system/eosio.system.wasm | awk '{print $1}')"
           echo "eosio.system.abi  ${abi_hash}"
           echo "eosio.system.wasm ${wasm_hash}"
+      # Only enforce the expected release hashes on manually-dispatched runs
+      # and release branches. Asserting on every PR would fail CI for any
+      # legitimate contract change until the expected hashes are updated.
+      - name: Assert release artifact hashes
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/heads/release/')
+        run: |
+          set -euo pipefail
+          abi_hash="$(sha256sum build/contracts/eosio.system/eosio.system.abi | awk '{print $1}')"
+          wasm_hash="$(sha256sum build/contracts/eosio.system/eosio.system.wasm | awk '{print $1}')"
           test "${abi_hash}" = "${EXPECTED_EOSIO_SYSTEM_ABI_SHA256}"
           test "${wasm_hash}" = "${EXPECTED_EOSIO_SYSTEM_WASM_SHA256}"
