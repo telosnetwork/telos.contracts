@@ -169,18 +169,36 @@ namespace eosiosystem {
          producers.push_back( std::move(item.first) );
 
       // TELOS BEGIN
+      // Only rebuild schedule metrics when schedule *membership* changes.
+      // The comparison uses sorted producer names rather than positions:
+      // top_producers is sorted by location (with possible ties, and a
+      // non-stable sort over vote-ordered input), so positional order can
+      // differ between proposals even when membership is identical. All
+      // consumers of producers_metric are name-keyed, so order is irrelevant.
+      // Under Savanna, set_proposed_producers() succeeds even for unchanged
+      // schedules; rebuilding metrics on every successful proposal would wipe
+      // missed-block counters before autokick could reach its threshold.
       auto schedule_metrics_changed = [&]() {
          if( _gschedule_metrics.producers_metric.size() != top_producers.size() ) {
             return true;
          }
 
-         for( size_t i = 0; i < top_producers.size(); ++i ) {
-            if( _gschedule_metrics.producers_metric[i].bp_name != top_producers[i].first.producer_name ) {
-               return true;
-            }
+         std::vector<name> prev_names;
+         prev_names.reserve(_gschedule_metrics.producers_metric.size());
+         for( const auto& metric: _gschedule_metrics.producers_metric ) {
+            prev_names.emplace_back(metric.bp_name);
          }
 
-         return false;
+         std::vector<name> new_names;
+         new_names.reserve(top_producers.size());
+         for( const auto& tp: top_producers ) {
+            new_names.emplace_back(tp.first.producer_name);
+         }
+
+         std::sort(prev_names.begin(), prev_names.end());
+         std::sort(new_names.begin(), new_names.end());
+
+         return prev_names != new_names;
       };
 
       auto schedule_version = set_proposed_producers(producers);
@@ -204,6 +222,13 @@ namespace eosiosystem {
         _gstate.last_producer_schedule_size = static_cast<decltype(_gstate.last_producer_schedule_size)>(top_producers.size());
       }
 
+      // Propose the finalizer policy for the new top producers. This is
+      // intentionally not gated on set_proposed_producers() succeeding, to
+      // match upstream reference-contracts behavior: set_proposed_finalizers()
+      // is itself a no-op when the policy is unchanged, and proposing here
+      // ensures the finalizer policy converges with the producer schedule on
+      // the next successful proposal even if this one was rejected (e.g. a
+      // prior pending schedule has not activated yet).
       if( is_savanna ) {
          set_proposed_finalizers( get_finalizers_for_producers(top_producers) );
       }
