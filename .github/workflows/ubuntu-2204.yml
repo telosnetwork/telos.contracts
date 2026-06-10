@@ -42,7 +42,8 @@ jobs:
           echo "${CDT_DEB_SHA256}  ${cdt_deb}" | sha256sum -c -
           dpkg -i "${cdt_deb}"
           cdt-cpp --version | grep "${CDT_VERSION}"
-          test -f "/usr/opt/cdt/${CDT_VERSION}/include/eosio/instant_finality.hpp"
+          test -f "/usr/opt/cdt/${CDT_VERSION}/include/eosiolib/contracts/eosio/instant_finality.hpp"
+          test -f "/usr/opt/cdt/${CDT_VERSION}/include/eosiolib/core/eosio/crypto_bls_ext.hpp"
       - name: Build TelosZero tester libraries
         run: |
           set -euo pipefail
