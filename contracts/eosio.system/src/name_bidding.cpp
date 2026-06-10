@@ -49,15 +49,10 @@ namespace eosiosystem {
                });
          }
 
-         eosio::transaction t;
-         t.actions.emplace_back( permission_level{current->high_bidder, active_permission},
-                                 get_self(), "bidrefund"_n,
-                                 std::make_tuple( current->high_bidder, newname )
-         );
-         t.delay_sec = 0;
-         uint128_t deferred_id = (uint128_t(newname.value) << 64) | current->high_bidder.value;
-         eosio::cancel_deferred( deferred_id );
-         t.send( deferred_id, bidder );
+         // Deferred transactions are disabled under Spring/Savanna, so the
+         // outbid bidder is no longer refunded automatically. The refund
+         // remains in bid_refund_table and must be claimed explicitly with
+         // the bidrefund action.
 
          bids.modify( current, bidder, [&]( auto& b ) {
             b.high_bidder = bidder;

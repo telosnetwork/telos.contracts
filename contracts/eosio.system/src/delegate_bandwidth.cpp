@@ -263,7 +263,6 @@ namespace eosiosystem {
          //create/update/delete refund
          auto net_balance = stake_net_delta;
          auto cpu_balance = stake_cpu_delta;
-         bool need_deferred_trx = false;
 
 
          // net and cpu are same sign by assertions in delegatebw and undelegatebw
@@ -298,9 +297,6 @@ namespace eosiosystem {
 
                if ( req->is_empty() ) {
                   refunds_tbl.erase( req );
-                  need_deferred_trx = false;
-               } else {
-                  need_deferred_trx = true;
                }
             } else if ( net_balance.amount < 0 || cpu_balance.amount < 0 ) { //need to create refund
                refunds_tbl.emplace( from, [&]( refund_request& r ) {
@@ -319,22 +315,13 @@ namespace eosiosystem {
                   }
                   r.request_time = current_time_point();
                });
-               need_deferred_trx = true;
             } // else stake increase requested with no existing row in refunds_tbl -> nothing to do with refunds_tbl
          } /// end if is_delegating_to_self || is_undelegating
 
-         if ( need_deferred_trx ) {
-            eosio::transaction out;
-            out.actions.emplace_back( permission_level{from, active_permission},
-                                      get_self(), "refund"_n,
-                                      from
-            );
-            out.delay_sec = refund_delay_sec;
-            eosio::cancel_deferred( from.value ); // TODO: Remove this line when replacing deferred transactions is fixed
-            out.send( from.value, from, true );
-         } else {
-            eosio::cancel_deferred( from.value );
-         }
+         // Deferred transactions are disabled under Spring/Savanna, so the
+         // refund is no longer scheduled automatically. Any pending refund
+         // remains in refunds_tbl and must be claimed explicitly with the
+         // refund action once refund_delay_sec has elapsed.
 
          auto transfer_amount = net_balance + cpu_balance;
          if ( 0 < transfer_amount.amount ) {
