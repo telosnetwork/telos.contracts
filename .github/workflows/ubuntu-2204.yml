@@ -13,7 +13,7 @@ env:
   # Commit SHA of tag teloszero-v1.2.2 (tags are mutable; pin the commit)
   TELOSZERO_REF: "fcb9f5fc627619a8b06cd6b871c462b1d70d3aa4"
   EXPECTED_EOSIO_SYSTEM_ABI_SHA256: "5545f53b6b2e407acb45c6d14e283866c451d8e47c567baeb74284a55c93c9e1"
-  EXPECTED_EOSIO_SYSTEM_WASM_SHA256: "c9e1cf99636e489479d6b39f63489c9b22d60b9367842290ce2e102a648cbbbb"
+  EXPECTED_EOSIO_SYSTEM_WASM_SHA256: "dd8e45ea805ea915fa91be785cc162717f008ffb30219a2a354649eebc214ade"
 jobs:
   ubuntu-2204-build:
     name: Ubuntu 22.04 | Spring/Telos Zero build
