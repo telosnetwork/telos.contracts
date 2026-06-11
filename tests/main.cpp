@@ -8,12 +8,10 @@
 #include <boost/test/included/unit_test.hpp>
 #include <fc/log/logger.hpp>
 #include <eosio/chain/exceptions.hpp>
-#include <Runtime/Runtime.h>
 
 #include "eosio.system_tester.hpp"
 
 using namespace eosio_system;
-#define BOOST_TEST_STATIC_LINK
 
 void translate_fc_exception(const fc::exception &e) {
    std::cerr << "\033[33m" <<  e.to_detail_string() << "\033[0m" << std::endl;

@@ -19,7 +19,7 @@ using mvo = fc::mutable_variant_object;
 #ifdef NON_VALIDATING_TEST
 #define TESTER tester
 #else
-#define TESTER validating_tester
+#define TESTER legacy_validating_tester
 #endif
 #endif
 
@@ -1096,6 +1096,17 @@ public:
       return data.empty() ? fc::variant() : abi_ser.binary_to_variant( "refund_request", data, abi_serializer::create_yield_function(abi_serializer_max_time) );
    }
 
+   action_result refund( name owner ) {
+      return push_action( owner, "refund"_n, mvo()
+                          ("owner", owner) );
+   }
+
+   action_result bidrefund( name bidder, name newname ) {
+      return push_action( bidder, "bidrefund"_n, mvo()
+                          ("bidder", bidder)
+                          ("newname", newname) );
+   }
+
    abi_serializer initialize_multisig() {
       abi_serializer msig_abi_ser;
       {
@@ -1193,7 +1204,7 @@ public:
       }
       produce_blocks( 250 );
 
-      auto producer_keys = control->head_block_state()->active_schedule.producers;
+      auto producer_keys = control->head_block_state_legacy()->active_schedule.producers;
       BOOST_REQUIRE_EQUAL( 21, producer_keys.size() );
       BOOST_REQUIRE_EQUAL( name("defproducera"), producer_keys[0].producer_name );
 
@@ -1249,7 +1260,7 @@ public:
       }
       produce_blocks( 250 );
 
-      auto producer_keys = control->head_block_state()->active_schedule.producers;
+      auto producer_keys = control->head_block_state_legacy()->active_schedule.producers;
       BOOST_REQUIRE_EQUAL( 21, producer_keys.size() );
       BOOST_REQUIRE_EQUAL( "tprodaaaaaaa"_n, producer_keys[0].producer_name );
 
