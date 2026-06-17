@@ -222,4 +222,31 @@ BOOST_FIXTURE_TEST_CASE( savanna_schedule_metrics_preserved, finalizer_key_teste
    BOOST_REQUIRE( any_mid_cycle );
 } FC_LOG_AND_RETHROW()
 
+// Regression for audit finding #9: under Savanna an active scheduled producer must not be able
+// to delete its last finalizer key. Doing so removes it from the keyed set and can push the keyed
+// producer count below last_producer_schedule_size, freezing both producer-schedule and
+// finalizer-policy updates. The producer must unregister first.
+BOOST_FIXTURE_TEST_CASE( delfinkey_blocked_for_active_producer_under_savanna, finalizer_key_tester ) try {
+   auto producer_names = active_and_vote_producers();
+   const auto victim = producer_names[0];
+
+   std::string victim_pub;
+   for( const auto& p : producer_names ) {
+      const auto key = new_bls_key();
+      const auto pub = key.get_public_key().to_string();
+      if( p == victim ) victim_pub = pub;
+      BOOST_REQUIRE_EQUAL( success(),
+                           regfinkey( p, pub, key.proof_of_possession().to_string() ) );
+   }
+   BOOST_REQUIRE_EQUAL( success(), switchtosvnn( config::system_account_name ) );
+
+   // active producer cannot drop its only (active) finalizer key while on Savanna
+   BOOST_REQUIRE_EQUAL( wasm_assert_msg( "an active producer cannot delete its last finalizer key under Savanna; call unregprod first" ),
+                        delfinkey( victim, victim_pub ) );
+
+   // once the producer is unregistered (inactive), the key may be deleted
+   BOOST_REQUIRE_EQUAL( success(), push_action( victim, "unregprod"_n, mvo()("producer", victim) ) );
+   BOOST_REQUIRE_EQUAL( success(), delfinkey( victim, victim_pub ) );
+} FC_LOG_AND_RETHROW()
+
 BOOST_AUTO_TEST_SUITE_END()

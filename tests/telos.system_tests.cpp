@@ -655,4 +655,22 @@ BOOST_FIXTURE_TEST_CASE(missed_block_autokick_threshold_and_lifetime, eosio_syst
    BOOST_REQUIRE_LE(lifetime, last_missed + 60);
 } FC_LOG_AND_RETHROW()
 
+// Regression for audit finding #4: getevmvote and setbpevmstat mutate consensus-relevant
+// producer vote weight (and, under Savanna, the finalizer set) / drive system-authored EVM
+// transactions. They were permissionless; they must require the system account's authority.
+// require_auth(get_self()) is the FIRST statement, so a non-system caller is rejected before any
+// EVM-state lookup, and a system caller proceeds to the "EVM voting contract not set" guard
+// (EVM voting is unconfigured in the tester) - proving authorization is the gate.
+BOOST_FIXTURE_TEST_CASE( evm_vote_sync_actions_require_system_auth, eosio_system_tester ) try {
+   BOOST_REQUIRE_EQUAL( error( "missing authority of eosio" ),
+                        push_action( "alice1111111"_n, "getevmvote"_n, mvo()("bps", std::vector<name>{}) ) );
+   BOOST_REQUIRE_EQUAL( error( "missing authority of eosio" ),
+                        push_action( "bob111111111"_n, "setbpevmstat"_n, mvo()("bp", "alice1111111"_n) ) );
+
+   BOOST_REQUIRE_EQUAL( wasm_assert_msg( "EVM voting contract not set" ),
+                        push_action( config::system_account_name, "getevmvote"_n, mvo()("bps", std::vector<name>{}) ) );
+   BOOST_REQUIRE_EQUAL( wasm_assert_msg( "EVM voting contract not set" ),
+                        push_action( config::system_account_name, "setbpevmstat"_n, mvo()("bp", "alice1111111"_n) ) );
+} FC_LOG_AND_RETHROW()
+
 BOOST_AUTO_TEST_SUITE_END()

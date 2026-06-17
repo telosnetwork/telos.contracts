@@ -416,7 +416,7 @@ namespace eosiosystem {
    } // voteupdate
 
 
-   void system_contract::update_votes( const name& voter_name, const name& proxy, const std::vector<name>& producers, bool voting ) {
+   void system_contract::update_votes( const name& voter_name, const name& proxy, const std::vector<name>& producers, bool voting, bool recalculating ) {
       //validate input
       if ( proxy ) {
          check( producers.size() == 0, "cannot vote for producers and proxy at same time" );
@@ -497,16 +497,22 @@ namespace eosiosystem {
 
       if( proxy ) {
          auto new_proxy = _voters.find( proxy.value );
-         check( new_proxy != _voters.end(), "invalid proxy specified" ); //if ( !voting ) { data corruption } else { wrong vote }
-         check( !voting || new_proxy->is_proxy, "proxy not found" );
+         const bool stale_proxy = ( new_proxy == _voters.end() || !new_proxy->is_proxy );
+         // During a recalculation replay (which runs inside onblock), a voter may still reference
+         // a proxy that has since deregistered or disappeared. Skip the stale proxy contribution
+         // instead of aborting: a check(false) here would halt block production.
+         if( !( recalculating && stale_proxy ) ) {
+            check( new_proxy != _voters.end(), "invalid proxy specified" ); //if ( !voting ) { data corruption } else { wrong vote }
+            check( !voting || new_proxy->is_proxy, "proxy not found" );
 
-         _voters.modify( new_proxy, same_payer, [&]( auto& vp ) {
-            vp.proxied_vote_weight += voter->staked;
-         });
+            _voters.modify( new_proxy, same_payer, [&]( auto& vp ) {
+               vp.proxied_vote_weight += voter->staked;
+            });
 
-         if((*new_proxy).last_vote_weight > 0){
-            _gstate.total_activated_stake += totalStaked - voter->last_stake;
-            propagate_weight_change( *new_proxy );
+            if((*new_proxy).last_vote_weight > 0){
+               _gstate.total_activated_stake += totalStaked - voter->last_stake;
+               propagate_weight_change( *new_proxy );
+            }
          }
       } else {
          if( new_vote_weight >= 0 ) {
@@ -526,6 +532,10 @@ namespace eosiosystem {
          auto pitr = _producers.find( pd.first.value );
          if( pitr != _producers.end() ) {
             if( voting && !pitr->active() && pd.second.second /* from new set */ ) {
+               // During a recalculation replay (runs inside onblock), a voter may still list a
+               // producer that has since been deactivated. Skip it instead of aborting; a
+               // check(false) on this path would permanently halt block production.
+               if( recalculating ) continue;
                check( false, ( "producer " + pitr->owner.to_string() + " is not currently registered" ).data() );
             }
             _producers.modify( pitr, same_payer, [&]( auto& p ) {
@@ -534,10 +544,18 @@ namespace eosiosystem {
                   p.total_votes = 0;
                }
                _gstate.total_producer_vote_weight += pd.second.first;
+               // Keep the global aggregate consistent with the per-producer clamp above. Without
+               // this, the negative mass discarded by the per-producer clamp leaks into the
+               // unclamped global and can drift it below the recalculate_votes() `<= -0.1`
+               // trigger. The EVM-vote path (eosio.system.cpp) already clamps identically.
+               if ( _gstate.total_producer_vote_weight < 0 ) {
+                  _gstate.total_producer_vote_weight = 0;
+               }
                //check( p.total_votes >= 0, "something bad happened" );
             });
          } else {
             if( pd.second.second ) {
+               if( recalculating ) continue;
                check( false, ( "producer " + pd.first.to_string() + " is not registered" ).data() );
             }
          }
@@ -659,7 +677,15 @@ namespace eosiosystem {
             auto &pitr = _producers.get(acnt.value, "producer not found"); // data corruption
             _producers.modify(pitr, same_payer, [&](auto &p) {
                p.total_votes += delta;
+               if (p.total_votes < 0) {
+                  p.total_votes = 0;
+               }
                _gstate.total_producer_vote_weight += delta;
+               // Clamp the global aggregate (see update_votes) so a negative delta cannot drift
+               // it below the recalculate_votes() trigger.
+               if (_gstate.total_producer_vote_weight < 0) {
+                  _gstate.total_producer_vote_weight = 0;
+               }
             });
          }
       }
@@ -700,7 +726,9 @@ namespace eosiosystem {
                 });
                 processed_proxies[voter->owner] = true;
             }
-            update_votes(voter->owner, voter->proxy, voter->producers, true);
+            // recalculating=true: this replay runs inside onblock, so it must never abort on a
+            // stale (now-inactive/removed) producer or deregistered proxy left in a voter row.
+            update_votes(voter->owner, voter->proxy, voter->producers, true, /*recalculating=*/true);
         }
     }
    }

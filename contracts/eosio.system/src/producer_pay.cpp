@@ -13,6 +13,29 @@ namespace eosiosystem {
    using eosio::microseconds;
    using eosio::token;
 
+   namespace {
+      // Non-aborting core-token balance lookup. eosio::token::get_balance() calls accounts.get()
+      // which asserts ("no balance with specified symbol") when the owner has no row for the
+      // symbol. claimrewards_snapshot() runs inside onblock, so that assert would HALT block
+      // production if eosio.tedp's core-symbol balance row were ever absent (e.g. closed). The
+      // eosio.token `accounts` table struct is private in eosio.token.hpp, so mirror its layout
+      // (no [[eosio::table]] attribute -> not added to eosio.system's ABI) and treat a missing
+      // row as a zero balance. Downstream logic already handles amount <= 0 by issuing.
+      struct token_account_balance {
+         eosio::asset balance;
+         uint64_t primary_key() const { return balance.symbol.code().raw(); }
+
+         EOSLIB_SERIALIZE( token_account_balance, (balance) )
+      };
+      typedef eosio::multi_index< "accounts"_n, token_account_balance > token_accounts_table;
+
+      eosio::asset get_balance_or_zero( const eosio::name& token_contract, const eosio::name& owner, const eosio::symbol& sym ) {
+         token_accounts_table acnts( token_contract, owner.value );
+         auto it = acnts.find( sym.code().raw() );
+         return it == acnts.end() ? eosio::asset( 0, sym ) : it->balance;
+      }
+   }
+
    void system_contract::onblock( ignore<block_header> ) {
       using namespace eosio;
 
@@ -298,7 +321,7 @@ namespace eosiosystem {
             auto new_tokens = to_workers + to_producers;
 
             //NOTE: This line can cause failure if eosio.tedp doesn't have a balance emplacement
-            asset tedp_balance = eosio::token::get_balance(token_account, tedp_account, core_symbol().code());
+            asset tedp_balance = get_balance_or_zero(token_account, tedp_account, core_symbol());
 
             int64_t transfer_tokens = 0;
             int64_t issue_tokens = 0;
@@ -449,7 +472,7 @@ namespace eosiosystem {
       check(payouts_made, "No payouts are due");
 
       // Gets the TEDP account balance
-      asset tedp_balance = eosio::token::get_balance(token_account, tedp_account, core_symbol().code());
+      asset tedp_balance = get_balance_or_zero(token_account, tedp_account, core_symbol());
 
       // Calculates the amount of TLOS need to be issued
       int64_t issue_tokens = 0;

@@ -656,6 +656,15 @@ namespace eosiosystem {
    }
 
    void system_contract::getevmvote( std::vector<eosio::name> bps ) {
+      // getevmvote mutates consensus-relevant producer vote weight (and, under Savanna, the
+      // finalizer set). It must NOT be permissionless: an unauthenticated caller can choose
+      // which BPs to sync and when, and can drive the partial-sync inflation described in the
+      // audit. Gate it on the system account. NOTE: the caller is responsible for syncing the
+      // COMPLETE set of producers whose EVM vote changed (both increases and decreases) in one
+      // transaction; partial syncs leave un-synced producers stale. A future redesign should
+      // track a per-producer EVM-vote component separately from total_votes before EVM voting
+      // is enabled on mainnet.
+      require_auth( get_self() );
 
       eosio::check(_gvoting_config.evm_voting_contract != eosio::checksum160(), "EVM voting contract not set");
 
@@ -742,7 +751,14 @@ namespace eosiosystem {
                uint256_t current_vote = eosio_evm::checksum256ToValue(total_votes_of_bp->value);
                uint256_t current_vote_normalized = current_vote / ten_power_14; // Divide by 1e14
                uint64_t current_vote_normalized_u64 = current_vote_normalized.lo.lo;
-               double vote_delta = double(current_vote_normalized_u64 - previous_vote_normalized_u64);
+               // Compute the delta without unsigned wraparound. Both operands are uint64; the
+               // previous form `double(current - previous)` underflowed to ~1.84e19 whenever a
+               // BP's EVM vote DECREASED (normal via decay/unvote), inflating total_votes and
+               // corrupting the schedule/finalizer set. Subtract the smaller from the larger and
+               // carry the sign explicitly.
+               double vote_delta = (current_vote_normalized_u64 >= previous_vote_normalized_u64)
+                  ?  double(current_vote_normalized_u64 - previous_vote_normalized_u64)
+                  : -double(previous_vote_normalized_u64 - current_vote_normalized_u64);
                p.total_votes += vote_delta;
                if ( p.total_votes < 0 ) {
                   p.total_votes = 0;
@@ -764,6 +780,9 @@ namespace eosiosystem {
       eosio::check(is_changed, "None of the BPs EVM votes has been changed");
    }
    void system_contract::setbpevmstat( eosio::name bp ) {
+      // Sends a system-authored inline eosio.evm `raw` transaction and is consensus-adjacent;
+      // must not be permissionless. Gate on the system account.
+      require_auth( get_self() );
 
       eosio::check(_gvoting_config.evm_voting_contract != eosio::checksum160(), "EVM voting contract not set");
 

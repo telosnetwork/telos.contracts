@@ -292,6 +292,18 @@ namespace eosiosystem {
 
       if( fin_key_itr->is_active(finalizer->active_key_id) ) {
          check( finalizer->finalizer_key_count == 1, "cannot delete an active key unless it is the last registered finalizer key, has " + std::to_string(finalizer->finalizer_key_count) + " keys");
+
+         // Deleting the active (and, per the check above, last) key removes this producer from
+         // the keyed set. Under Savanna a still-active producer that drops its only finalizer key
+         // shrinks the keyed producer count, which can push it below last_producer_schedule_size
+         // and freeze both the producer-schedule and finalizer-policy updates (audit finding #9).
+         // Require the producer to unregister first so the keyed set cannot silently fall below
+         // the active schedule via key deletion.
+         if( is_savanna_consensus() ) {
+            auto prod = _producers.find( finalizer_name.value );
+            check( prod == _producers.end() || !prod->is_active,
+                   "an active producer cannot delete its last finalizer key under Savanna; call unregprod first" );
+         }
       }
 
       if( finalizer->finalizer_key_count == 1 ) {
