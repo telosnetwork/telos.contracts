@@ -430,7 +430,7 @@ BOOST_FIXTURE_TEST_CASE(delete_finalizer_key_success_test, finalizer_key_upstrea
    // Alice registers as a producer
    BOOST_REQUIRE_EQUAL( success(), regproducer(alice) );
 
-   // Alice registers two keys and the first key is active 
+   // Alice registers two keys and the first key is active
    BOOST_REQUIRE_EQUAL( success(), register_finalizer_key(alice, finalizer_key_1, pop_1) );
    BOOST_REQUIRE_EQUAL( success(), register_finalizer_key(alice, finalizer_key_2, pop_2) );
 

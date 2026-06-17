@@ -240,8 +240,9 @@ BOOST_FIXTURE_TEST_CASE( delfinkey_blocked_for_active_producer_under_savanna, fi
    }
    BOOST_REQUIRE_EQUAL( success(), switchtosvnn( config::system_account_name ) );
 
-   // active producer cannot drop its only (active) finalizer key while on Savanna
-   BOOST_REQUIRE_EQUAL( wasm_assert_msg( "an active producer cannot delete its last finalizer key under Savanna; call unregprod first" ),
+   // With exactly last_producer_schedule_size (21) keyed producers, dropping one would leave too
+   // few keyed candidates to fill the schedule, so the deletion is blocked (no replacement).
+   BOOST_REQUIRE_EQUAL( wasm_assert_msg( "deleting this finalizer key would drop the keyed producer set below the active schedule size; unregister the producer or register a replacement first" ),
                         delfinkey( victim, victim_pub ) );
 
    // once the producer is unregistered (inactive), the key may be deleted

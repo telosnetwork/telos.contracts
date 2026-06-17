@@ -293,16 +293,27 @@ namespace eosiosystem {
       if( fin_key_itr->is_active(finalizer->active_key_id) ) {
          check( finalizer->finalizer_key_count == 1, "cannot delete an active key unless it is the last registered finalizer key, has " + std::to_string(finalizer->finalizer_key_count) + " keys");
 
-         // Deleting the active (and, per the check above, last) key removes this producer from
-         // the keyed set. Under Savanna a still-active producer that drops its only finalizer key
-         // shrinks the keyed producer count, which can push it below last_producer_schedule_size
-         // and freeze both the producer-schedule and finalizer-policy updates (audit finding #9).
-         // Require the producer to unregister first so the keyed set cannot silently fall below
-         // the active schedule via key deletion.
-         if( is_savanna_consensus() ) {
-            auto prod = _producers.find( finalizer_name.value );
-            check( prod == _producers.end() || !prod->is_active,
-                   "an active producer cannot delete its last finalizer key under Savanna; call unregprod first" );
+         // Deleting the active (and, per the check above, last) key removes this producer from the
+         // keyed set. Under Savanna, update_elected_producers() stops proposing (freezing both the
+         // producer schedule and finalizer policy) when the number of keyed, active, voted
+         // producers falls below last_producer_schedule_size. Block the deletion only in that case
+         // -- i.e. when there is no replacement to keep the schedule full. When enough other keyed
+         // producers remain, the schedule simply replaces this one, which is allowed (this is the
+         // normal finalizer-replacement flow).
+         auto prod = _producers.find( finalizer_name.value );
+         if( is_savanna_consensus() && prod != _producers.end() && prod->is_active ) {
+            uint32_t other_keyed_active = 0;
+            for( auto fitr = _finalizers.begin(); fitr != _finalizers.end(); ++fitr ) {
+               if( fitr->finalizer_name == finalizer_name || fitr->active_key_binary.empty() ) {
+                  continue;
+               }
+               auto other_prod = _producers.find( fitr->finalizer_name.value );
+               if( other_prod != _producers.end() && other_prod->is_active && other_prod->total_votes > 0 ) {
+                  ++other_keyed_active;
+               }
+            }
+            check( other_keyed_active >= _gstate.last_producer_schedule_size,
+                   "deleting this finalizer key would drop the keyed producer set below the active schedule size; unregister the producer or register a replacement first" );
          }
       }
 

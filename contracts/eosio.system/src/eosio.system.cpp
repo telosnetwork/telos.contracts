@@ -626,8 +626,8 @@ namespace eosiosystem {
       std::array<uint8_t, 20> evm_voting_contract_address = _gvoting_config.evm_voting_contract.extract_as_byte_array();
       auto accounts_byaccount = account.get_index<eosio::name("byaccount")>();
       auto eosio_account = accounts_byaccount.find(get_self().value);
-      std::optional<eosio::checksum160> eosio_account_address = eosio_account->address;
       eosio::check(eosio_account != accounts_byaccount.end(),"eosio EVM address not found");
+      std::optional<eosio::checksum160> eosio_account_address = eosio_account->address;
 
       // Encode EVM transaction
       auto tx_hex = rlp::encode(
@@ -839,8 +839,8 @@ namespace eosiosystem {
       // Get eosio EVM address nonce
       auto accounts_byaccount = account.get_index<eosio::name("byaccount")>();
       auto eosio_account = accounts_byaccount.find(get_self().value);
-      std::optional<eosio::checksum160> eosio_account_address = eosio_account->address;
       eosio::check(eosio_account != accounts_byaccount.end(),"eosio EVM address not found");
+      std::optional<eosio::checksum160> eosio_account_address = eosio_account->address;
 
       // Encode EVM transaction
       auto tx_hex = rlp::encode(
