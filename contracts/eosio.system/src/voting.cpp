@@ -544,13 +544,10 @@ namespace eosiosystem {
                   p.total_votes = 0;
                }
                _gstate.total_producer_vote_weight += pd.second.first;
-               // Keep the global aggregate consistent with the per-producer clamp above. Without
-               // this, the negative mass discarded by the per-producer clamp leaks into the
-               // unclamped global and can drift it below the recalculate_votes() `<= -0.1`
-               // trigger. The EVM-vote path (eosio.system.cpp) already clamps identically.
-               if ( _gstate.total_producer_vote_weight < 0 ) {
-                  _gstate.total_producer_vote_weight = 0;
-               }
+               // The global aggregate is floored at >= 0 once, after this loop (see below), rather
+               // than per iteration: clamping here would discard negative mass mid-loop and bias
+               // the total upward when a set-changing re-vote applies old (negative) and new
+               // (positive) deltas in name order.
                //check( p.total_votes >= 0, "something bad happened" );
             });
          } else {
@@ -559,6 +556,15 @@ namespace eosiosystem {
                check( false, ( "producer " + pd.first.to_string() + " is not registered" ).data() );
             }
          }
+      }
+
+      // Floor the global aggregate once, after every per-producer delta has been applied. Each
+      // producer total is clamped to >= 0 individually, which discards negative mass from the
+      // unclamped global; flooring here keeps the global from drifting below the
+      // recalculate_votes() `<= -0.1` trigger, while giving the exact net (no ordering-dependent
+      // upward bias from clamping mid-loop).
+      if ( _gstate.total_producer_vote_weight < 0 ) {
+         _gstate.total_producer_vote_weight = 0;
       }
 
       _voters.modify( voter, same_payer, [&]( auto& av ) {

@@ -17,7 +17,7 @@ namespace eosiosystem {
       // Non-aborting core-token balance lookup. eosio::token::get_balance() calls accounts.get()
       // which asserts ("no balance with specified symbol") when the owner has no row for the
       // symbol. claimrewards_snapshot() runs inside onblock, so that assert would HALT block
-      // production if eosio.tedp's core-symbol balance row were ever absent (e.g. closed). The
+      // production if the TEDP account's (exrsrv.tf) core-symbol balance row were ever absent. The
       // eosio.token `accounts` table struct is private in eosio.token.hpp, so mirror its layout
       // (no [[eosio::table]] attribute -> not added to eosio.system's ABI) and treat a missing
       // row as a zero balance. Downstream logic already handles amount <= 0 by issuing.
