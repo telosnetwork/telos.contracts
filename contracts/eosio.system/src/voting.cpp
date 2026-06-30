@@ -45,6 +45,13 @@ namespace eosiosystem {
       }, producer_authority );
 
       if ( prod != _producers.end() ) {
+         if ( prod->kick_penalty_hours > 0 ) {
+            const auto penalty_expiration_time = prod->last_time_kicked.to_time_point()
+                                               + microseconds( int64_t(prod->kick_penalty_hours) * useconds_per_hour );
+            check( ct > penalty_expiration_time,
+                   "Producer is not allowed to register at this time. Please fix your node and try again later." );
+         }
+
          _producers.modify( prod, producer, [&]( producer_info& info ){
             info.producer_key       = producer_key;
             info.is_active          = true;

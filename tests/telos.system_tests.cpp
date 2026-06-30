@@ -567,6 +567,33 @@ BOOST_FIXTURE_TEST_CASE(schedule_metrics_survive_location_swap, eosio_system_tes
    }
 } FC_LOG_AND_RETHROW()
 
+BOOST_FIXTURE_TEST_CASE(votebpout_penalty_blocks_early_reregistration, eosio_system_tester) try {
+   const name producer = "penaltyprod"_n;
+   setup_producer_accounts({producer});
+   BOOST_REQUIRE_EQUAL(success(), regproducer(producer));
+
+   BOOST_REQUIRE_EQUAL(success(), push_action(config::system_account_name, "votebpout"_n, mvo()
+                       ("bp", producer)("penalty_hours", 168)));
+
+   auto kicked_info = get_producer_info(producer);
+   BOOST_REQUIRE_EQUAL(false, kicked_info["is_active"].as<bool>());
+   BOOST_REQUIRE_EQUAL(168u, kicked_info["kick_penalty_hours"].as<uint32_t>());
+   BOOST_REQUIRE_EQUAL(2u, kicked_info["kick_reason_id"].as<uint32_t>());
+
+   BOOST_REQUIRE_EQUAL(wasm_assert_msg("Producer is not allowed to register at this time. Please fix your node and try again later."),
+                       push_action(producer, "regproducer"_n, mvo()
+                       ("producer", producer)("producer_key", get_public_key(producer, "active"))
+                       ("url", "")("location", 0)));
+
+   produce_block(fc::seconds(168 * 3600 + 1));
+   BOOST_REQUIRE_EQUAL(success(), push_action(producer, "regproducer"_n, mvo()
+                       ("producer", producer)("producer_key", get_public_key(producer, "active"))
+                       ("url", "")("location", 0)));
+
+   auto restored_info = get_producer_info(producer);
+   BOOST_REQUIRE_EQUAL(true, restored_info["is_active"].as<bool>());
+} FC_LOG_AND_RETHROW()
+
 // End-to-end missed-block autokick: a scheduled producer that stops producing
 // must accumulate missed blocks across rotation cycles, get kicked once the
 // threshold is crossed, and have lifetime_missed_blocks counted exactly once
