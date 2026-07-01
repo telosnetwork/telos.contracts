@@ -1085,6 +1085,11 @@ public:
       return data.empty() ? fc::variant() : abi_ser.binary_to_variant( "rotation_state", data, abi_serializer::create_yield_function(abi_serializer_max_time) );
    }
 
+   fc::variant get_voting_config() {
+      vector<char> data = get_row_by_account( config::system_account_name, config::system_account_name, "votingconfig"_n, "votingconfig"_n );
+      return data.empty() ? fc::variant() : abi_ser.binary_to_variant( "votingconfig", data, abi_serializer::create_yield_function(abi_serializer_max_time) );
+   }
+
    fc::variant get_payment_info( name account ) {
       vector<char> data = get_row_by_account( config::system_account_name, config::system_account_name, "payments"_n, account );
       return data.empty() ? fc::variant() : abi_ser.binary_to_variant( "payment_info", data, abi_serializer::create_yield_function(abi_serializer_max_time) );

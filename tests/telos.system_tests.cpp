@@ -700,4 +700,60 @@ BOOST_FIXTURE_TEST_CASE( evm_vote_sync_actions_require_system_auth, eosio_system
                         push_action( config::system_account_name, "setbpevmstat"_n, mvo()("bp", "alice1111111"_n) ) );
 } FC_LOG_AND_RETHROW()
 
+BOOST_FIXTURE_TEST_CASE( voting_config_actions_require_system_auth, eosio_system_tester ) try {
+   const std::string evm_contract = "1111111111111111111111111111111111111111";
+
+   BOOST_REQUIRE_EQUAL( error( "missing authority of eosio" ),
+                        push_action( "alice1111111"_n, "setvotecontr"_n, mvo()("contract", evm_contract) ) );
+   BOOST_REQUIRE_EQUAL( error( "missing authority of eosio" ),
+                        push_action( "bob111111111"_n, "setselfstake"_n, mvo()("self_stake_boost_multiplier", uint64_t(10)) ) );
+   BOOST_REQUIRE_EQUAL( error( "missing authority of eosio" ),
+                        push_action( "carol1111111"_n, "setvotedecay"_n, mvo()
+                                     ("decay_start_epoch", uint64_t(1000))
+                                     ("decay_increase_yearly", uint64_t(10)) ) );
+} FC_LOG_AND_RETHROW()
+
+BOOST_FIXTURE_TEST_CASE( voting_config_actions_update_and_validate, eosio_system_tester ) try {
+   auto cfg = get_voting_config();
+   BOOST_REQUIRE( !cfg.is_null() );
+   BOOST_REQUIRE_EQUAL( 0u, cfg["decay_start_epoch"].as<uint64_t>() );
+   BOOST_REQUIRE_EQUAL( 0u, cfg["decay_increase_yearly"].as<uint64_t>() );
+   BOOST_REQUIRE_EQUAL( 0u, cfg["self_stake_boost_multiplier"].as<uint64_t>() );
+
+   BOOST_REQUIRE_EQUAL( wasm_assert_msg( "EVM voting contract not set" ),
+                        push_action( config::system_account_name, "setvotedecay"_n, mvo()
+                                     ("decay_start_epoch", uint64_t(1000))
+                                     ("decay_increase_yearly", uint64_t(10)) ) );
+
+   BOOST_REQUIRE_EQUAL( wasm_assert_msg( "self_stake_boost_multiplier must be <= 1000" ),
+                        push_action( config::system_account_name, "setselfstake"_n,
+                                     mvo()("self_stake_boost_multiplier", uint64_t(1001)) ) );
+
+   BOOST_REQUIRE_EQUAL( success(),
+                        push_action( config::system_account_name, "setselfstake"_n,
+                                     mvo()("self_stake_boost_multiplier", uint64_t(250)) ) );
+   cfg = get_voting_config();
+   BOOST_REQUIRE_EQUAL( 250u, cfg["self_stake_boost_multiplier"].as<uint64_t>() );
+
+   const std::string evm_contract = "1111111111111111111111111111111111111111";
+   BOOST_REQUIRE_EQUAL( success(),
+                        push_action( config::system_account_name, "setvotecontr"_n, mvo()("contract", evm_contract) ) );
+   cfg = get_voting_config();
+   BOOST_REQUIRE_EQUAL( evm_contract, cfg["evm_voting_contract"].as_string() );
+
+   BOOST_REQUIRE_EQUAL( wasm_assert_msg( "decay_increase_yearly must be <= 100 (100%)" ),
+                        push_action( config::system_account_name, "setvotedecay"_n, mvo()
+                                     ("decay_start_epoch", uint64_t(1000))
+                                     ("decay_increase_yearly", uint64_t(101)) ) );
+
+   BOOST_REQUIRE_EQUAL( wasm_assert_msg( "eosio EVM address not found" ),
+                        push_action( config::system_account_name, "setvotedecay"_n, mvo()
+                                     ("decay_start_epoch", uint64_t(1000))
+                                     ("decay_increase_yearly", uint64_t(10)) ) );
+
+   cfg = get_voting_config();
+   BOOST_REQUIRE_EQUAL( 0u, cfg["decay_start_epoch"].as<uint64_t>() );
+   BOOST_REQUIRE_EQUAL( 0u, cfg["decay_increase_yearly"].as<uint64_t>() );
+} FC_LOG_AND_RETHROW()
+
 BOOST_AUTO_TEST_SUITE_END()
