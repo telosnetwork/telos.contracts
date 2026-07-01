@@ -588,7 +588,7 @@ namespace eosiosystem {
 
    void system_contract::regproxy( const name& proxy, bool isproxy ) {
       // TELOS BEGIN
-      // require_auth( proxy );
+      require_auth( proxy );
       check ( !isproxy, "proxy voting is disabled" );
       // TELOS END
 

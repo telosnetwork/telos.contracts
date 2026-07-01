@@ -607,6 +607,34 @@ BOOST_FIXTURE_TEST_CASE(votebpout_penalty_blocks_early_reregistration, eosio_sys
    BOOST_REQUIRE_EQUAL(true, restored_info["is_active"].as<bool>());
 } FC_LOG_AND_RETHROW()
 
+BOOST_FIXTURE_TEST_CASE(regproxy_requires_proxy_auth, eosio_system_tester) try {
+   const name proxy = "proxyguard11"_n;
+   const name attacker = "proxyattackr"_n;
+   const asset small_asset = core_sym::from_string("1.0000");
+
+   create_account_with_resources(proxy, config::system_account_name, small_asset, false, small_asset, small_asset);
+   create_account_with_resources(attacker, config::system_account_name, small_asset, false, small_asset, small_asset);
+
+   BOOST_REQUIRE(get_voter_info(proxy).is_null());
+
+   BOOST_REQUIRE_EQUAL(error("missing authority of proxyguard11"),
+                       push_action(attacker, "regproxy"_n, mvo()
+                       ("proxy", proxy)("isproxy", false)));
+   BOOST_REQUIRE(get_voter_info(proxy).is_null());
+
+   BOOST_REQUIRE_EQUAL(wasm_assert_msg("proxy voting is disabled"),
+                       push_action(proxy, "regproxy"_n, mvo()
+                       ("proxy", proxy)("isproxy", true)));
+   BOOST_REQUIRE(get_voter_info(proxy).is_null());
+
+   BOOST_REQUIRE_EQUAL(success(), push_action(proxy, "regproxy"_n, mvo()
+                       ("proxy", proxy)("isproxy", false)));
+
+   auto voter_info = get_voter_info(proxy);
+   BOOST_REQUIRE(!voter_info.is_null());
+   BOOST_REQUIRE_EQUAL(false, voter_info["is_proxy"].as<bool>());
+} FC_LOG_AND_RETHROW()
+
 // End-to-end missed-block autokick: a scheduled producer that stops producing
 // must accumulate missed blocks across rotation cycles, get kicked once the
 // threshold is crossed, and have lifetime_missed_blocks counted exactly once
