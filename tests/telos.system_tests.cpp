@@ -1,5 +1,6 @@
 #include <boost/test/unit_test.hpp>
 #include <cmath>
+#include <limits>
 #include <set>
 
 #include "eosio.system_tester.hpp"
@@ -572,8 +573,20 @@ BOOST_FIXTURE_TEST_CASE(votebpout_penalty_blocks_early_reregistration, eosio_sys
    setup_producer_accounts({producer});
    BOOST_REQUIRE_EQUAL(success(), regproducer(producer));
 
+   BOOST_REQUIRE_EQUAL(wasm_assert_msg("The penalty should be greater than zero."),
+                       push_action(config::system_account_name, "votebpout"_n, mvo()
+                       ("bp", producer)("penalty_hours", uint32_t(0))));
+
+   BOOST_REQUIRE_EQUAL(wasm_assert_msg("The penalty should not exceed 168 hours."),
+                       push_action(config::system_account_name, "votebpout"_n, mvo()
+                       ("bp", producer)("penalty_hours", uint32_t(169))));
+
+   BOOST_REQUIRE_EQUAL(wasm_assert_msg("The penalty should not exceed 168 hours."),
+                       push_action(config::system_account_name, "votebpout"_n, mvo()
+                       ("bp", producer)("penalty_hours", std::numeric_limits<uint32_t>::max())));
+
    BOOST_REQUIRE_EQUAL(success(), push_action(config::system_account_name, "votebpout"_n, mvo()
-                       ("bp", producer)("penalty_hours", 168)));
+                       ("bp", producer)("penalty_hours", uint32_t(168))));
 
    auto kicked_info = get_producer_info(producer);
    BOOST_REQUIRE_EQUAL(false, kicked_info["is_active"].as<bool>());

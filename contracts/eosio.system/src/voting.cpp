@@ -46,6 +46,8 @@ namespace eosiosystem {
 
       if ( prod != _producers.end() ) {
          if ( prod->kick_penalty_hours > 0 ) {
+            check( prod->kick_penalty_hours <= std::numeric_limits<int64_t>::max() / useconds_per_hour,
+                   "Producer kick penalty is too large." );
             const auto penalty_expiration_time = prod->last_time_kicked.to_time_point()
                                                + microseconds( int64_t(prod->kick_penalty_hours) * useconds_per_hour );
             check( ct > penalty_expiration_time,
