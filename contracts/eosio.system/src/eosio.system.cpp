@@ -20,6 +20,10 @@ namespace eosiosystem {
    using eosio::current_time_point;
    using eosio::token;
 
+   namespace {
+      constexpr uint32_t max_votebpout_penalty_hours = 168;
+   }
+
    // TELOS BEGIN - Constants for EVM voting integration
    namespace evm_voting_constants {
       // EVM storage slot indices for voting contract state
@@ -564,6 +568,7 @@ namespace eosiosystem {
    void system_contract::votebpout(name bp, uint32_t penalty_hours) {
       require_auth(_self);
       check(penalty_hours != 0, "The penalty should be greater than zero.");
+      check(penalty_hours <= max_votebpout_penalty_hours, "The penalty should not exceed 168 hours.");
 
       auto pitr = _producers.find(bp.value);
       check(pitr != _producers.end(), "Producer account was not found");
