@@ -2,8 +2,6 @@
 #include <eosio/testing/tester.hpp>
 #include <eosio/chain/abi_serializer.hpp>
 
-#include <Runtime/Runtime.h>
-
 #include <fc/variant_object.hpp>
 
 #include "contracts.hpp"
@@ -16,7 +14,7 @@ using namespace fc;
 
 using mvo = fc::mutable_variant_object;
 
-class eosio_wrap_tester : public tester {
+class eosio_wrap_tester : public legacy_validating_tester {
 public:
 
    eosio_wrap_tester() {

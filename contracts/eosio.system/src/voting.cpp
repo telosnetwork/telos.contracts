@@ -45,6 +45,13 @@ namespace eosiosystem {
       }, producer_authority );
 
       if ( prod != _producers.end() ) {
+         if ( prod->kick_penalty_hours > 0 ) {
+            const auto penalty_expiration_time = prod->last_time_kicked.to_time_point()
+                                               + microseconds( int64_t(prod->kick_penalty_hours) * useconds_per_hour );
+            check( ct > penalty_expiration_time,
+                   "Producer is not allowed to register at this time. Please fix your node and try again later." );
+         }
+
          _producers.modify( prod, producer, [&]( producer_info& info ){
             info.producer_key       = producer_key;
             info.is_active          = true;
@@ -127,6 +134,7 @@ namespace eosiosystem {
       _gstate.last_producer_schedule_update = block_time;
 
       auto idx = _producers.get_index<"prototalvote"_n>();
+      bool is_savanna = is_savanna_consensus();
 
       // TELOS BEGIN
       uint32_t totalActiveVotedProds = uint32_t(std::distance(idx.begin(), idx.end()));
@@ -136,6 +144,10 @@ namespace eosiosystem {
       active_producers.reserve(totalActiveVotedProds);
 
       for( auto it = idx.cbegin(); it != idx.cend() && active_producers.size() < totalActiveVotedProds /*TELOS*/ && 0 < it->total_votes && it->active(); ++it ) {
+         if( is_savanna && !has_active_finalizer_key(it->owner) ) {
+            continue;
+         }
+
          active_producers.emplace_back(
             eosio::producer_authority{
                .producer_name = it->owner,
@@ -164,23 +176,68 @@ namespace eosiosystem {
          producers.push_back( std::move(item.first) );
 
       // TELOS BEGIN
+      // Only rebuild schedule metrics when schedule *membership* changes.
+      // The comparison uses sorted producer names rather than positions:
+      // top_producers is sorted by location (with possible ties, and a
+      // non-stable sort over vote-ordered input), so positional order can
+      // differ between proposals even when membership is identical. All
+      // consumers of producers_metric are name-keyed, so order is irrelevant.
+      // Under Savanna, set_proposed_producers() succeeds even for unchanged
+      // schedules; rebuilding metrics on every successful proposal would wipe
+      // missed-block counters before autokick could reach its threshold.
+      auto schedule_metrics_changed = [&]() {
+         if( _gschedule_metrics.producers_metric.size() != top_producers.size() ) {
+            return true;
+         }
+
+         std::vector<name> prev_names;
+         prev_names.reserve(_gschedule_metrics.producers_metric.size());
+         for( const auto& metric: _gschedule_metrics.producers_metric ) {
+            prev_names.emplace_back(metric.bp_name);
+         }
+
+         std::vector<name> new_names;
+         new_names.reserve(top_producers.size());
+         for( const auto& tp: top_producers ) {
+            new_names.emplace_back(tp.first.producer_name);
+         }
+
+         std::sort(prev_names.begin(), prev_names.end());
+         std::sort(new_names.begin(), new_names.end());
+
+         return prev_names != new_names;
+      };
+
       auto schedule_version = set_proposed_producers(producers);
       if (schedule_version >= 0) {
         print("\n**new schedule was proposed**");
 
         _gstate.last_proposed_schedule_update = block_time;
 
-        _gschedule_metrics.producers_metric.erase( _gschedule_metrics.producers_metric.begin(), _gschedule_metrics.producers_metric.end());
+        if( schedule_metrics_changed() ) {
+          _gschedule_metrics.producers_metric.erase( _gschedule_metrics.producers_metric.begin(), _gschedule_metrics.producers_metric.end());
 
-        std::vector<producer_metric> psm;
-        std::for_each(top_producers.begin(), top_producers.end(), [&psm](auto &tp) {
-          auto bp_name = tp.first.producer_name;
-          psm.emplace_back(producer_metric{ bp_name, 12 });
-        });
+          std::vector<producer_metric> psm;
+          std::for_each(top_producers.begin(), top_producers.end(), [&psm](auto &tp) {
+            auto bp_name = tp.first.producer_name;
+            psm.emplace_back(producer_metric{ bp_name, 12 });
+          });
 
-        _gschedule_metrics.producers_metric = psm;
+          _gschedule_metrics.producers_metric = psm;
+        }
 
         _gstate.last_producer_schedule_size = static_cast<decltype(_gstate.last_producer_schedule_size)>(top_producers.size());
+      }
+
+      // Propose the finalizer policy for the new top producers. This is
+      // intentionally not gated on set_proposed_producers() succeeding, to
+      // match upstream reference-contracts behavior: set_proposed_finalizers()
+      // is itself a no-op when the policy is unchanged, and proposing here
+      // ensures the finalizer policy converges with the producer schedule on
+      // the next successful proposal even if this one was rejected (e.g. a
+      // prior pending schedule has not activated yet).
+      if( is_savanna ) {
+         set_proposed_finalizers( get_finalizers_for_producers(top_producers) );
       }
       // TELOS END
    }
@@ -366,7 +423,7 @@ namespace eosiosystem {
    } // voteupdate
 
 
-   void system_contract::update_votes( const name& voter_name, const name& proxy, const std::vector<name>& producers, bool voting ) {
+   void system_contract::update_votes( const name& voter_name, const name& proxy, const std::vector<name>& producers, bool voting, bool recalculating ) {
       //validate input
       if ( proxy ) {
          check( producers.size() == 0, "cannot vote for producers and proxy at same time" );
@@ -447,16 +504,22 @@ namespace eosiosystem {
 
       if( proxy ) {
          auto new_proxy = _voters.find( proxy.value );
-         check( new_proxy != _voters.end(), "invalid proxy specified" ); //if ( !voting ) { data corruption } else { wrong vote }
-         check( !voting || new_proxy->is_proxy, "proxy not found" );
+         const bool stale_proxy = ( new_proxy == _voters.end() || !new_proxy->is_proxy );
+         // During a recalculation replay (which runs inside onblock), a voter may still reference
+         // a proxy that has since deregistered or disappeared. Skip the stale proxy contribution
+         // instead of aborting: a check(false) here would halt block production.
+         if( !( recalculating && stale_proxy ) ) {
+            check( new_proxy != _voters.end(), "invalid proxy specified" ); //if ( !voting ) { data corruption } else { wrong vote }
+            check( !voting || new_proxy->is_proxy, "proxy not found" );
 
-         _voters.modify( new_proxy, same_payer, [&]( auto& vp ) {
-            vp.proxied_vote_weight += voter->staked;
-         });
+            _voters.modify( new_proxy, same_payer, [&]( auto& vp ) {
+               vp.proxied_vote_weight += voter->staked;
+            });
 
-         if((*new_proxy).last_vote_weight > 0){
-            _gstate.total_activated_stake += totalStaked - voter->last_stake;
-            propagate_weight_change( *new_proxy );
+            if((*new_proxy).last_vote_weight > 0){
+               _gstate.total_activated_stake += totalStaked - voter->last_stake;
+               propagate_weight_change( *new_proxy );
+            }
          }
       } else {
          if( new_vote_weight >= 0 ) {
@@ -476,6 +539,10 @@ namespace eosiosystem {
          auto pitr = _producers.find( pd.first.value );
          if( pitr != _producers.end() ) {
             if( voting && !pitr->active() && pd.second.second /* from new set */ ) {
+               // During a recalculation replay (runs inside onblock), a voter may still list a
+               // producer that has since been deactivated. Skip it instead of aborting; a
+               // check(false) on this path would permanently halt block production.
+               if( recalculating ) continue;
                check( false, ( "producer " + pitr->owner.to_string() + " is not currently registered" ).data() );
             }
             _producers.modify( pitr, same_payer, [&]( auto& p ) {
@@ -484,13 +551,27 @@ namespace eosiosystem {
                   p.total_votes = 0;
                }
                _gstate.total_producer_vote_weight += pd.second.first;
+               // The global aggregate is floored at >= 0 once, after this loop (see below), rather
+               // than per iteration: clamping here would discard negative mass mid-loop and bias
+               // the total upward when a set-changing re-vote applies old (negative) and new
+               // (positive) deltas in name order.
                //check( p.total_votes >= 0, "something bad happened" );
             });
          } else {
             if( pd.second.second ) {
+               if( recalculating ) continue;
                check( false, ( "producer " + pd.first.to_string() + " is not registered" ).data() );
             }
          }
+      }
+
+      // Floor the global aggregate once, after every per-producer delta has been applied. Each
+      // producer total is clamped to >= 0 individually, which discards negative mass from the
+      // unclamped global; flooring here keeps the global from drifting below the
+      // recalculate_votes() `<= -0.1` trigger, while giving the exact net (no ordering-dependent
+      // upward bias from clamping mid-loop).
+      if ( _gstate.total_producer_vote_weight < 0 ) {
+         _gstate.total_producer_vote_weight = 0;
       }
 
       _voters.modify( voter, same_payer, [&]( auto& av ) {
@@ -609,7 +690,15 @@ namespace eosiosystem {
             auto &pitr = _producers.get(acnt.value, "producer not found"); // data corruption
             _producers.modify(pitr, same_payer, [&](auto &p) {
                p.total_votes += delta;
+               if (p.total_votes < 0) {
+                  p.total_votes = 0;
+               }
                _gstate.total_producer_vote_weight += delta;
+               // Clamp the global aggregate (see update_votes) so a negative delta cannot drift
+               // it below the recalculate_votes() trigger.
+               if (_gstate.total_producer_vote_weight < 0) {
+                  _gstate.total_producer_vote_weight = 0;
+               }
             });
          }
       }
@@ -650,7 +739,9 @@ namespace eosiosystem {
                 });
                 processed_proxies[voter->owner] = true;
             }
-            update_votes(voter->owner, voter->proxy, voter->producers, true);
+            // recalculating=true: this replay runs inside onblock, so it must never abort on a
+            // stale (now-inactive/removed) producer or deregistered proxy left in a voter row.
+            update_votes(voter->owner, voter->proxy, voter->producers, true, /*recalculating=*/true);
         }
     }
    }

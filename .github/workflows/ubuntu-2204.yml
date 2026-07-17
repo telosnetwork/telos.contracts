@@ -6,25 +6,78 @@ on:
       - "release/*"
   pull_request:
     types: [assigned, opened, synchronize, reopened, labeled]
+  workflow_dispatch:
 env:
-  BUILDER_IMAGE: "apm2006/leap:v3.2.5-cdt4.0.1"
+  CDT_VERSION: "4.1.1"
+  CDT_DEB_SHA256: "d946e6b64f297442d19e486401aa49f956080b07a1fa6335f29976106175b588"
+  # Commit SHA of tag teloszero-v1.2.2 (tags are mutable; pin the commit)
+  TELOSZERO_REF: "fcb9f5fc627619a8b06cd6b871c462b1d70d3aa4"
+  EXPECTED_EOSIO_SYSTEM_ABI_SHA256: "5545f53b6b2e407acb45c6d14e283866c451d8e47c567baeb74284a55c93c9e1"
+  EXPECTED_EOSIO_SYSTEM_WASM_SHA256: "c4dc8dad19768a7ac3bc3519111c6ea632faf9a829eae9366fcb51bba94969f4"
 jobs:
-  ubuntu-2404-build:
-    name: Ubuntu 22.04 | Build
-    runs-on: ubuntu-latest
+  ubuntu-2204-build:
+    name: Ubuntu 22.04 | Spring/Telos Zero build
+    runs-on: ubuntu-22.04
+    container: apm2006/leap:v3.2.5-cdt4.0.1
+    defaults:
+      run:
+        shell: bash
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Build
+      - name: Checkout TelosZero Core
+        uses: actions/checkout@v4
+        with:
+          repository: TelosNetwork/teloszero-core
+          ref: ${{ env.TELOSZERO_REF }}
+          path: spring-src
+          submodules: recursive
+      - name: Install CDT
         run: |
-          set -e
-          export DOCKER="docker run --rm -v $(pwd):/root/target ${BUILDER_IMAGE}"
-          docker pull ${BUILDER_IMAGE}
-          echo ${DOCKER}
-          echo =====
-          mkdir build
-          ${DOCKER} bash -c "cd build && cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=yes -Dleap_DIR=/opt/leap/build/lib/cmake/leap .."
-          echo =====
-          ${DOCKER} bash -c "cd build && make -j $(nproc) VERBOSE=1"
-          echo =====
-          ${DOCKER} bash -c 'cd build/tests && ctest -j $(nproc)'
+          set -euo pipefail
+          cdt_deb="/tmp/cdt_${CDT_VERSION}-1_amd64.deb"
+          curl -L --retry 3 --fail \
+            "https://github.com/AntelopeIO/cdt/releases/download/v${CDT_VERSION}/cdt_${CDT_VERSION}-1_amd64.deb" \
+            -o "${cdt_deb}"
+          echo "${CDT_DEB_SHA256}  ${cdt_deb}" | sha256sum -c -
+          dpkg -i "${cdt_deb}"
+          cdt-cpp --version | grep "${CDT_VERSION}"
+          test -f "/usr/opt/cdt/${CDT_VERSION}/include/eosiolib/contracts/eosio/instant_finality.hpp"
+          test -f "/usr/opt/cdt/${CDT_VERSION}/include/eosiolib/core/eosio/crypto_bls_ext.hpp"
+      - name: Build TelosZero tester libraries
+        run: |
+          set -euo pipefail
+          cmake -S spring-src -B spring-build -DCMAKE_BUILD_TYPE=Release
+          cmake --build spring-build --target eosio_testing -- -j "$(nproc)"
+          test -f spring-build/libraries/testing/libeosio_testing.a
+          test -d spring-build/lib/cmake/leap
+      - name: Build contracts
+        run: |
+          set -euo pipefail
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TESTS=yes \
+            -Dleap_DIR="${PWD}/spring-build/lib/cmake/leap"
+          cmake --build build -- -j "$(nproc)" VERBOSE=1
+      - name: Test
+        run: |
+          set -euo pipefail
+          ctest --test-dir build/tests --output-on-failure -j "$(nproc)"
+      - name: Report build artifact hashes
+        run: |
+          set -euo pipefail
+          abi_hash="$(sha256sum build/contracts/eosio.system/eosio.system.abi | awk '{print $1}')"
+          wasm_hash="$(sha256sum build/contracts/eosio.system/eosio.system.wasm | awk '{print $1}')"
+          echo "eosio.system.abi  ${abi_hash}"
+          echo "eosio.system.wasm ${wasm_hash}"
+      # Only enforce the expected release hashes on manually-dispatched runs
+      # and release branches. Asserting on every PR would fail CI for any
+      # legitimate contract change until the expected hashes are updated.
+      - name: Assert release artifact hashes
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/heads/release/')
+        run: |
+          set -euo pipefail
+          abi_hash="$(sha256sum build/contracts/eosio.system/eosio.system.abi | awk '{print $1}')"
+          wasm_hash="$(sha256sum build/contracts/eosio.system/eosio.system.wasm | awk '{print $1}')"
+          test "${abi_hash}" = "${EXPECTED_EOSIO_SYSTEM_ABI_SHA256}"
+          test "${wasm_hash}" = "${EXPECTED_EOSIO_SYSTEM_WASM_SHA256}"

@@ -86,7 +86,13 @@ namespace eosiosystem {
       if (_gschedule_metrics.last_onblock_caller == "eosio"_n) {
         for (auto &pm : _gschedule_metrics.producers_metric) {
           if (pm.bp_name == producer) {
-            pm.missed_blocks_per_cycle -= uint32_t(_gschedule_metrics.block_counter_correction);
+            // Clamp instead of letting the uint32 subtraction underflow to ~2^32 (which would
+            // make missed_blocks_per_rotation cross the kick threshold and wrongly deactivate a
+            // producer). block_counter_correction can exceed a single cycle's block count.
+            uint32_t correction = uint32_t(_gschedule_metrics.block_counter_correction);
+            pm.missed_blocks_per_cycle = (pm.missed_blocks_per_cycle > correction)
+                                            ? (pm.missed_blocks_per_cycle - correction)
+                                            : 0;
             break;
           }
         }

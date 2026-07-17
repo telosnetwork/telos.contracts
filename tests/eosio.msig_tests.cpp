@@ -4,8 +4,6 @@
 #include <eosio/chain/global_property_object.hpp>
 #include <eosio/chain/wast_to_wasm.hpp>
 
-#include <Runtime/Runtime.h>
-
 #include <fc/variant_object.hpp>
 #include "contracts.hpp"
 #include "test_symbol.hpp"
@@ -18,7 +16,7 @@ using namespace fc;
 
 using mvo = fc::mutable_variant_object;
 
-class eosio_msig_tester : public tester {
+class eosio_msig_tester : public legacy_validating_tester {
 public:
    eosio_msig_tester() {
       create_accounts( { "eosio.msig"_n, "eosio.stake"_n, "eosio.ram"_n, "eosio.ramfee"_n, "alice"_n, "bob"_n, "carol"_n } );
